@@ -16,9 +16,9 @@ export default defineConfig({
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),
-        'next/link': path.resolve(__dirname, './src/lib/compat.tsx'),
-        'next/image': path.resolve(__dirname, './src/lib/compat.tsx'),
-        'next-themes': path.resolve(__dirname, './src/lib/compat.tsx'),
+        'next/link': path.resolve(__dirname, './src/lib/next-link.tsx'),
+        'next/image': path.resolve(__dirname, './src/lib/next-image.tsx'),
+        'next-themes': path.resolve(__dirname, './src/lib/next-themes.tsx'),
       },
     },
   },
