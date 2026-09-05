@@ -6,6 +6,8 @@ export interface SendMailOptions {
   fromName?: string;
   fromEmail?: string;
   organizationId?: string;
+  /** Evita que comunicaciones institucionales usen accidentalmente el proveedor global. */
+  requireOrganizationCredentials?: boolean;
 }
 
 export interface SendCustomMailOptions {

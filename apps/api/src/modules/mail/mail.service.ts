@@ -39,11 +39,26 @@ export class MailService {
 
         if (orgSettings && orgSettings.isActive) {
           const provider = orgSettings.defaultProvider || 'RESEND';
+          const configuredFromEmail = provider === 'RESEND'
+            ? orgSettings.resendFromEmail
+            : (orgSettings.smtpFromEmail || orgSettings.smtpUser);
+          const configuredFromName = provider === 'RESEND'
+            ? orgSettings.resendFromName
+            : orgSettings.smtpFromName;
+          const authorizedSenders = new Set([
+            configuredFromEmail,
+            ...((Array.isArray(orgSettings.verifiedSenders) ? orgSettings.verifiedSenders : [])
+              .map((sender: any) => sender?.email)),
+          ].filter(Boolean).map((email) => String(email).trim().toLowerCase()));
+          const requestedFrom = options.fromEmail?.trim().toLowerCase();
+          if (requestedFrom && !authorizedSenders.has(requestedFrom)) {
+            return { sent: false, reason: 'El remitente elegido no está autorizado en la configuración de correo de la institución.' };
+          }
 
           if (provider === 'RESEND' && orgSettings.resendApiKeyEncrypted) {
             const resendApiKey = decryptCredential(orgSettings.resendApiKeyEncrypted);
-            const fromEmail = options.fromEmail || orgSettings.resendFromEmail || process.env.RESEND_FROM_EMAIL || 'noreply@asipe.site';
-            const fromName = options.fromName || orgSettings.resendFromName || process.env.RESEND_FROM_NAME || 'Events Platform';
+            const fromEmail = options.fromEmail || configuredFromEmail || process.env.RESEND_FROM_EMAIL || 'noreply@asipe.site';
+            const fromName = options.fromName || configuredFromName || process.env.RESEND_FROM_NAME || 'Events Platform';
 
             return this.sendWithResend({
               apiKey: resendApiKey,
@@ -58,8 +73,8 @@ export class MailService {
 
           if ((provider === 'GMAIL_SMTP' || provider === 'CUSTOM_SMTP') && orgSettings.smtpUser && orgSettings.smtpPassEncrypted) {
             const smtpPass = decryptCredential(orgSettings.smtpPassEncrypted);
-            const fromEmail = options.fromEmail || orgSettings.smtpFromEmail || orgSettings.smtpUser;
-            const fromName = options.fromName || orgSettings.smtpFromName || process.env.RESEND_FROM_NAME || 'Events Platform';
+            const fromEmail = options.fromEmail || configuredFromEmail || orgSettings.smtpUser;
+            const fromName = options.fromName || configuredFromName || process.env.RESEND_FROM_NAME || 'Events Platform';
 
             return this.sendWithSmtp({
               host: orgSettings.smtpHost || 'smtp.gmail.com',
@@ -75,6 +90,12 @@ export class MailService {
               text: options.text,
             });
           }
+
+          if (options.requireOrganizationCredentials) {
+            return { sent: false, reason: 'La institución no tiene credenciales activas y completas para el proveedor de correo seleccionado.' };
+          }
+        } else if (options.requireOrganizationCredentials) {
+          return { sent: false, reason: 'La institución no tiene una configuración de correo activa.' };
         }
       } catch (err: any) {
         this.logger.warn(`Error resolving dynamic email settings for org [${options.organizationId}]: ${err.message}. Falling back to default.`);

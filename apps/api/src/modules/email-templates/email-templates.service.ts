@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
+import { blocksToHtml, interpolate } from '../marketing/email-renderer.js';
 
 export const STARTER_TEMPLATES = [
   {
@@ -288,6 +289,16 @@ export class EmailTemplatesService {
       initialContent = STARTER_TEMPLATES[0].content;
     }
 
+    const organization = await this.prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true, emailSettings: true } });
+    if (!organization) throw new NotFoundException('Organización no encontrada');
+    const emailSettings = organization.emailSettings;
+    const provider = emailSettings?.defaultProvider || 'RESEND';
+    const defaultSender = provider === 'RESEND'
+      ? emailSettings?.resendFromEmail
+      : (emailSettings?.smtpFromEmail || emailSettings?.smtpUser);
+    const defaultSenderName = provider === 'RESEND'
+      ? emailSettings?.resendFromName
+      : emailSettings?.smtpFromName;
     return this.prisma.emailTemplate.create({
       data: {
         organizationId,
@@ -295,14 +306,15 @@ export class EmailTemplatesService {
         channel: data.channel || 'EMAIL',
         status: data.status || 'DRAFT',
         subject: initialSubject,
-        senderName: data.senderName?.trim() || 'IIAP',
-        senderEmail: data.senderEmail?.trim() || 'contacto@iiap.gob.pe',
+        senderName: data.senderName?.trim() || defaultSenderName || organization.name,
+        senderEmail: data.senderEmail?.trim() || defaultSender || null,
         previewText: initialPreview,
         category: initialCategory,
         content: initialContent,
         htmlContent: data.htmlContent || null,
         thumbnailUrl: data.thumbnailUrl || null,
         tags: data.tags || [],
+        useOrgCredentials: data.useOrgCredentials !== false,
       },
     });
   }
@@ -325,6 +337,7 @@ export class EmailTemplatesService {
         category: data.category !== undefined ? data.category : undefined,
         thumbnailUrl: data.thumbnailUrl !== undefined ? data.thumbnailUrl : undefined,
         tags: data.tags !== undefined ? data.tags : undefined,
+        useOrgCredentials: data.useOrgCredentials !== undefined ? data.useOrgCredentials : undefined,
       },
     });
   }
@@ -362,7 +375,8 @@ export class EmailTemplatesService {
     }
 
     const template = await this.get(id);
-    let htmlContent = (template as any).htmlContent;
+    const context = { first_name: 'María', last_name: 'Torres', email: recipientEmail, event_name: 'Evento de prueba', event_start_date: new Date().toLocaleString('es-PE'), event_location: 'Por confirmar', registration_code: 'PRUEBA-001', unsubscribe_url: '#' };
+    let htmlContent = (template as any).htmlContent ? interpolate((template as any).htmlContent, context) : blocksToHtml((template as any).content, context);
 
     if (!htmlContent) {
       htmlContent = `
@@ -381,6 +395,9 @@ export class EmailTemplatesService {
       subject,
       html: htmlContent,
       organizationId: (template as any).organizationId,
+      fromEmail: (template as any).senderEmail || undefined,
+      fromName: (template as any).senderName || undefined,
+      requireOrganizationCredentials: true,
     });
 
     if (!result.sent) {

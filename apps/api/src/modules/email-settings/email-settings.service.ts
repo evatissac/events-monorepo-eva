@@ -49,12 +49,22 @@ export class EmailSettingsService {
         verifiedSenders: [],
         isActive: false,
         isUsingSystemFallback: false,
+        deliveryReady: false,
+        defaultSender: null,
       };
     }
 
+    const provider = settings.defaultProvider || 'RESEND';
+    const hasCredentials = provider === 'RESEND'
+      ? Boolean(settings.resendApiKeyEncrypted && settings.resendFromEmail)
+      : Boolean(settings.smtpUser && settings.smtpPassEncrypted && (settings.smtpFromEmail || settings.smtpUser));
+    const defaultSender = provider === 'RESEND'
+      ? settings.resendFromEmail
+      : (settings.smtpFromEmail || settings.smtpUser);
+
     return {
       configured: true,
-      defaultProvider: settings.defaultProvider || 'RESEND',
+      defaultProvider: provider,
       resendApiKeyMasked: maskSecret(settings.resendApiKeyEncrypted),
       resendDomain: settings.resendDomain || (settings.resendFromEmail?.includes('@') ? settings.resendFromEmail.split('@')[1] : ''),
       resendFromEmail: settings.resendFromEmail || '',
@@ -69,6 +79,8 @@ export class EmailSettingsService {
       verifiedSenders: (settings.verifiedSenders as any[]) || [],
       isActive: settings.isActive,
       isUsingSystemFallback: !settings.resendApiKeyEncrypted && !settings.smtpPassEncrypted,
+      deliveryReady: Boolean(settings.isActive && hasCredentials),
+      defaultSender: defaultSender || null,
     };
   }
 

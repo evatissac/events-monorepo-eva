@@ -196,8 +196,8 @@ export function EmailTemplateBuilderPage() {
   const [templateName, setTemplateName] = useState("Nueva plantilla")
   const [subject, setSubject] = useState("")
   const [previewText, setPreviewText] = useState("")
-  const [senderEmail, setSenderEmail] = useState("daylersan@gmail.com")
-  const [senderName, setSenderName] = useState("IIAP")
+  const [senderEmail, setSenderEmail] = useState("")
+  const [senderName, setSenderName] = useState("Organización")
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "DRAFT">("DRAFT")
 
   // Canvas View Mode (Desktop vs Mobile)
@@ -224,7 +224,7 @@ export function EmailTemplateBuilderPage() {
 
   // Preview & Test Modal
   const [openPreviewModal, setOpenPreviewModal] = useState(false)
-  const [testEmail, setTestEmail] = useState("daylersan@gmail.com")
+  const [testEmail, setTestEmail] = useState("")
 
   // Push history on block changes
   const recordHistory = (newBlocks: EmailBlock[]) => {
@@ -280,8 +280,8 @@ export function EmailTemplateBuilderPage() {
       setTemplateName(data.name || "Plantilla")
       setSubject(data.subject || "")
       setPreviewText(data.previewText || "")
-      setSenderEmail(data.senderEmail || "daylersan@gmail.com")
-      setSenderName(data.senderName || "IIAP")
+      setSenderEmail(data.senderEmail || "")
+      setSenderName(data.senderName || data.organization?.name || "Organización")
       setStatus(data.status || "DRAFT")
 
       let initialBlocks: EmailBlock[] = []

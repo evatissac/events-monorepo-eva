@@ -74,7 +74,15 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       const context = (job.context as Record<string, unknown> | null) || {};
       const subject = interpolate(step.subject || template?.subject || 'Información importante', context);
       const html = step.htmlContent ? interpolate(step.htmlContent, context) : template?.htmlContent ? interpolate(template.htmlContent, context) : blocksToHtml(template?.content, context) || '<p>Gracias por registrarte.</p>';
-      const result = await this.mail.send({ to: job.recipientEmail, subject, html });
+      const result = await this.mail.send({
+        to: job.recipientEmail,
+        subject,
+        html,
+        organizationId: job.organizationId,
+        fromEmail: template?.senderEmail || undefined,
+        fromName: template?.senderName || undefined,
+        requireOrganizationCredentials: true,
+      });
       await this.prisma.emailDelivery.update({ where: { id: job.id }, data: result.sent ? { status: 'SENT', sentAt: new Date(), providerMessageId: result.messageId } : { status: 'FAILED', error: result.reason } });
       result.sent ? sent++ : failed++;
     }
