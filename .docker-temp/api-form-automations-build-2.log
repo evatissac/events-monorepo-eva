@@ -1,0 +1,257 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 374B 0.2s done
+#1 DONE 0.2s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 30B 0.1s
+#2 transferring dockerfile: 923B 0.4s done
+#2 DONE 0.5s
+
+#3 [internal] load metadata for docker.io/library/node:22-alpine
+#3 DONE 0.5s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 102B 0.1s done
+#4 DONE 0.3s
+
+#5 [build 1/9] FROM docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#5 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 0.0s done
+#5 DONE 0.1s
+
+#6 [build 2/9] WORKDIR /app
+#6 CACHED
+
+#7 [stage-1 2/5] WORKDIR /app/apps/api
+#7 CACHED
+
+#8 [internal] load build context
+#8 transferring context: 925.22kB 1.0s done
+#8 DONE 1.4s
+
+#9 [build 3/9] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+#9 DONE 0.2s
+
+#10 [build 4/9] COPY apps/api/package.json ./apps/api/package.json
+#10 DONE 0.2s
+
+#11 [build 5/9] RUN corepack enable && pnpm install --frozen-lockfile=false
+#11 1.439 ! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-9.0.0.tgz
+#11 6.851 Scope: all 2 workspace projects
+#11 7.904 Progress: resolved 0, reused 0, downloaded 1, added 0
+#11 8.908 Progress: resolved 11, reused 0, downloaded 11, added 0
+#11 9.908 Progress: resolved 16, reused 0, downloaded 16, added 0
+#11 10.86 
+#11 10.86    ╭───────────────────────────────────────────────────────────────────╮
+#11 10.86    │                                                                   │
+#11 10.86    │                Update available! 9.0.0 → 11.25.0.                 │
+#11 10.86    │   Changelog: https://github.com/pnpm/pnpm/releases/tag/v11.25.0   │
+#11 10.86    │     Run "corepack prepare pnpm@11.25.0 --activate" to update.     │
+#11 10.86    │                                                                   │
+#11 10.86    │      Follow @pnpmjs for updates: https://twitter.com/pnpmjs       │
+#11 10.86    │                                                                   │
+#11 10.86    ╰───────────────────────────────────────────────────────────────────╯
+#11 10.86 
+#11 10.91 Progress: resolved 18, reused 0, downloaded 18, added 0
+#11 13.36 Progress: resolved 18, reused 0, downloaded 19, added 0
+#11 14.36 Progress: resolved 19, reused 0, downloaded 19, added 0
+#11 15.36 Progress: resolved 20, reused 0, downloaded 20, added 0
+#11 17.84 Progress: resolved 20, reused 0, downloaded 21, added 0
+#11 18.84 Progress: resolved 21, reused 0, downloaded 21, added 0
+#11 20.71 Progress: resolved 21, reused 0, downloaded 22, added 0
+#11 21.71 Progress: resolved 22, reused 0, downloaded 22, added 0
+#11 35.91 Progress: resolved 22, reused 0, downloaded 23, added 0
+#11 36.91 Progress: resolved 23, reused 0, downloaded 23, added 0
+#11 62.28 Progress: resolved 23, reused 0, downloaded 24, added 0
+#11 63.33 Progress: resolved 35, reused 0, downloaded 33, added 0
+#11 64.35 Progress: resolved 78, reused 0, downloaded 71, added 0
+#11 65.40 Progress: resolved 117, reused 0, downloaded 108, added 0
+#11 66.41 Progress: resolved 141, reused 0, downloaded 112, added 0
+#11 67.41 Progress: resolved 167, reused 0, downloaded 134, added 0
+#11 68.43 Progress: resolved 195, reused 0, downloaded 164, added 0
+#11 69.43 Progress: resolved 230, reused 0, downloaded 199, added 0
+#11 70.43 Progress: resolved 234, reused 0, downloaded 203, added 0
+#11 71.50 Progress: resolved 234, reused 0, downloaded 204, added 0
+#11 72.51 Progress: resolved 247, reused 0, downloaded 216, added 0
+#11 73.51 Progress: resolved 252, reused 0, downloaded 221, added 0
+#11 74.51 Progress: resolved 260, reused 0, downloaded 227, added 0
+#11 75.60 Progress: resolved 264, reused 0, downloaded 230, added 0
+#11 75.63 Packages: +233
+#11 75.63 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+#11 76.60 Progress: resolved 264, reused 0, downloaded 233, added 21
+#11 77.60 Progress: resolved 264, reused 0, downloaded 233, added 146
+#11 78.60 Progress: resolved 264, reused 0, downloaded 233, added 231
+#11 78.76 Progress: resolved 264, reused 0, downloaded 233, added 233, done
+#11 79.30 .../node_modules/@prisma/engines postinstall$ node scripts/postinstall.js
+#11 79.42 .../esbuild@0.28.2/node_modules/esbuild postinstall$ node install.js
+#11 79.87 .../esbuild@0.28.2/node_modules/esbuild postinstall: Done
+#11 99.32 .../node_modules/@prisma/engines postinstall: Done
+#11 100.7 .../node_modules/prisma preinstall$ node scripts/preinstall-entry.js
+#11 101.1 .../node_modules/prisma preinstall: Done
+#11 103.3 .../node_modules/@prisma/client postinstall$ node scripts/postinstall.js
+#11 121.1 .../node_modules/@prisma/client postinstall: prisma:warn We could not find your Prisma schema in the default locations (see: https://pris.ly/d/prisma-schema-location).
+#11 121.1 .../node_modules/@prisma/client postinstall: If you have a Prisma schema file in a custom path, you will need to run
+#11 121.1 .../node_modules/@prisma/client postinstall: `prisma generate --schema=./path/to/your/schema.prisma` to generate Prisma Client.
+#11 121.1 .../node_modules/@prisma/client postinstall: If you do not have a Prisma schema file yet, you can ignore this message.
+#11 121.3 .../node_modules/@prisma/client postinstall: Done
+#11 125.1 
+#11 125.1 devDependencies:
+#11 125.1 + prettier 3.7.4
+#11 125.1 + turbo 2.9.18
+#11 125.1 + typescript 5.9.2
+#11 125.1 
+#11 125.1  WARN  Issues with peer dependencies found
+#11 125.1 apps/api
+#11 125.1 └─┬ prisma 6.19.3
+#11 125.1   └─┬ @prisma/config 6.19.3
+#11 125.1     └─┬ c12 3.1.0
+#11 125.1       └── ✕ unmet peer magicast@^0.3.5: found 0.5.4
+#11 125.1 
+#11 125.1 Done in 1m 59.1s
+#11 DONE 126.8s
+
+#12 [build 6/9] COPY apps/api ./apps/api
+#12 DONE 3.3s
+
+#13 [build 7/9] WORKDIR /app/apps/api
+#13 DONE 0.9s
+
+#14 [build 8/9] RUN pnpm install --filter events-api --no-frozen-lockfile
+#14 13.33 Done in 9.8s
+#14 DONE 13.9s
+
+#15 [build 9/9] RUN pnpm --filter events-api exec prisma generate --schema prisma/schema.prisma && pnpm --filter events-api build && pnpm deploy --filter events-api /prod && PRISMA_CLIENT_DIR=$(find /app/node_modules -type d -path '*/.prisma/client' | head -n 1) && mkdir -p /prod/node_modules/.prisma && cp -r "$PRISMA_CLIENT_DIR" /prod/node_modules/.prisma/client
+#15 14.52 Environment variables loaded from .env
+#15 14.53 Prisma schema loaded from prisma/schema.prisma
+#15 19.12 
+#15 19.12 ✔ Generated Prisma Client (v6.19.3) to ./../../node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_magicast@0.5.4_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client in 1.84s
+#15 19.12 
+#15 19.12 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#15 19.12 
+#15 19.12 Tip: Interested in query caching in just a few lines of code? Try Accelerate today! https://pris.ly/tip-3-accelerate
+#15 19.12 
+#15 21.81 
+#15 21.81 > events-api@0.1.0 build /app/apps/api
+#15 21.81 > tsc -p tsconfig.json
+#15 21.81 
+#15 64.24 Packages are copied from the content-addressable store to the virtual store.
+#15 64.24   Content-addressable store is at: /root/.local/share/pnpm/store/v3
+#15 64.24   Virtual store is at:             ../../../prod/node_modules/.pnpm
+#15 65.72 ../..                                    | Progress: resolved 0, reused 1, downloaded 0, added 0
+#15 66.73 ../..                                    | Progress: resolved 20, reused 20, downloaded 0, added 0
+#15 67.89 ../..                                    | Progress: resolved 28, reused 28, downloaded 0, added 0
+#15 69.05 ../..                                    | Progress: resolved 94, reused 73, downloaded 0, added 0
+#15 70.16 ../..                                    | Progress: resolved 175, reused 144, downloaded 0, added 0
+#15 71.17 ../..                                    | Progress: resolved 258, reused 227, downloaded 0, added 0
+#15 72.20 ../..                                    | Progress: resolved 259, reused 228, downloaded 0, added 0
+#15 73.31 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 0
+#15 73.34 ../..                                    | +233 +++++++++++++++++++++++
+#15 75.38 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 1
+#15 76.38 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 11
+#15 77.39 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 13
+#15 79.19 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 14
+#15 80.19 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 15
+#15 81.20 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 18
+#15 82.26 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 24
+#15 83.26 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 31
+#15 84.26 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 38
+#15 85.26 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 43
+#15 86.26 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 46
+#15 87.28 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 47
+#15 88.27 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 49
+#15 89.27 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 50
+#15 90.27 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 52
+#15 92.28 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 53
+#15 93.29 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 57
+#15 94.29 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 62
+#15 95.29 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 67
+#15 96.29 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 77
+#15 97.29 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 79
+#15 98.30 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 82
+#15 99.30 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 85
+#15 101.2 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 86
+#15 102.6 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 87
+#15 103.6 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 88
+#15 105.2 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 89
+#15 107.3 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 90
+#15 111.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 91
+#15 112.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 92
+#15 113.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 94
+#15 114.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 95
+#15 115.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 98
+#15 120.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 99
+#15 123.0 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 100
+#15 124.0 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 106
+#15 125.0 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 111
+#15 126.0 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 115
+#15 127.0 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 118
+#15 128.0 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 119
+#15 129.1 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 120
+#15 130.1 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 122
+#15 132.3 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 123
+#15 133.3 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 131
+#15 134.3 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 133
+#15 135.3 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 135
+#15 136.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 136
+#15 137.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 140
+#15 138.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 148
+#15 139.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 163
+#15 140.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 172
+#15 141.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 175
+#15 142.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 178
+#15 143.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 186
+#15 144.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 199
+#15 145.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 204
+#15 146.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 213
+#15 147.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 215
+#15 148.4 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 217
+#15 151.5 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 218
+#15 152.5 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 219
+#15 153.5 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 221
+#15 154.5 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 223
+#15 155.5 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 224
+#15 156.5 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 226
+#15 157.7 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 227
+#15 158.7 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 228
+#15 159.7 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 229
+#15 171.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 230
+#15 172.8 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 231
+#15 181.2 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 232
+#15 183.7 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 233
+#15 183.7 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 233, done
+#15 184.1 .../esbuild@0.28.2/node_modules/esbuild postinstall$ node install.js
+#15 184.5 .../esbuild@0.28.2/node_modules/esbuild postinstall: Done
+#15 187.5  WARN  Issues with peer dependencies found
+#15 187.5 apps/api
+#15 187.5 └─┬ prisma 6.19.3
+#15 187.5   └─┬ @prisma/config 6.19.3
+#15 187.5     └─┬ c12 3.1.0
+#15 187.5       └── ✕ unmet peer magicast@^0.3.5: found 0.5.4
+#15 187.5 
+#15 DONE 189.6s
+
+#16 [stage-1 3/5] COPY --from=build /prod ./
+#16 DONE 23.2s
+
+#17 [stage-1 4/5] COPY --from=build /app/apps/api/dist ./dist
+#17 DONE 2.4s
+
+#18 [stage-1 5/5] COPY --from=build /app/apps/api/prisma ./prisma
+#18 DONE 0.5s
+
+#19 exporting to image
+#19 exporting layers
+#19 exporting layers 44.6s done
+#19 exporting manifest sha256:32925ae34e17bc657536b684b60d02e8b967a482e47e4ac16570474a46659f7c
+#19 exporting manifest sha256:32925ae34e17bc657536b684b60d02e8b967a482e47e4ac16570474a46659f7c 0.3s done
+#19 exporting config sha256:e9bf722808798546fcf408ff74bcf468862176c2c7bf9ef18cac528f00661cc2
+#19 exporting config sha256:e9bf722808798546fcf408ff74bcf468862176c2c7bf9ef18cac528f00661cc2 0.6s done
+#19 exporting attestation manifest sha256:3b339dcd8e7d64987093f1ba8d07016113cb7c0ac341640980931f959166f648 0.1s done
+#19 exporting manifest list sha256:bd7626ae43f46fef9aa42e4056bc353ebdd8c0aaae74feedce0a3c5509244fe9
+#19 exporting manifest list sha256:bd7626ae43f46fef9aa42e4056bc353ebdd8c0aaae74feedce0a3c5509244fe9 0.1s done
+#19 naming to docker.io/library/events-monorepo-api:latest 0.0s done
+#19 unpacking to docker.io/library/events-monorepo-api:latest
+#19 unpacking to docker.io/library/events-monorepo-api:latest 27.1s done
+#19 DONE 73.0s
+
+#20 resolving provenance for metadata file
+#20 DONE 0.2s

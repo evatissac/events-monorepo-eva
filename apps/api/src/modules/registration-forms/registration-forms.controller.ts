@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { RegistrationFormsService } from './registration-forms.service.js';
 import { Public } from '../../common/public.decorator.js';
@@ -30,6 +30,11 @@ export class RegistrationFormsController {
   @Patch('registration-forms/:id')
   update(@Param('id') id: string, @Body() data: any) {
     return this.forms.update(id, data);
+  }
+
+  @Put('registration-forms/:id/welcome-template')
+  setWelcomeTemplate(@Param('id') id: string, @Body('templateId') templateId?: string | null) {
+    return this.forms.setWelcomeTemplate(id, templateId);
   }
 
   @Post('registration-forms/:id/make-main')

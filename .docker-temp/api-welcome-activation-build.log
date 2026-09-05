@@ -1,0 +1,136 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 374B 0.3s done
+#1 DONE 0.3s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile:
+#2 transferring dockerfile: 923B 1.1s done
+#2 DONE 1.7s
+
+#3 [internal] load metadata for docker.io/library/node:22-alpine
+#3 DONE 1.4s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 102B 0.0s done
+#4 DONE 0.1s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [build 1/9] FROM docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#6 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#6 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 0.3s done
+#6 DONE 0.4s
+
+#5 [internal] load build context
+#5 transferring context: 326.68kB 0.4s done
+#5 DONE 0.5s
+
+#7 [build 2/9] WORKDIR /app
+#7 CACHED
+
+#8 [build 3/9] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+#8 CACHED
+
+#9 [build 4/9] COPY apps/api/package.json ./apps/api/package.json
+#9 CACHED
+
+#10 [build 5/9] RUN corepack enable && pnpm install --frozen-lockfile=false
+#10 CACHED
+
+#11 [build 6/9] COPY apps/api ./apps/api
+#11 DONE 5.0s
+
+#12 [build 7/9] WORKDIR /app/apps/api
+#12 DONE 1.3s
+
+#13 [build 8/9] RUN pnpm install --filter events-api --no-frozen-lockfile
+#13 14.67 Done in 6.3s
+#13 DONE 14.8s
+
+#14 [build 9/9] RUN pnpm --filter events-api exec prisma generate --schema prisma/schema.prisma && pnpm --filter events-api build && pnpm deploy --filter events-api /prod && PRISMA_CLIENT_DIR=$(find /app/node_modules -type d -path '*/.prisma/client' | head -n 1) && mkdir -p /prod/node_modules/.prisma && cp -r "$PRISMA_CLIENT_DIR" /prod/node_modules/.prisma/client
+#14 8.551 Environment variables loaded from .env
+#14 8.557 Prisma schema loaded from prisma/schema.prisma
+#14 15.20 
+#14 15.20 ✔ Generated Prisma Client (v6.19.3) to ./../../node_modules/.pnpm/@prisma+client@6.19.3_prisma@6.19.3_magicast@0.5.4_typescript@5.9.2__typescript@5.9.2/node_modules/@prisma/client in 3.41s
+#14 15.20 
+#14 15.20 Start by importing your Prisma Client (See: https://pris.ly/d/importing-client)
+#14 15.20 
+#14 15.20 Tip: Want to turn off tips and other hints? https://pris.ly/tip-4-nohints
+#14 15.20 
+#14 18.28 
+#14 18.28 > events-api@0.1.0 build /app/apps/api
+#14 18.28 > tsc -p tsconfig.json
+#14 18.28 
+#14 49.91 Packages are copied from the content-addressable store to the virtual store.
+#14 49.91   Content-addressable store is at: /root/.local/share/pnpm/store/v3
+#14 49.91   Virtual store is at:             ../../../prod/node_modules/.pnpm
+#14 50.82 ../..                                    | Progress: resolved 0, reused 1, downloaded 0, added 0
+#14 51.84 ../..                                    | Progress: resolved 71, reused 64, downloaded 0, added 0
+#14 52.84 ../..                                    | Progress: resolved 259, reused 228, downloaded 0, added 0
+#14 53.84 ../..                                    | Progress: resolved 262, reused 231, downloaded 0, added 0
+#14 54.20 ../..                                    | +233 +++++++++++++++++++++++
+#14 54.85 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 0
+#14 55.85 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 18
+#14 56.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 39
+#14 57.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 49
+#14 58.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 53
+#14 59.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 62
+#14 60.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 77
+#14 61.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 87
+#14 62.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 93
+#14 63.86 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 113
+#14 64.87 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 150
+#14 65.87 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 185
+#14 66.95 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 189
+#14 67.87 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 195
+#14 68.87 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 213
+#14 69.87 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 217
+#14 71.65 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 218
+#14 72.65 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 226
+#14 73.64 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 227
+#14 74.65 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 228
+#14 75.79 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 229
+#14 82.95 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 230
+#14 86.06 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 231
+#14 103.1 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 232
+#14 105.3 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 233
+#14 105.3 ../..                                    | Progress: resolved 264, reused 233, downloaded 0, added 233, done
+#14 105.7 .../esbuild@0.28.2/node_modules/esbuild postinstall$ node install.js
+#14 106.1 .../esbuild@0.28.2/node_modules/esbuild postinstall: Done
+#14 109.4  WARN  Issues with peer dependencies found
+#14 109.4 apps/api
+#14 109.4 └─┬ prisma 6.19.3
+#14 109.4   └─┬ @prisma/config 6.19.3
+#14 109.4     └─┬ c12 3.1.0
+#14 109.4       └── ✕ unmet peer magicast@^0.3.5: found 0.5.4
+#14 109.4 
+#14 DONE 112.5s
+
+#15 [stage-1 2/5] WORKDIR /app/apps/api
+#15 CACHED
+
+#16 [stage-1 3/5] COPY --from=build /prod ./
+#16 DONE 30.5s
+
+#17 [stage-1 4/5] COPY --from=build /app/apps/api/dist ./dist
+#17 DONE 1.0s
+
+#18 [stage-1 5/5] COPY --from=build /app/apps/api/prisma ./prisma
+#18 DONE 0.1s
+
+#19 exporting to image
+#19 exporting layers
+#19 exporting layers 39.2s done
+#19 exporting manifest sha256:89ab79fc890595b08030f88ee3c58aa06f5d4ff6efc2d33c86e4b3f8df8cba62 0.0s done
+#19 exporting config sha256:bae65e1d239ea260c9a4973182adda3343770596069f2f97f13231e75817b922 0.0s done
+#19 exporting attestation manifest sha256:b9c2a26d746c541fe20b957af7ab5f2ef1b4a2238a762b0c04ea5e18d8bedd4e
+#19 exporting attestation manifest sha256:b9c2a26d746c541fe20b957af7ab5f2ef1b4a2238a762b0c04ea5e18d8bedd4e 0.1s done
+#19 exporting manifest list sha256:1624599b01a9361bd161026bb5d0b711f4e503eb977c4c1f87e1d0f9f2f561da 0.0s done
+#19 naming to docker.io/library/events-monorepo-api:latest done
+#19 unpacking to docker.io/library/events-monorepo-api:latest
+#19 unpacking to docker.io/library/events-monorepo-api:latest 26.8s done
+#19 DONE 66.5s
+
+#20 resolving provenance for metadata file
+#20 DONE 0.1s

@@ -16,6 +16,11 @@ export interface FetchSpeakersResult {
   roles: ParticipantRole[]
 }
 
+function isSpeakerRole(name?: string) {
+  const normalized = String(name || "").trim().toLowerCase().replace(/[\s-]+/g, "_")
+  return ["speaker", "speakers", "speaker_mg", "ponente", "ponentes"].includes(normalized)
+}
+
 function mapParticipantRole(row: any): ParticipantRole {
   const name = typeof row.name === "string"
     ? (() => { try { return JSON.parse(row.name) } catch { return { es: row.name } } })()
@@ -41,7 +46,11 @@ export async function fetchEventSpeakers(
   const page = params.page || 1
   const pageSize = params.pageSize || 20
   const participantsData = await api.content.speakers(eventId, params.editionId !== "all" ? params.editionId : undefined)
-  const filtered = (participantsData || []).filter((part: any) => !params.search || `${part.profile?.firstName || ""} ${part.profile?.lastName || ""} ${part.profile?.email || ""}`.toLowerCase().includes(params.search.toLowerCase()))
+  const filtered = (participantsData || []).filter((part: any) => {
+    const isSpeaker = isSpeakerRole(part.role?.name)
+    const matchesSearch = !params.search || `${part.profile?.firstName || ""} ${part.profile?.lastName || ""} ${part.profile?.email || ""}`.toLowerCase().includes(params.search.toLowerCase())
+    return isSpeaker && matchesSearch
+  })
   const totalCount = filtered.length
   const pageData = filtered.slice((page - 1) * pageSize, page * pageSize)
 
