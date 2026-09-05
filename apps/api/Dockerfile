@@ -2,7 +2,8 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/api/package.json ./apps/api/package.json
-RUN corepack enable && pnpm install --frozen-lockfile=false
+COPY packages ./packages
+RUN corepack enable && corepack prepare pnpm@latest --activate && pnpm install --frozen-lockfile=false
 COPY apps/api ./apps/api
 WORKDIR /app/apps/api
 RUN pnpm install --filter events-api --no-frozen-lockfile
