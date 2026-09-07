@@ -1,4 +1,5 @@
 FROM node:22-alpine AS builder
+ENV NODE_ENV=development
 
 WORKDIR /app
 
@@ -8,7 +9,7 @@ COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY apps/events-portal/package.json ./apps/events-portal/package.json
 COPY packages ./packages
 
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install --frozen-lockfile=false --prod=false
 
 COPY apps/events-portal ./apps/events-portal
 
