@@ -1,4 +1,4 @@
-import { MemberRole } from '@prisma/client';
+import type { MemberRole } from '@prisma/client';
 
 export const organizationPermissions: Record<MemberRole, readonly string[]> = {
   OWNER: ['organization:read', 'organization:manage', 'members:manage', 'events:manage', 'billing:read'],

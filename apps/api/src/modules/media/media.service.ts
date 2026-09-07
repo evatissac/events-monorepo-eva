@@ -1,12 +1,14 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
-import { MediaOrientation, MediaOwnerType, MediaPurpose } from '@prisma/client';
+import type { MediaOrientation, MediaOwnerType, MediaPurpose } from '@prisma/client';
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { PrismaService } from '../../database/prisma.service.js';
 import { R2StorageService } from './r2-storage.service.js';
 
-const owners = new Set(Object.values(MediaOwnerType));
-const purposes = new Set(Object.values(MediaPurpose));
+const owners = new Set<MediaOwnerType>(['ORGANIZATION', 'EVENT', 'EDITION', 'PROFILE']);
+const purposes = new Set<MediaPurpose>(['COVER', 'LOGO', 'GALLERY', 'DOCUMENT', 'OTHER']);
+const orientations = new Set<MediaOrientation>(['LANDSCAPE', 'PORTRAIT', 'SQUARE', 'VIDEO', 'OTHER']);
+
 
 @Injectable()
 export class MediaService {
@@ -69,7 +71,7 @@ export class MediaService {
     const key = `organizations/${ownerOrganizationId ?? 'shared'}/media/${randomUUID()}${extension}`;
     const url = await this.storage.upload(key, file);
     const media = await this.prisma.mediaAsset.create({ data: {
-      organizationId: ownerOrganizationId ?? null, key, url, filename: file.originalname, mimeType: file.mimetype, sizeBytes: file.size, orientation: Object.values(MediaOrientation).includes(input.orientation as MediaOrientation) ? input.orientation as MediaOrientation : this.orientation(file),
+      organizationId: ownerOrganizationId ?? null, key, url, filename: file.originalname, mimeType: file.mimetype, sizeBytes: file.size, orientation: orientations.has(input.orientation as MediaOrientation) ? (input.orientation as MediaOrientation) : this.orientation(file),
       links: { create: { ownerType: input.ownerType, ownerId: input.ownerId, purpose, position: Number(input.position ?? 0) || 0, isFeatured: input.isFeatured === 'true' } },
     }, include: { links: true } });
     return media;

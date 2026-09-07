@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { EventStatus } from '@prisma/client';
+import type { EventStatus } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service.js';
 
 @Injectable()
