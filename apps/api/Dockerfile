@@ -23,4 +23,4 @@ WORKDIR /app/apps/api
 COPY --from=builder /app /app
 
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+CMD ["npm", "run", "start"]
