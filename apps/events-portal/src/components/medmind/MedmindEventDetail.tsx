@@ -122,13 +122,13 @@ function FactCard({
   secondary: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3.5 py-3 text-left">
+    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3.5 py-2.5 text-left">
       <div className="text-teal-600 shrink-0">{icon}</div>
       <div className="min-w-0">
-        <span className="block text-sm font-semibold text-zinc-900 leading-tight truncate">
+        <span className="block text-xs sm:text-sm font-semibold text-zinc-900 leading-tight">
           {primary}
         </span>
-        <span className="block text-xs text-zinc-500 mt-0.5 truncate">
+        <span className="block text-[11px] text-zinc-500 mt-0.5">
           {secondary}
         </span>
       </div>
