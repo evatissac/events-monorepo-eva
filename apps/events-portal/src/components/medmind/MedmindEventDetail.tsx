@@ -33,7 +33,7 @@ function getButtonClass(
   className: string = ''
 ) {
   const base =
-    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-lg text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/30 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer';
+    'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-600/30 disabled:pointer-events-none disabled:opacity-50 select-none cursor-pointer';
 
   const variants: Record<ButtonVariant, string> = {
     default:
@@ -47,9 +47,9 @@ function getButtonClass(
   };
 
   const sizes: Record<ButtonSize, string> = {
-    default: 'h-10 px-4 py-2 text-sm',
-    sm: 'h-9 px-3 text-xs',
-    lg: 'h-11 px-6 text-base font-semibold',
+    default: 'h-10 px-5 py-2 text-sm',
+    sm: 'h-9 px-4 text-xs',
+    lg: 'h-12 px-7 text-base font-semibold',
     icon: 'size-10',
   };
 
@@ -98,7 +98,7 @@ function ButtonLink({
 function EventTitle({ title }: { title: string }) {
   const parts = title.split(/(ENAM Y EL RESIDENTADO \d{4}|ENAM|RESIDENTADO \d{4}|RESIDENTADO)/i);
   return (
-    <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold tracking-tight text-zinc-900 leading-[1.15]">
+    <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-zinc-900 leading-[1.08]">
       {parts.map((part, i) =>
         /(ENAM Y EL RESIDENTADO \d{4}|ENAM|RESIDENTADO \d{4}|RESIDENTADO)/i.test(part) ? (
           <span key={i} className="text-teal-600">
@@ -122,7 +122,7 @@ function FactCard({
   secondary: string;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50/70 px-3.5 py-2.5 text-left">
+    <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50/70 px-4 py-3 text-left">
       <div className="text-teal-600 shrink-0">{icon}</div>
       <div className="min-w-0">
         <span className="block text-xs sm:text-sm font-semibold text-zinc-900 leading-tight">
@@ -194,7 +194,7 @@ function Field({ field }: { field: any }) {
           {field.label}
           {field.required && <span className="text-rose-500 ml-1">*</span>}
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {choices.map((choice: string) => (
             <label
               key={choice}
@@ -225,7 +225,7 @@ function Field({ field }: { field: any }) {
           {field.label}
           {field.required && <span className="text-rose-500 ml-1">*</span>}
         </label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
           {choices.map((choice: string) => (
             <label
               key={choice}
@@ -405,7 +405,7 @@ export function MedmindEventDetail({
     <main className="w-full min-h-screen overflow-x-hidden bg-white font-sans text-zinc-900 antialiased">
       {/* 1. Header / Navbar */}
       <header className="sticky top-0 z-50 w-full border-b border-zinc-200/80 bg-white/95 backdrop-blur-md">
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
           <a
             href={`/${institution}`}
             className="flex items-center gap-3 no-underline"
@@ -465,12 +465,12 @@ export function MedmindEventDetail({
       </header>
 
       {/* 2. Hero Section */}
-      <section id="inicio" className="w-full relative py-12 sm:py-16 lg:py-20">
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+      <section id="inicio" className="w-full relative py-12 sm:py-16 lg:py-24">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
             {/* Left Column: Headline, Description, Facts, CTAs */}
             <div className="lg:col-span-7 flex flex-col items-start text-left">
-              <div className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50/80 px-3 py-1 text-xs font-semibold text-teal-700 mb-5">
+              <div className="inline-flex items-center gap-2 rounded-full border border-teal-200 bg-teal-50/80 px-3.5 py-1 text-xs font-semibold text-teal-700 mb-6">
                 <span className="size-2 rounded-full bg-red-500 animate-pulse" />
                 <span>WEBINAR GRATUITO · EN VIVO</span>
               </div>
@@ -478,13 +478,13 @@ export function MedmindEventDetail({
               <EventTitle title={event.eventName} />
 
               {description && (
-                <p className="mt-4 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal max-w-xl">
+                <p className="mt-5 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal max-w-2xl">
                   {description}
                 </p>
               )}
 
               {/* Facts Row */}
-              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-xl">
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-3 gap-3.5 w-full max-w-2xl">
                 <FactCard
                   icon={<CalendarDays className="size-5" />}
                   primary={dateText}
@@ -502,8 +502,8 @@ export function MedmindEventDetail({
                 />
               </div>
 
-              {/* Action Buttons */}
-              <div className="mt-8 flex flex-wrap items-center gap-3">
+              {/* Action Buttons (rounded-full) */}
+              <div className="mt-9 flex flex-wrap items-center gap-4">
                 {form && (
                   <ButtonLink href="#registro" size="lg">
                     Quiero mi cupo gratis
@@ -518,16 +518,14 @@ export function MedmindEventDetail({
               </div>
             </div>
 
-            {/* Right Column: Hero Graphic */}
+            {/* Right Column: Hero Graphic without border */}
             {heroImage && (
               <div className="lg:col-span-5 flex items-center justify-center">
-                <div className="w-full max-w-[420px] rounded-2xl border border-zinc-200 bg-zinc-50/70 p-6 sm:p-8 flex items-center justify-center">
-                  <img
-                    src={heroImage}
-                    alt={event.eventName}
-                    className="max-h-[340px] w-auto max-w-full object-contain"
-                  />
-                </div>
+                <img
+                  src={heroImage}
+                  alt={event.eventName}
+                  className="max-h-[440px] sm:max-h-[480px] w-auto max-w-full object-contain"
+                />
               </div>
             )}
           </div>
@@ -538,9 +536,9 @@ export function MedmindEventDetail({
       {activities.length > 0 && (
         <section
           id="temario"
-          className="w-full border-t border-zinc-200/80 bg-zinc-50/50 py-16 sm:py-20"
+          className="w-full border-t border-zinc-200/80 bg-zinc-50/50 py-16 sm:py-24"
         >
-          <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl">
               <span className="text-xs font-semibold uppercase tracking-wider text-teal-600 block mb-1">
                 Temario
@@ -550,7 +548,7 @@ export function MedmindEventDetail({
               </h2>
             </div>
 
-            <div className="mt-8 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
               {activities.map((item: any, index: number) => (
                 <article
                   key={item.id || index}
@@ -578,9 +576,9 @@ export function MedmindEventDetail({
       {speakers.length > 0 && (
         <section
           id="ponentes"
-          className="w-full border-t border-zinc-200/80 py-16 sm:py-20"
+          className="w-full border-t border-zinc-200/80 py-16 sm:py-24"
         >
-          <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl">
               <span className="text-xs font-semibold uppercase tracking-wider text-teal-600 block mb-1">
                 Expositores
@@ -596,8 +594,8 @@ export function MedmindEventDetail({
             </div>
 
             <div
-              className={`mt-8 grid gap-6 ${
-                speakers.length === 1 ? 'max-w-2xl' : 'sm:grid-cols-2 max-w-4xl'
+              className={`mt-10 grid gap-6 ${
+                speakers.length === 1 ? 'max-w-2xl' : 'sm:grid-cols-2 max-w-5xl'
               }`}
             >
               {speakers.map((speaker: any, index: number) => (
@@ -608,20 +606,20 @@ export function MedmindEventDetail({
         </section>
       )}
 
-      {/* 5. Registration Section */}
+      {/* 5. Registration Section (Background with primary brand color) */}
       {form && (
         <section
           id="registro"
-          className="w-full border-t border-zinc-200/80 bg-zinc-50/50 py-16 sm:py-24"
+          className="w-full bg-teal-600 py-16 sm:py-24 px-4 sm:px-6 lg:px-8"
         >
-          <div className="w-full max-w-2xl mx-auto px-4 sm:px-6">
-            <div className="w-full rounded-2xl border border-zinc-200 bg-white p-6 sm:p-10">
+          <div className="w-full max-w-3xl mx-auto">
+            <div className="w-full rounded-3xl bg-white p-7 sm:p-12">
               <div className="text-center max-w-xl mx-auto">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3.5 py-1 text-xs font-semibold text-teal-700">
                   <Sparkles className="size-3" />
                   Acceso 100% Gratuito
                 </span>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 mt-3">
+                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 mt-3.5">
                   Reserva tu cupo <span className="text-teal-600">gratis</span>
                 </h2>
                 <p className="text-sm text-zinc-600 mt-2">
@@ -630,7 +628,7 @@ export function MedmindEventDetail({
               </div>
 
               {done ? (
-                <div className="mt-8 rounded-xl border border-teal-200 bg-teal-50/60 p-8 text-center">
+                <div className="mt-8 rounded-2xl border border-teal-200 bg-teal-50/60 p-8 text-center">
                   <CheckCircle2 className="size-12 text-teal-600 mx-auto" />
                   <h3 className="text-lg font-bold text-zinc-900 mt-3">
                     ¡Registro confirmado!
@@ -658,12 +656,12 @@ export function MedmindEventDetail({
                     <Field key={field.key} field={field} />
                   ))}
 
-                  <div className="col-span-full pt-2">
+                  <div className="col-span-full pt-3">
                     <Button
                       type="submit"
                       size="lg"
                       disabled={isLoading}
-                      className="w-full text-base font-semibold"
+                      className="w-full text-base font-semibold h-12"
                     >
                       {isLoading ? 'Enviando registro...' : 'Quiero mi cupo gratis'}
                       {!isLoading && <ArrowRight className="size-4" />}
@@ -675,7 +673,7 @@ export function MedmindEventDetail({
                       </p>
                     )}
 
-                    <p className="text-center text-xs text-zinc-500 mt-3">
+                    <p className="text-center text-xs text-zinc-500 mt-3.5">
                       Al registrarte aceptas recibir comunicaciones de MedMind
                       sobre este webinar.
                     </p>
@@ -688,8 +686,8 @@ export function MedmindEventDetail({
       )}
 
       {/* 6. Footer */}
-      <footer className="w-full border-t border-zinc-200 bg-white py-10">
-        <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+      <footer className="w-full border-t border-zinc-200 bg-white py-12">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
           <div>
             <p className="text-lg font-bold tracking-tight text-zinc-900">
               MedMind
