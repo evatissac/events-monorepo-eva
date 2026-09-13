@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* El portal mezcla páginas Astro y componentes React. */
+@source "../components";
+@source "../pages";
+
+html { scroll-behavior: smooth; }
+
+astro-island,
+#main-content {
+  display: block;
+  width: 100%;
+}
+
