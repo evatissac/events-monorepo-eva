@@ -2,10 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service.js';
 import { AutomationService } from '../marketing/automation.service.js';
+import { MailService } from '../mail/mail.service.js';
 
 @Injectable()
 export class RegistrationFormsService {
-  constructor(private readonly prisma: PrismaService, private readonly automations: AutomationService) {}
+  constructor(private readonly prisma: PrismaService, private readonly automations: AutomationService, private readonly mail: MailService) {}
 
   list(eventId: string) {
     return this.prisma.registrationForm.findMany({
@@ -161,7 +162,7 @@ export class RegistrationFormsService {
       where: { slug },
       include: {
         fields: { orderBy: { position: 'asc' } },
-        mainEvent: { select: { eventName: true } },
+        mainEvent: { select: { id: true, eventName: true, startDate: true, organizationId: true, whatsappCommunityUrl: true, organization: { select: { name: true, logoUrl: true } } } },
         edition: { select: { name: true, startDate: true } },
       },
     });
@@ -230,7 +231,16 @@ export class RegistrationFormsService {
     const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres, answers.nombres_completos].find((value) => typeof value === 'string') as string | undefined;
     const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
     await this.automations.enrollRegistration({ eventId: form.mainEventId, registrationFormId: form.id, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
-    return { ...submission, thankYouMessage: form.thankYouMessage, thankYouRedirectUrl: form.thankYouRedirectUrl };
+    const hasWelcomeTemplate = await this.prisma.marketingAutomation.count({ where: { registrationFormId: form.id, trigger: 'REGISTRATION_SUBMITTED', status: 'ACTIVE', steps: { some: { templateId: { not: null } } } } });
+    if (email && form.mainEvent.organizationId && !hasWelcomeTemplate) {
+      const name = firstName || 'participante';
+      const eventName = form.mainEvent.eventName;
+      const eventDate = form.mainEvent.startDate.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' });
+      const logo = form.mainEvent.organization?.logoUrl ? `<img src="${form.mainEvent.organization.logoUrl}" alt="" style="max-height:42px;margin-bottom:20px"/>` : '';
+      const whatsapp = form.mainEvent.whatsappCommunityUrl ? `<p style="margin:26px 0;text-align:center"><a href="${form.mainEvent.whatsappCommunityUrl}" style="display:inline-block;background:#00a98f;color:#fff;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:700">QUIERO UNIRME A LA COMUNIDAD</a></p>` : '';
+      void this.mail.send({ organizationId: form.mainEvent.organizationId, to: email, subject: `Inscripción confirmada · ${eventName}`, html: `<div style="font-family:Arial,sans-serif;background:#f4f4f4;padding:28px"><div style="max-width:750px;margin:auto;background:#fff"><div style="background:#16b8aa;padding:25px;text-align:center">${logo || '<span style="color:#fff;font-size:38px;font-weight:700">MedMind</span>'}</div><div style="padding:42px 50px;color:#404040;font-size:17px;line-height:1.7"><h1 style="font-size:25px;margin:0 0 22px;color:#303030">¡Hola, ${name} 👋!</h1><p>Tu registro para nuestro <strong>${eventName}</strong> está confirmado.</p><p>Durante este webinar compartiremos una estrategia clara para que avances con seguridad en tu preparación y postulación al Residentado.</p><h2 style="font-size:20px;margin-top:38px;color:#303030">Ahora solo falta un paso 👇</h2><p>Únete a nuestra <strong>Comunidad Exclusiva</strong>. Por ahí compartiremos el link de acceso, recordatorios e información importante de la sesión.</p>${whatsapp}<div style="margin-top:28px;padding:16px;background:#f2fbf9;border-radius:8px"><strong>${eventName}</strong><br/><span style="color:#65727a">${eventDate}</span></div><p>Nos vemos dentro 🧠.</p><p><strong>Equipo ${form.mainEvent.organization?.name || 'MedMind'}</strong></p></div></div></div>` });
+    }
+    return { ...submission, mainEventId: form.mainEventId, thankYouMessage: form.thankYouMessage, thankYouRedirectUrl: form.thankYouRedirectUrl };
   }
 
   async makeMain(id: string) {

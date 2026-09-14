@@ -17,6 +17,7 @@ export interface Event {
   isActive: boolean
   websiteUrl: string
   contactEmail: string
+  whatsappCommunityUrl?: string
   eventMode?: string
   venueAddress?: string
   latitude?: number | string
@@ -276,6 +277,7 @@ function mapMainEvent(row: any): Event {
     isActive: row.is_active !== false,
     websiteUrl: row.website_url || "",
     contactEmail: row.contact_email || "",
+    whatsappCommunityUrl: row.whatsapp_community_url || row.whatsappCommunityUrl || "",
     eventMode: row.event_mode || row.eventMode || "",
     venueAddress: row.venue_address || row.venueAddress || "",
     latitude: row.latitude ?? undefined,
@@ -643,7 +645,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
-        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
+        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, whatsappCommunityUrl: restUpdates.whatsappCommunityUrl, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
       }
 
       set((state) => ({

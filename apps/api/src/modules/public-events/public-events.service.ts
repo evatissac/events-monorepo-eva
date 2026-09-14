@@ -16,7 +16,7 @@ export class PublicEventsService {
   async list(organizationSlug: string) {
     const organization = await this.prisma.organization.findFirst({ where: { slug: organizationSlug, isActive: true }, select: { id: true, name: true, slug: true, description: true, logoUrl: true, coverUrl: true, portal: { select: { isPublished: true, heroTitle: true, heroDescription: true, heroImageUrl: true, featuredEventId: true, sections: true, navigation: true, seoTitle: true, seoDescription: true } } } });
     if (!organization) throw new NotFoundException('Institución no encontrada');
-    const events = await this.prisma.mainEvent.findMany({ where: { organizationId: organization.id, status: 'PUBLISHED' }, select: { id: true, eventName: true, description: true, startDate: true, endDate: true, eventMode: true, coverUrl: true, logoUrl: true, venueAddress: true, latitude: true, longitude: true, contactEmail: true }, orderBy: { startDate: 'asc' } });
+    const events = await this.prisma.mainEvent.findMany({ where: { organizationId: organization.id, status: 'PUBLISHED' }, select: { id: true, eventName: true, description: true, startDate: true, endDate: true, eventMode: true, coverUrl: true, logoUrl: true, venueAddress: true, latitude: true, longitude: true, contactEmail: true, whatsappCommunityUrl: true }, orderBy: { startDate: 'asc' } });
     return { organization, events };
   }
 

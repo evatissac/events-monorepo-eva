@@ -329,6 +329,7 @@ model MainEvent {
   coverUrl       String?             @map("cover_url")
   logoUrl        String?             @map("logo_url")
   contactEmail   String?             @map("contact_email")
+  whatsappCommunityUrl String?       @map("whatsapp_community_url")
   venueAddress   String?             @map("venue_address")
   latitude       Float?
   longitude      Float?

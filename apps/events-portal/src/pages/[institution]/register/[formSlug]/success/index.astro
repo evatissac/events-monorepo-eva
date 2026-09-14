@@ -3,32 +3,44 @@ import PortalLayout from '../../../../../layouts/PortalLayout.astro';
 import { portalApi } from '../../../../../lib/api';
 
 const { institution, formSlug } = Astro.params;
+const eventId = Astro.url.searchParams.get('eventId');
 if (!institution || !formSlug) return new Response('Página no encontrada', { status: 404 });
 let listing: Awaited<ReturnType<typeof portalApi.events>>;
 let form: any;
+let event: any;
+let eventDetail: any;
 try {
   [listing, form] = await Promise.all([
     portalApi.events(institution),
     fetch(`${portalApi.apiUrl}/public/registration-forms/${encodeURIComponent(formSlug)}`).then((response) => response.ok ? response.json() : Promise.reject()),
   ]);
+  event = eventId ? (listing.events || []).find((item: any) => item.id === eventId) : null;
+  eventDetail = eventId ? await portalApi.event(institution, eventId) : null;
 } catch { return new Response('Página no disponible', { status: 404 }); }
-const eventDate = form.edition?.startDate ? new Date(form.edition.startDate) : null;
+const activeEdition = eventDetail?.editions?.find((edition: any) => edition.isCurrent) || eventDetail?.editions?.[0];
+const eventDate = activeEdition?.startDate ? new Date(activeEdition.startDate) : (event?.startDate ? new Date(event.startDate) : (form.edition?.startDate ? new Date(form.edition.startDate) : null));
 const message = form.thankYouMessage || 'Tu inscripción fue recibida correctamente. Te enviaremos los detalles al correo registrado.';
 ---
 
-<PortalLayout organization={listing.organization} title={`Inscripción confirmada · ${form.title}`}>
+<PortalLayout organization={listing.organization} title={`Inscripción confirmada · ${form.title}`} bare>
   <main class="success-page">
+    <header class="success-header"><a href={`/${institution}`}><img src="/medmind/logo_medmind.svg" alt="MedMind" /></a></header>
     <section class="success-card">
-      <div class="plane" aria-hidden="true">✈</div>
+      <img class="mascot" src="/medmind/success-mascot.svg" alt="" aria-hidden="true" />
       <p class="eyebrow">INSCRIPCIÓN CONFIRMADA</p>
       <h1>¡Gracias por tu inscripción!</h1>
       <p class="message">{message}</p>
-      {eventDate && <div class="event-summary"><span>📅</span><strong>{eventDate.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' })}</strong><span>◷</span><strong>{eventDate.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</strong></div>}
-      <a class="back" href={`/${institution}/events/${form.mainEventId}`}>Volver al evento</a>
+      <div class="event-summary">
+        <div class="event-summary-item"><span class="event-icon">▣</span><div><strong>{eventDate ? eventDate.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' }) : form.edition?.name || form.title}</strong><small>Fecha del evento</small></div></div>
+        <div class="event-summary-item"><span class="event-icon">◷</span><div><strong>{eventDate ? eventDate.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : 'Hora por confirmar'}</strong><small>Hora Perú</small></div></div>
+      </div>
+      <a class="back" href={`/${institution}/events/${eventId || form.mainEventId}`}>Volver al evento</a>
+      {event?.whatsappCommunityUrl && <a class="whatsapp" href={event.whatsappCommunityUrl} target="_blank" rel="noreferrer">Unirme a la comunidad de WhatsApp</a>}
     </section>
+    <footer class="success-footer"><img src="/medmind/logo_medmind.svg" alt="MedMind" /><span>© {new Date().getFullYear()} MedMind</span></footer>
   </main>
 </PortalLayout>
 
 <style>
-  .success-page{min-height:calc(100vh - 72px);display:grid;place-items:center;padding:3rem 1.5rem;background:#fff}.success-card{width:min(100%,680px);text-align:center;color:#172033}.plane{margin:0 auto 1.5rem;width:92px;height:92px;display:grid;place-items:center;border-radius:50%;background:#e7f8f5;color:#00a98f;font-size:3rem;transform:rotate(-20deg)}.eyebrow{margin:0;color:#00a98f;font-size:.75rem;font-weight:800;letter-spacing:.15em}.success-card h1{margin:.65rem 0 1rem;font-size:clamp(2rem,6vw,3.4rem);letter-spacing:-.04em}.message{max-width:540px;margin:auto;color:#5f6c7a;font-size:1.05rem;line-height:1.7}.event-summary{display:flex;align-items:center;justify-content:center;gap:.7rem;flex-wrap:wrap;margin:2rem auto;padding:1.15rem;border:1px solid #e1e8e7;border-radius:14px;background:#fbfdfd;font-size:.95rem}.event-summary span{color:#00a98f;font-size:1.15rem}.back{display:inline-flex;border-radius:999px;padding:.85rem 1.35rem;background:#00a98f;color:#fff;text-decoration:none;font-weight:700}.back:hover{background:#008d77}
+  .success-page{min-height:100vh;display:flex;flex-direction:column;padding:0 1.5rem;background:#fff}.success-header{height:76px;display:flex;align-items:center;width:min(100%,1120px);margin:auto;border-bottom:1px solid #edf0ef}.success-header img,.success-footer img{width:122px;height:auto}.success-card{width:min(100%,680px);text-align:center;color:#172033;margin:auto;padding:3rem 0}.mascot{display:block;width:190px;height:154px;object-fit:contain;margin:0 auto .5rem}.eyebrow{margin:0;color:#00a98f;font-size:.75rem;font-weight:800;letter-spacing:.15em}.success-card h1{margin:.65rem 0 1rem;font-size:clamp(2rem,6vw,3.4rem);letter-spacing:-.04em}.message{max-width:540px;margin:auto;color:#5f6c7a;font-size:1.05rem;line-height:1.7}.event-summary{display:flex;align-items:stretch;justify-content:center;margin:2rem auto;border:1px solid #e1e8e7;border-radius:10px;background:#fff;box-shadow:0 3px 12px rgba(23,32,51,.06);overflow:hidden;font-size:.95rem}.event-summary-item{display:flex;align-items:center;gap:.8rem;padding:1.1rem 1.25rem;text-align:left}.event-summary-item+ .event-summary-item{border-left:1px solid #e6eceb}.event-icon{display:grid;place-items:center;width:38px;height:38px;border-radius:50%;background:#40afe1;color:#fff;font-size:1.2rem}.event-summary strong,.event-summary small{display:block}.event-summary strong{font-size:.9rem}.event-summary small{margin-top:.2rem;color:#87919c}.back,.whatsapp{display:inline-flex;border-radius:999px;padding:.85rem 1.35rem;background:#00a98f;color:#fff;text-decoration:none;font-weight:700}.back:hover{background:#008d77}.whatsapp{display:flex;width:max-content;max-width:100%;margin:1rem auto 0;background:transparent;color:#008d77;border:1px solid #a8dcd3}.success-footer{display:flex;align-items:center;justify-content:space-between;width:min(100%,1120px);margin:auto;padding:1.5rem 0;border-top:1px solid #edf0ef;color:#718080;font-size:.8rem}@media(max-width:560px){.event-summary{flex-direction:column}.event-summary-item+.event-summary-item{border-left:0;border-top:1px solid #e6eceb}.success-footer{gap:1rem}}
 </style>

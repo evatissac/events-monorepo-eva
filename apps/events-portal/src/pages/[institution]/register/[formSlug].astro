@@ -225,7 +225,8 @@ try {
 
       const submitted = await response.json().catch(() => ({}));
       if (submitted.thankYouRedirectUrl) { window.location.assign(submitted.thankYouRedirectUrl); return; }
-      window.location.assign(`/${window.location.pathname.split('/').filter(Boolean).slice(0, 3).join('/')}/success`);
+      const eventId = submitted.mainEventId || "";
+      window.location.assign(`/${window.location.pathname.split('/').filter(Boolean).slice(0, 3).join('/')}/success${eventId ? `?eventId=${encodeURIComponent(eventId)}` : ""}`);
       if (status) {
         status.textContent = '¡Inscripción confirmada con éxito! Te hemos enviado los detalles por correo.';
         status.className = 'form-status success';
