@@ -3,4 +3,10 @@ node_modules
 .git
 .turbo
 .docker-temp
+.pnpm-store
 backups
+dist
+**/dist
+.next
+**/.next
+
