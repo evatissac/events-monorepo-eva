@@ -1,7 +1,8 @@
 ---
 import PortalLayout from "../../../layouts/PortalLayout.astro";
 import { portalApi } from "../../../lib/api";
-import MedmindEventDetail from "../../../components/medmind/MedmindEventDetail.astro";
+import { MedmindEventDetail as MedmindEventDetailReact } from "../../../components/medmind/MedmindEventDetail";
+import "../../../styles/tailwind.css";
 
 const { institution, eventId } = Astro.params;
 if (!institution || !eventId)
@@ -97,7 +98,10 @@ const mapExternalUrl =
     : eventVenue
       ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(eventVenue)}`
       : "";
-const isMedmind = listing.organization.name.trim().toLowerCase() === "medmind";
+const isMedmind =
+  listing.organization.name.trim().toLowerCase() === "medmind" ||
+  listing.organization.slug?.trim().toLowerCase() === "medmind" ||
+  institution.trim().toLowerCase() === "medmind";
 ---
 
 <PortalLayout
@@ -111,8 +115,10 @@ const isMedmind = listing.organization.name.trim().toLowerCase() === "medmind";
     : undefined}
 >
   {isMedmind ? (
-    <MedmindEventDetail
+    <MedmindEventDetailReact
+      client:load
       institution={institution}
+      organization={listing.organization}
       event={event}
       edition={activeEdition}
       speakers={speakers}

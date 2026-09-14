@@ -1,6 +1,14 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import crypto from 'node:crypto';
+
+const isSpeakerRole = (name?: string | null) => {
+  const normalized = String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
+  return ['speaker', 'speakers', 'speaker_mg', 'ponente', 'ponentes'].includes(normalized);
+};
 @Injectable()
 export class EventContentService {
   constructor(private readonly prisma: PrismaService) {}
@@ -39,7 +47,8 @@ export class EventContentService {
   }
   async speakers(eventId: string, editionId?: string) {
     const editions = editionId ? [editionId] : (await this.prisma.edition.findMany({ where: { mainEventId: eventId }, select: { id: true } })).map((e: { id: string }) => e.id);
-    return this.prisma.eventParticipant.findMany({ where: { editionId: { in: editions } }, include: { profile: true, edition: true, role: true }, orderBy: { registeredAt: 'desc' } });
+    const participants = await this.prisma.eventParticipant.findMany({ where: { editionId: { in: editions } }, include: { profile: true, edition: true, role: true }, orderBy: { registeredAt: 'desc' } });
+    return participants.filter((participant) => isSpeakerRole(participant.role?.name));
   }
   async createSpeaker(data: { eventId: string; editionId: string; profileId?: string | null; roleId?: string | null; firstName: string; lastName: string; bio?: string }) {
     const edition = await this.prisma.edition.findFirst({ where: { id: data.editionId, mainEventId: data.eventId } });

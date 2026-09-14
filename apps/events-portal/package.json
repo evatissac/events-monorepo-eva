@@ -10,7 +10,13 @@
   },
   "dependencies": {
     "@astrojs/node": "^9.5.1",
+    "@astrojs/react": "^4.4.2",
+    "@tailwindcss/vite": "^4.3.1",
     "astro": "^5.16.12",
-    "@lucide/astro": "^1.39.0"
+    "@lucide/astro": "^1.39.0",
+    "lucide-react": "^0.468.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^4.3.1"
   }
 }

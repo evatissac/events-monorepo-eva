@@ -13,6 +13,7 @@ export class RegistrationFormsService {
       include: {
         fields: { orderBy: { position: 'asc' } },
         edition: { select: { id: true, name: true } },
+        automations: { where: { trigger: 'REGISTRATION_SUBMITTED', status: { not: 'ARCHIVED' } }, include: { steps: { orderBy: { position: 'asc' }, include: { template: { select: { id: true, name: true, status: true } } } } } },
         _count: { select: { submissions: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -26,6 +27,7 @@ export class RegistrationFormsService {
         fields: { orderBy: { position: 'asc' } },
         edition: { select: { id: true, name: true } },
         mainEvent: { select: { id: true, eventName: true } },
+        automations: { where: { trigger: 'REGISTRATION_SUBMITTED', status: { not: 'ARCHIVED' } }, include: { steps: { orderBy: { position: 'asc' }, include: { template: { select: { id: true, name: true, status: true } } } } } },
         _count: { select: { submissions: true } },
       },
     });
@@ -223,7 +225,7 @@ export class RegistrationFormsService {
     }
     const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres].find((value) => typeof value === 'string') as string | undefined;
     const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
-    await this.automations.enrollRegistration({ eventId: form.mainEventId, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
+    await this.automations.enrollRegistration({ eventId: form.mainEventId, registrationFormId: form.id, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
     return submission;
   }
 
@@ -238,6 +240,10 @@ export class RegistrationFormsService {
       await tx.registrationFormField.deleteMany({ where: { formId: id } });
       return tx.registrationForm.update({ where: { id }, data: { purpose: 'MAIN', fields: { create: fields.map((field, position) => ({ ...field, options: field.options || null, position })) } }, include: { fields: { orderBy: { position: 'asc' } } } });
     });
+  }
+
+  setWelcomeTemplate(formId: string, templateId?: string | null) {
+    return this.automations.setWelcomeTemplate(formId, templateId);
   }
 
   private async mainRegistrationFields(eventId: string, title: string) {
