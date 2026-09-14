@@ -151,6 +151,7 @@ export const api = {
     get: (id: string) => apiFetch<any>(`/registration-forms/${id}`),
     create: (eventId: string, data: any) => apiFetch<any>(`/events/${eventId}/registration-forms`, { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/registration-forms/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    setWelcomeTemplate: (id: string, templateId: string | null) => apiFetch<any>(`/registration-forms/${id}/welcome-template`, { method: "PUT", body: JSON.stringify({ templateId }) }),
     makeMain: (id: string) => apiFetch<any>(`/registration-forms/${id}/make-main`, { method: "POST" }),
     remove: (id: string) => apiFetch<any>(`/registration-forms/${id}`, { method: "DELETE" }),
     removeSubmission: (id: string) => apiFetch<any>(`/registration-submissions/${id}`, { method: "DELETE" }),

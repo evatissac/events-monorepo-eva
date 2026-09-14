@@ -32,6 +32,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
+import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -88,6 +89,7 @@ const DEFAULT_THEME: FormTheme = {
 export function EventFormBuilderPage() {
   const { id: eventId, formId } = useParams<{ id: string; formId: string }>()
   const navigate = useNavigate()
+  const { selectedOrganization } = useAuthStore()
 
   const [, setForm] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -124,6 +126,8 @@ export function EventFormBuilderPage() {
   const [opensAt, setOpensAt] = useState("")
   const [closesAt, setClosesAt] = useState("")
   const [maxSubmissions, setMaxSubmissions] = useState("")
+  const [emailTemplates, setEmailTemplates] = useState<any[]>([])
+  const [welcomeTemplateId, setWelcomeTemplateId] = useState("")
 
   // Load Form Data
   useEffect(() => {
@@ -155,6 +159,13 @@ export function EventFormBuilderPage() {
         setOpensAt(data.opensAt ? new Date(data.opensAt).toISOString().slice(0, 16) : "")
         setClosesAt(data.closesAt ? new Date(data.closesAt).toISOString().slice(0, 16) : "")
         setMaxSubmissions(data.maxSubmissions ? String(data.maxSubmissions) : "")
+        const welcomeAutomation = (data.automations || []).find((automation: any) => automation.trigger === "REGISTRATION_SUBMITTED")
+        setWelcomeTemplateId(welcomeAutomation?.steps?.[0]?.templateId || "")
+
+        if (selectedOrganization?.id) {
+          const templates = await api.emailTemplates.list(selectedOrganization.id)
+          setEmailTemplates(templates.filter((template: any) => template.status !== "ARCHIVED" && template.channel === "EMAIL"))
+        }
 
         if (data.fields && data.fields.length > 0) {
           const loadedBlocks: FormBlock[] = data.fields.filter((f: any) => data.purpose !== "MAIN" || f.key !== "edition_id").map((f: any) => ({
@@ -216,7 +227,7 @@ export function EventFormBuilderPage() {
     }
 
     fetchForm()
-  }, [formId, eventId])
+  }, [formId, eventId, selectedOrganization?.id])
 
   // Push new state into history stack for Undo/Redo
   const updateBlocksWithHistory = (newBlocks: FormBlock[]) => {
@@ -520,6 +531,7 @@ export function EventFormBuilderPage() {
       }
 
       await api.registrationForms.update(formId, payload)
+      await api.registrationForms.setWelcomeTemplate(formId, welcomeTemplateId || null)
       if (targetStatus) setFormStatus(targetStatus)
       if (targetStatus === "PUBLISHED") {
         toast.success("¡Formulario publicado con éxito!")
@@ -1510,6 +1522,18 @@ export function EventFormBuilderPage() {
                 <option value="PAUSED">Pausado (PAUSED)</option>
                 <option value="ARCHIVED">Archivado (ARCHIVED)</option>
               </select>
+            </div>
+
+            <div className="space-y-1.5 border-t border-border/60 pt-4">
+              <div>
+                <label className="text-xs font-semibold text-foreground">Correo de bienvenida</label>
+                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Se enviará inmediatamente después de una inscripción válida. La plantilla sigue siendo reutilizable y editable desde Plantillas.</p>
+              </div>
+              <select value={welcomeTemplateId} onChange={(e) => setWelcomeTemplateId(e.target.value)} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground">
+                <option value="">No enviar correo automático</option>
+                {emailTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}{template.status !== "ACTIVE" ? " (se activará al guardar)" : ""}{template.subject ? ` — ${template.subject}` : ""}</option>)}
+              </select>
+              {!emailTemplates.length && <p className="text-xs text-amber-600 dark:text-amber-400">No hay plantillas de email activas para esta institución.</p>}
             </div>
 
             <div className="flex items-center justify-end gap-2 pt-4 border-t border-border/60">

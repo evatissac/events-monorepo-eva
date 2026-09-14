@@ -30,54 +30,72 @@ export class MailService {
   async send(options: SendMailOptions): Promise<MailDeliveryResult> {
     const toRecipients = Array.isArray(options.to) ? options.to : [options.to];
 
-    // If an organizationId is provided, try to load its dynamic settings
+    // Las comunicaciones pertenecientes a una institución nunca deben usar
+    // credenciales globales de otra institución como respaldo.
     if (options.organizationId) {
       try {
         const orgSettings = await this.prisma.organizationEmailSettings.findUnique({
           where: { organizationId: options.organizationId },
         });
 
-        if (orgSettings && orgSettings.isActive) {
-          const provider = orgSettings.defaultProvider || 'RESEND';
-
-          if (provider === 'RESEND' && orgSettings.resendApiKeyEncrypted) {
-            const resendApiKey = decryptCredential(orgSettings.resendApiKeyEncrypted);
-            const fromEmail = options.fromEmail || orgSettings.resendFromEmail || process.env.RESEND_FROM_EMAIL || 'noreply@asipe.site';
-            const fromName = options.fromName || orgSettings.resendFromName || process.env.RESEND_FROM_NAME || 'Events Platform';
-
-            return this.sendWithResend({
-              apiKey: resendApiKey,
-              fromEmail,
-              fromName,
-              to: toRecipients,
-              subject: options.subject,
-              html: options.html,
-              text: options.text,
-            });
-          }
-
-          if ((provider === 'GMAIL_SMTP' || provider === 'CUSTOM_SMTP') && orgSettings.smtpUser && orgSettings.smtpPassEncrypted) {
-            const smtpPass = decryptCredential(orgSettings.smtpPassEncrypted);
-            const fromEmail = options.fromEmail || orgSettings.smtpFromEmail || orgSettings.smtpUser;
-            const fromName = options.fromName || orgSettings.smtpFromName || process.env.RESEND_FROM_NAME || 'Events Platform';
-
-            return this.sendWithSmtp({
-              host: orgSettings.smtpHost || 'smtp.gmail.com',
-              port: orgSettings.smtpPort || 587,
-              secure: orgSettings.smtpSecure || false,
-              user: orgSettings.smtpUser,
-              pass: smtpPass,
-              fromEmail,
-              fromName,
-              to: toRecipients,
-              subject: options.subject,
-              html: options.html,
-              text: options.text,
-            });
-          }
+        if (!orgSettings || !orgSettings.isActive) {
+          return { sent: false, reason: 'La institución no tiene una configuración de correo activa.' };
         }
+
+        const provider = orgSettings.defaultProvider || 'RESEND';
+
+        if (provider === 'RESEND') {
+          if (!orgSettings.resendApiKeyEncrypted || !orgSettings.resendFromEmail) {
+            return { sent: false, reason: 'La configuración de Resend de la institución está incompleta.' };
+          }
+          const resendApiKey = decryptCredential(orgSettings.resendApiKeyEncrypted);
+          if (!resendApiKey) {
+            return { sent: false, reason: 'No se pudo leer la credencial de Resend de la institución.' };
+          }
+          const fromEmail = options.fromEmail || orgSettings.resendFromEmail;
+          const fromName = options.fromName || orgSettings.resendFromName || 'Events Platform';
+
+          return this.sendWithResend({
+            apiKey: resendApiKey,
+            fromEmail,
+            fromName,
+            to: toRecipients,
+            subject: options.subject,
+            html: options.html,
+            text: options.text,
+          });
+        }
+
+        if (provider === 'GMAIL_SMTP' || provider === 'CUSTOM_SMTP') {
+          if (!orgSettings.smtpUser || !orgSettings.smtpPassEncrypted) {
+            return { sent: false, reason: 'La configuración SMTP de la institución está incompleta.' };
+          }
+          const smtpPass = decryptCredential(orgSettings.smtpPassEncrypted);
+          if (!smtpPass) {
+            return { sent: false, reason: 'No se pudo leer la contraseña SMTP de la institución.' };
+          }
+          const fromEmail = options.fromEmail || orgSettings.smtpFromEmail || orgSettings.smtpUser;
+          const fromName = options.fromName || orgSettings.smtpFromName || 'Events Platform';
+
+          return this.sendWithSmtp({
+            host: orgSettings.smtpHost || 'smtp.gmail.com',
+            port: orgSettings.smtpPort || 587,
+            secure: orgSettings.smtpSecure || false,
+            user: orgSettings.smtpUser,
+            pass: smtpPass,
+            fromEmail,
+            fromName,
+            to: toRecipients,
+            subject: options.subject,
+            html: options.html,
+            text: options.text,
+          });
+        }
+
+        return { sent: false, reason: `Proveedor de correo no compatible para la institución: ${provider}.` };
       } catch (err: any) {
-        this.logger.warn(`Error resolving dynamic email settings for org [${options.organizationId}]: ${err.message}. Falling back to default.`);
+        this.logger.error(`Error resolviendo el correo de la institución [${options.organizationId}]: ${err.message}`);
+        return { sent: false, reason: 'No se pudo cargar la configuración de correo de la institución.' };
       }
     }
 
