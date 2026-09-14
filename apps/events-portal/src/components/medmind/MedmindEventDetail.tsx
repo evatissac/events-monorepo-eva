@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState, type FormEvent } from 'react';
 import {
   ArrowRight,
@@ -94,8 +96,9 @@ function ButtonLink({
   );
 }
 
-function EventTitle({ title }: { title: string }) {
-  const parts = title.split(/(ENAM Y EL RESIDENTADO \d{4}|ENAM|RESIDENTADO \d{4}|RESIDENTADO)/i);
+function EventTitle({ title }: { title?: string }) {
+  const safeTitle = String(title || '');
+  const parts = safeTitle.split(/(ENAM Y EL RESIDENTADO \d{4}|ENAM|RESIDENTADO \d{4}|RESIDENTADO)/i);
   return (
     <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold tracking-tight text-zinc-900 leading-[1.08]">
       {parts.map((part, i) =>
@@ -136,19 +139,22 @@ function FactCard({
 }
 
 function SpeakerCard({ speaker }: { speaker: any }) {
+  const profile = speaker?.profile || speaker || {};
+  const firstName = profile.firstName || '';
+  const lastName = profile.lastName || '';
   const name =
-    [speaker.firstName, speaker.lastName].filter(Boolean).join(' ') ||
+    [firstName, lastName].filter(Boolean).join(' ') ||
     'Expositor invitado';
   const initials =
-    [speaker.firstName?.[0], speaker.lastName?.[0]].filter(Boolean).join('') ||
+    [firstName?.[0], lastName?.[0]].filter(Boolean).join('') ||
     'DR';
 
   return (
     <article className="rounded-xl border border-zinc-200 bg-white p-6 flex flex-col sm:flex-row items-start sm:items-center gap-5">
       <div className="size-16 sm:size-20 rounded-full border border-zinc-200 bg-teal-50 text-teal-700 flex items-center justify-center shrink-0 overflow-hidden font-semibold text-base sm:text-lg">
-        {speaker.avatarUrl ? (
+        {profile.avatarUrl ? (
           <img
-            src={speaker.avatarUrl}
+            src={profile.avatarUrl}
             alt={name}
             className="size-full object-cover"
           />
@@ -161,9 +167,9 @@ function SpeakerCard({ speaker }: { speaker: any }) {
         <p className="text-xs font-semibold uppercase tracking-wider text-teal-600 mt-0.5">
           Médico · Ponente oficial
         </p>
-        {speaker.bio && (
-          <p className="text-sm text-zinc-600 mt-2 leading-relaxed">
-            {speaker.bio}
+        {profile.bio && (
+          <p className="text-sm text-zinc-600 mt-2 leading-relaxed whitespace-pre-line">
+            {profile.bio}
           </p>
         )}
       </div>
@@ -369,14 +375,16 @@ export function MedmindEventDetail({
   activities = [],
   form,
   heroImage,
+  heroVideo,
   apiUrl,
 }: MedmindEventDetailProps) {
   const [status, setStatus] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [done, setDone] = useState(false);
 
-  const startDateStr = edition?.startDate || event.startDate;
-  const date = startDateStr ? new Date(startDateStr) : null;
+  const startDateStr = edition?.startDate || event?.startDate;
+  const parsedDate = startDateStr ? new Date(startDateStr) : null;
+  const date = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
   const dateText = date
     ? date.toLocaleDateString('es-PE', {
         day: 'numeric',
@@ -391,9 +399,11 @@ export function MedmindEventDetail({
     ? date.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })
     : 'Hora por definir';
 
-  const fields = form?.fields || [];
+  const fields = Array.isArray(form?.fields) ? form.fields : [];
+  const safeSpeakers = Array.isArray(speakers) ? speakers : [];
+  const safeActivities = Array.isArray(activities) ? activities : [];
   const description =
-    edition?.description || event.details?.content || event.description;
+    edition?.description || event?.details?.content || event?.description || '';
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -449,7 +459,7 @@ export function MedmindEventDetail({
           </a>
 
           <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-zinc-600">
-            {speakers.length > 0 && (
+            {safeSpeakers.length > 0 && (
               <a
                 href="#ponentes"
                 className="transition-colors hover:text-teal-600"
@@ -457,7 +467,7 @@ export function MedmindEventDetail({
                 Expositores
               </a>
             )}
-            {activities.length > 0 && (
+            {safeActivities.length > 0 && (
               <a
                 href="#temario"
                 className="transition-colors hover:text-teal-600"
@@ -497,7 +507,7 @@ export function MedmindEventDetail({
                 <span>WEBINAR GRATUITO · EN VIVO</span>
               </div>
 
-              <EventTitle title={event.eventName} />
+              <EventTitle title={event?.eventName} />
 
               {description && (
                 <p className="mt-5 text-base sm:text-lg text-zinc-600 leading-relaxed font-normal max-w-2xl">
@@ -532,7 +542,7 @@ export function MedmindEventDetail({
                     <ArrowRight className="size-4" />
                   </ButtonLink>
                 )}
-                {activities.length > 0 && (
+                {safeActivities.length > 0 && (
                   <ButtonLink href="#temario" variant="outline" size="lg">
                     Explorar temario
                   </ButtonLink>
@@ -545,7 +555,7 @@ export function MedmindEventDetail({
               <div className="lg:col-span-5 flex items-center justify-center">
                 <img
                   src={heroImage}
-                  alt={event.eventName}
+                  alt={event?.eventName || 'Evento'}
                   className="max-h-[440px] sm:max-h-[480px] w-auto max-w-full object-contain"
                 />
               </div>
@@ -555,7 +565,7 @@ export function MedmindEventDetail({
       </section>
 
       {/* 3. Temario / Agenda Section */}
-      {activities.length > 0 && (
+      {safeActivities.length > 0 && (
         <section
           id="temario"
           className="w-full border-t border-zinc-200/80 bg-zinc-50/50 py-16 sm:py-24"
@@ -571,7 +581,7 @@ export function MedmindEventDetail({
             </div>
 
             <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-              {activities.map((item: any, index: number) => (
+              {safeActivities.map((item: any, index: number) => (
                 <article
                   key={item.id || index}
                   className="rounded-xl border border-zinc-200 bg-white p-6"
@@ -595,7 +605,7 @@ export function MedmindEventDetail({
       )}
 
       {/* 4. Expositores / Speakers Section */}
-      {speakers.length > 0 && (
+      {safeSpeakers.length > 0 && (
         <section
           id="ponentes"
           className="w-full border-t border-zinc-200/80 py-16 sm:py-24"
@@ -617,10 +627,10 @@ export function MedmindEventDetail({
 
             <div
               className={`mt-10 grid gap-6 ${
-                speakers.length === 1 ? 'max-w-2xl' : 'sm:grid-cols-2 max-w-5xl'
+                safeSpeakers.length === 1 ? 'max-w-2xl' : 'sm:grid-cols-2 max-w-5xl'
               }`}
             >
-              {speakers.map((speaker: any, index: number) => (
+              {safeSpeakers.map((speaker: any, index: number) => (
                 <SpeakerCard key={speaker.id || index} speaker={speaker} />
               ))}
             </div>
