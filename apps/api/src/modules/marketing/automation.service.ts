@@ -102,7 +102,8 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       const template = step.templateId ? await this.prisma.emailTemplate.findUnique({ where: { id: step.templateId } }) : null;
       const context = (job.context as Record<string, unknown> | null) || {};
       const subject = interpolate(step.subject || template?.subject || 'Información importante', context);
-      const html = step.htmlContent ? interpolate(step.htmlContent, context) : template?.htmlContent ? interpolate(template.htmlContent, context) : blocksToHtml(template?.content, context) || '<p>Gracias por registrarte.</p>';
+      const configuredHtml = step.htmlContent ? interpolate(step.htmlContent, context) : template?.htmlContent ? interpolate(template.htmlContent, context) : blocksToHtml(template?.content, context);
+      const html = configuredHtml?.trim() ? configuredHtml : this.registrationFallbackHtml(context);
       const result = await this.mail.send({ to: job.recipientEmail, subject, html, organizationId: job.organizationId });
       await this.prisma.emailDelivery.update({ where: { id: job.id }, data: result.sent ? { status: 'SENT', sentAt: new Date(), providerMessageId: result.messageId } : { status: 'FAILED', error: result.reason } });
       result.sent ? sent++ : failed++;
@@ -130,6 +131,11 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     if (step.timing === 'IMMEDIATE') return registeredAt > now ? registeredAt : now;
     const date = step.timing === 'BEFORE_EVENT' ? new Date(eventStart.getTime() - step.offsetHours * 3600000) : step.timing === 'AFTER_EVENT' ? new Date(eventStart.getTime() + step.offsetHours * 3600000) : new Date(registeredAt.getTime() + step.offsetHours * 3600000);
     return date <= now ? null : date;
+  }
+  private registrationFallbackHtml(context: Record<string, unknown>) {
+    const name = String(context.first_name || 'participante');
+    const eventName = String(context.event_name || 'nuestro webinar');
+    return `<!doctype html><html><body style="margin:0;padding:0;background:#f3f5f5;font-family:Arial,Helvetica,sans-serif;color:#4b4b4b"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f5"><tr><td align="center" style="padding:32px 12px"><table role="presentation" width="750" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:750px;background:#ffffff"><tr><td align="center" style="background:#16b8aa;padding:25px;color:#ffffff;font-size:38px;font-weight:700;line-height:1">MedMind</td></tr><tr><td style="padding:44px 50px;font-size:18px;line-height:1.7"><h1 style="margin:0 0 24px;color:#303030;font-size:26px;line-height:1.2">¡Hola, ${name} 👋!</h1><p style="margin:0 0 22px">Tu registro para nuestro <strong>${eventName}</strong> está confirmado.</p><p style="margin:0 0 22px">Si tienes <strong>menos de 13 puntos en tu CV</strong>, durante este webinar hablaremos de cómo puedes construir desde ahora una estrategia de ingreso más inteligente, cuándo podría tener sentido volver a rendir el ENAM y cómo hacerlo <strong>sin detener tu preparación para el Residentado</strong>.</p><h2 style="margin:40px 0 16px;color:#303030;font-size:21px;line-height:1.3">Ahora solo falta un paso 👇</h2><p style="margin:0 0 12px">Únete a nuestra <strong>Comunidad Exclusiva RM 2027</strong>. Por ahí compartiremos el link de acceso, recordatorios e información importante de la sesión.</p><p style="margin:28px 0 0">Nos vemos dentro 🧠.</p><p style="margin:8px 0 0"><strong>Equipo MedMind</strong></p></td></tr></table></td></tr></table></body></html>`;
   }
   private steps(steps: any[] = []) { return steps.map((step, index) => ({ position: index + 1, timing: step.timing, offsetHours: Number(step.offsetHours || 0), templateId: step.templateId || null, subject: step.subject || null, htmlContent: step.htmlContent || null, conditions: step.conditions || null })); }
   private async assertEvent(organizationId: string, eventId: string) { const event = await this.prisma.mainEvent.findFirst({ where: { id: eventId, organizationId } }); if (!event) throw new BadRequestException('El evento no pertenece a la institución'); }

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Trash2, UserCheck, Check, ExternalLink, Eye } from "lucide-react"
+import { Plus, Trash2, UserCheck, Check, ExternalLink, Eye, RefreshCw } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import {
@@ -27,6 +27,7 @@ export function EventAttendeesSection() {
   const [forms, setForms] = useState<any[]>([])
   const [formFilter, setFormFilter] = useState("ALL")
   const [detailAttendee, setDetailAttendee] = useState<any>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
@@ -54,6 +55,19 @@ export function EventAttendeesSection() {
       toast.success("Inscripción eliminada")
     } catch (error: any) {
       toast.error(error?.message || "No se pudo eliminar la inscripción")
+    }
+  }
+
+  const refreshAttendees = async () => {
+    if (!event?.organizationId) return
+    setRefreshing(true)
+    try {
+      await loadData(event.organizationId)
+      toast.success("Lista de participantes actualizada")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo actualizar la lista")
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -218,6 +232,7 @@ export function EventAttendeesSection() {
           <option value="MANUAL">Participantes manuales</option>
           {forms.map((form) => <option key={form.id} value={form.id}>{form.purpose === "MAIN" ? "Registro principal" : "Formulario"}: {form.title}</option>)}
         </select>
+        <Button type="button" variant="outline" size="icon" onClick={() => void refreshAttendees()} disabled={refreshing} title="Actualizar lista" aria-label="Actualizar lista de participantes" className="size-9"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></Button>
       </div>
 
       {filteredAttendees.length === 0 ? (
