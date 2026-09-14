@@ -1,0 +1,77 @@
+#1 [internal] load local bake definitions
+#1 reading from stdin 374B 0.4s done
+#1 DONE 0.4s
+
+#2 [internal] load build definition from Dockerfile
+#2 transferring dockerfile: 923B 0.0s done
+#2 DONE 0.1s
+
+#3 [internal] load metadata for docker.io/library/node:22-alpine
+#3 DONE 0.1s
+
+#4 [internal] load .dockerignore
+#4 transferring context: 32B
+#4 transferring context: 102B 0.0s done
+#4 DONE 0.0s
+
+#5 [internal] load build context
+#5 DONE 0.0s
+
+#6 [build 1/9] FROM docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32
+#6 resolve docker.io/library/node:22-alpine@sha256:c610fcdfb1d5b4740dd70c284ed3cb16bb857e0f7166196e36a5501df7a3aa32 0.1s done
+#6 DONE 0.1s
+
+#5 [internal] load build context
+#5 transferring context: 12.03kB 0.1s done
+#5 DONE 0.1s
+
+#7 [build 9/9] RUN pnpm --filter events-api exec prisma generate --schema prisma/schema.prisma && pnpm --filter events-api build && pnpm deploy --filter events-api /prod && PRISMA_CLIENT_DIR=$(find /app/node_modules -type d -path '*/.prisma/client' | head -n 1) && mkdir -p /prod/node_modules/.prisma && cp -r "$PRISMA_CLIENT_DIR" /prod/node_modules/.prisma/client
+#7 CACHED
+
+#8 [stage-1 2/5] WORKDIR /app/apps/api
+#8 CACHED
+
+#9 [build 2/9] WORKDIR /app
+#9 CACHED
+
+#10 [build 3/9] COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+#10 CACHED
+
+#11 [build 7/9] WORKDIR /app/apps/api
+#11 CACHED
+
+#12 [build 6/9] COPY apps/api ./apps/api
+#12 CACHED
+
+#13 [stage-1 3/5] COPY --from=build /prod ./
+#13 CACHED
+
+#14 [stage-1 4/5] COPY --from=build /app/apps/api/dist ./dist
+#14 CACHED
+
+#15 [build 4/9] COPY apps/api/package.json ./apps/api/package.json
+#15 CACHED
+
+#16 [build 5/9] RUN corepack enable && pnpm install --frozen-lockfile=false
+#16 CACHED
+
+#17 [build 8/9] RUN pnpm install --filter events-api --no-frozen-lockfile
+#17 CACHED
+
+#18 [stage-1 5/5] COPY --from=build /app/apps/api/prisma ./prisma
+#18 CACHED
+
+#19 exporting to image
+#19 exporting layers 0.0s done
+#19 exporting manifest sha256:a56c3bc99594656fec88b0d86b993db5f58e5482c5c3b492c88976ad1acb17be 0.0s done
+#19 exporting config sha256:7338193ea52e381409f0dddd0f03d179812f8bff5f780cfe78c098ff45e123ab 0.0s done
+#19 exporting attestation manifest sha256:76cbeb272696bdbe548eb191152a1dae4f13ac7bd77a6d23365ac1e4e76985be
+#19 exporting attestation manifest sha256:76cbeb272696bdbe548eb191152a1dae4f13ac7bd77a6d23365ac1e4e76985be 0.1s done
+#19 exporting manifest list sha256:999cf88493583e37f2db9e4213843a72c72840f5496a4b135eed56511e7af0f5 0.1s done
+#19 naming to docker.io/library/events-monorepo-api:latest
+#19 naming to docker.io/library/events-monorepo-api:latest 0.0s done
+#19 unpacking to docker.io/library/events-monorepo-api:latest 0.1s done
+#19 DONE 0.6s
+
+#20 resolving provenance for metadata file
+#20 DONE 0.1s
