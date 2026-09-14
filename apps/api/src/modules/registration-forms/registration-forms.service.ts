@@ -2,10 +2,11 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../database/prisma.service.js';
 import { AutomationService } from '../marketing/automation.service.js';
+import { MailService } from '../mail/mail.service.js';
 
 @Injectable()
 export class RegistrationFormsService {
-  constructor(private readonly prisma: PrismaService, private readonly automations: AutomationService) {}
+  constructor(private readonly prisma: PrismaService, private readonly automations: AutomationService, private readonly mail: MailService) {}
 
   list(eventId: string) {
     return this.prisma.registrationForm.findMany({
@@ -47,7 +48,7 @@ export class RegistrationFormsService {
         participantId: true,
         editionId: true,
         submittedAt: true,
-        form: { select: { mainEventId: true, editionId: true, title: true, purpose: true } },
+        form: { select: { mainEventId: true, editionId: true, title: true, purpose: true, fields: { select: { key: true, label: true, type: true } } } },
       },
       orderBy: { submittedAt: 'desc' },
     });
@@ -92,6 +93,8 @@ export class RegistrationFormsService {
         purpose,
         allowEditionSelection: !!data.allowEditionSelection,
         defaultEditionId: data.defaultEditionId || null,
+        thankYouMessage: data.thankYouMessage || null,
+        thankYouRedirectUrl: data.thankYouRedirectUrl || null,
         fields: {
           create: fields.map((field: any, position: number) => ({
             key: field.key,
@@ -159,8 +162,8 @@ export class RegistrationFormsService {
       where: { slug },
       include: {
         fields: { orderBy: { position: 'asc' } },
-        mainEvent: { select: { eventName: true } },
-        edition: { select: { name: true } },
+        mainEvent: { select: { id: true, eventName: true, startDate: true, organizationId: true, whatsappCommunityUrl: true, organization: { select: { name: true, logoUrl: true } } } },
+        edition: { select: { name: true, startDate: true } },
       },
     });
     if (!form) throw new NotFoundException('Formulario no encontrado');
@@ -194,7 +197,9 @@ export class RegistrationFormsService {
         throw new BadRequestException(`El campo ${field.label} es obligatorio`);
       }
     }
-    const email = typeof answers.email === 'string' ? answers.email.trim().toLowerCase() : null;
+    const emailField = form.fields.find((field: any) => field.type === 'email' || field.key === 'email');
+    const emailValue = emailField ? answers[emailField.key] : answers.email;
+    const email = typeof emailValue === 'string' ? emailValue.trim().toLowerCase() : null;
     if (email) {
       const existing = await this.prisma.registrationSubmission.findUnique({
         where: { formId_email: { formId: form.id, email } },
@@ -223,10 +228,19 @@ export class RegistrationFormsService {
       const participantId = await this.registerMainParticipant(form, submission.id, answers, editionId);
       await this.prisma.registrationSubmission.update({ where: { id: submission.id }, data: { participantId } });
     }
-    const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres].find((value) => typeof value === 'string') as string | undefined;
+    const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres, answers.nombres_completos].find((value) => typeof value === 'string') as string | undefined;
     const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
     await this.automations.enrollRegistration({ eventId: form.mainEventId, registrationFormId: form.id, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
-    return submission;
+    const hasWelcomeTemplate = await this.prisma.marketingAutomation.count({ where: { registrationFormId: form.id, trigger: 'REGISTRATION_SUBMITTED', status: 'ACTIVE', steps: { some: { templateId: { not: null } } } } });
+    if (email && form.mainEvent.organizationId && !hasWelcomeTemplate) {
+      const name = firstName || 'participante';
+      const eventName = form.mainEvent.eventName;
+      const eventDate = form.mainEvent.startDate.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' });
+      const logo = form.mainEvent.organization?.logoUrl ? `<img src="${form.mainEvent.organization.logoUrl}" alt="" style="max-height:42px;margin-bottom:20px"/>` : '';
+      const whatsapp = form.mainEvent.whatsappCommunityUrl ? `<p style="margin:26px 0;text-align:center"><a href="${form.mainEvent.whatsappCommunityUrl}" style="display:inline-block;background:#00a98f;color:#fff;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:700">QUIERO UNIRME A LA COMUNIDAD</a></p>` : '';
+      void this.mail.send({ organizationId: form.mainEvent.organizationId, to: email, subject: `Inscripción confirmada · ${eventName}`, html: `<div style="font-family:Arial,sans-serif;background:#f3f5f5;padding:32px 12px"><div style="max-width:750px;margin:auto;background:#fff"><div style="background:#16b8aa;padding:26px;text-align:center">${logo || '<span style="color:#fff;font-size:38px;font-weight:700">MedMind</span>'}</div><div style="padding:46px 52px;color:#4b4b4b;font-size:18px;line-height:1.72"><h1 style="font-size:26px;margin:0 0 24px;color:#333">¡Hola, ${name} 👋!</h1><p style="margin:0 0 22px">Tu registro para nuestro <strong>${eventName}</strong> está confirmado.</p><p style="margin:0 0 22px">Si tienes <strong>menos de 13 puntos en tu CV</strong>, durante este webinar hablaremos de cómo puedes empezar a construir desde ahora una estrategia de ingreso más inteligente, cuándo podría tener sentido volver a rendir el ENAM y cómo hacerlo <strong>sin detener tu preparación para el Residentado</strong>.</p><h2 style="font-size:21px;margin:42px 0 16px;color:#333">Ahora solo falta un paso 👇</h2><p style="margin:0 0 16px">Únete a nuestra <strong>Comunidad Exclusiva RM 2027</strong>.</p><p style="margin:0 0 12px">Por ahí compartiremos:</p><ul style="margin:0 0 22px;padding-left:24px"><li>El <strong>link de acceso al webinar</strong></li><li>Recordatorios antes de empezar</li><li>Información importante de la sesión</li><li>Contenido exclusivo para tu postulación</li></ul>${whatsapp}<div style="margin-top:30px;padding:17px;background:#f2fbf9;border-radius:8px"><strong>${eventName}</strong><br/><span style="color:#65727a">${eventDate}</span></div><p style="margin:28px 0 0">Nos vemos dentro 🧠.</p><p style="margin:8px 0 0"><strong>Equipo ${form.mainEvent.organization?.name || 'MedMind'}</strong></p></div></div></div>` });
+    }
+    return { ...submission, mainEventId: form.mainEventId, thankYouMessage: form.thankYouMessage, thankYouRedirectUrl: form.thankYouRedirectUrl };
   }
 
   async makeMain(id: string) {
@@ -265,7 +279,9 @@ export class RegistrationFormsService {
   }
 
   private async registerMainParticipant(form: any, submissionId: string, answers: Record<string, unknown>, requestedEditionId?: string) {
-    const email = typeof answers.email === 'string' ? answers.email.trim().toLowerCase() : '';
+    const emailField = form.fields?.find((field: any) => field.type === 'email' || field.key === 'email');
+    const emailValue = emailField ? answers[emailField.key] : answers.email;
+    const email = typeof emailValue === 'string' ? emailValue.trim().toLowerCase() : '';
     if (!email) throw new BadRequestException('El correo electrónico es obligatorio');
     const fullName = String(answers.full_name || answers.name || '').trim();
     const firstName = String(answers.first_name || answers.firstName || fullName.split(/\s+/)[0] || 'Participante').trim();

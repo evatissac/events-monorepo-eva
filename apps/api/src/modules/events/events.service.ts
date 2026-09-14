@@ -11,7 +11,7 @@ export class EventsService {
   async update(id: string, data: Record<string, unknown>) {
     const { detailContent, ...eventData } = data;
     const input: any = {};
-    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'contactEmail', 'venueAddress', 'latitude', 'longitude']) if (eventData[key] !== undefined) input[key] = eventData[key];
+    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'contactEmail', 'whatsappCommunityUrl', 'venueAddress', 'latitude', 'longitude']) if (eventData[key] !== undefined) input[key] = eventData[key];
     if (eventData.eventMode !== undefined) {
       const mode = String(eventData.eventMode).trim().toUpperCase();
       input.eventMode = ['PHYSICAL', 'ONLINE', 'HYBRID'].includes(mode) ? mode : null;
