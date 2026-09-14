@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Clock3,
-  Sparkles,
   User,
   Video,
 } from 'lucide-react';
@@ -168,6 +167,39 @@ function SpeakerCard({ speaker }: { speaker: any }) {
           </p>
         )}
       </div>
+    </article>
+  );
+}
+
+const webinarBenefits = [
+  {
+    title: 'El punto de partida real',
+    description:
+      'Qué significa hoy tener menos de 13 y qué margen de tiempo tienes realmente antes del RM 2027.',
+  },
+  {
+    title: 'Prioridades de estudio',
+    description:
+      'En qué enfocar tus horas de estudio para que sumen puntaje donde más importa.',
+  },
+  {
+    title: 'Errores que restan puntos',
+    description:
+      'Los errores más comunes de quienes postulan sin una estructura clara.',
+  },
+  {
+    title: 'Tu plan de acción',
+    description:
+      'Los siguientes pasos concretos para ordenar tu preparación desde esta semana.',
+  },
+];
+
+function BenefitCard({ item, index }: { item: (typeof webinarBenefits)[number]; index: number }) {
+  return (
+    <article className="group border-t border-zinc-200 py-7 first:border-t-0 sm:p-7 sm:first:border-t sm:odd:border-r">
+      <span className="font-mono text-sm font-bold text-teal-600">{String(index + 1).padStart(2, '0')}</span>
+      <h3 className="mt-4 text-xl font-bold tracking-tight text-zinc-900 sm:text-2xl">{item.title}</h3>
+      <p className="mt-3 max-w-md text-sm leading-7 text-zinc-600 sm:text-base">{item.description}</p>
     </article>
   );
 }
@@ -404,23 +436,13 @@ export function MedmindEventDetail({
   return (
     <main className="w-full min-h-screen overflow-x-hidden bg-white font-sans text-zinc-900 antialiased">
       {/* 1. Header / Navbar */}
-      <header className="sticky top-0 z-50 w-full border-b border-zinc-200/80 bg-white/95 backdrop-blur-md">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <header className="fixed inset-x-0 top-0 z-50 w-full border-b border-zinc-200/80 bg-white/95 backdrop-blur-md">
+        <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
           <a
             href={`/${institution}`}
             className="flex items-center gap-3 no-underline"
           >
-            {organization?.logoUrl || event.logoUrl ? (
-              <img
-                src={organization?.logoUrl || event.logoUrl}
-                alt={organization?.name || 'MedMind'}
-                className="h-8 w-auto max-w-[140px] object-contain"
-              />
-            ) : (
-              <span className="text-xl font-bold tracking-tight text-zinc-900">
-                MedMind
-              </span>
-            )}
+            <img src="/medmind/logo_medmind.svg" alt="MedMind" className="h-8 w-auto max-w-[154px] object-contain" />
             <span className="rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[11px] font-semibold tracking-wide text-teal-700">
               WEBINAR
             </span>
@@ -465,8 +487,8 @@ export function MedmindEventDetail({
       </header>
 
       {/* 2. Hero Section */}
-      <section id="inicio" className="w-full relative py-12 sm:py-16 lg:py-24">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section id="inicio" className="w-full relative pb-12 pt-28 sm:pb-16 sm:pt-32 lg:pb-24 lg:pt-40">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-12 gap-10 lg:gap-14 items-center">
             {/* Left Column: Headline, Description, Facts, CTAs */}
             <div className="lg:col-span-7 flex flex-col items-start text-left">
@@ -538,12 +560,12 @@ export function MedmindEventDetail({
           id="temario"
           className="w-full border-t border-zinc-200/80 bg-zinc-50/50 py-16 sm:py-24"
         >
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl">
               <span className="text-xs font-semibold uppercase tracking-wider text-teal-600 block mb-1">
                 Temario
               </span>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
+              <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight leading-[1.05] text-zinc-900">
                 Todo lo que necesitas para prepararte mejor
               </h2>
             </div>
@@ -578,16 +600,16 @@ export function MedmindEventDetail({
           id="ponentes"
           className="w-full border-t border-zinc-200/80 py-16 sm:py-24"
         >
-          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="max-w-2xl">
-              <span className="text-xs font-semibold uppercase tracking-wider text-teal-600 block mb-1">
+              <span className="text-sm font-bold uppercase tracking-[0.18em] text-teal-600 block mb-3">
                 Expositores
               </span>
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900">
+              <h2 className="text-4xl font-bold leading-[1.04] tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl">
                 ¿Quiénes te acompañarán en este{' '}
                 <span className="text-teal-600">webinar?</span>
               </h2>
-              <p className="mt-2 text-sm sm:text-base text-zinc-600 leading-relaxed">
+              <p className="mt-5 max-w-3xl text-base leading-7 text-zinc-600 sm:text-lg">
                 Médicos con experiencia real y resultados comprobados, listos
                 para compartir su estrategia y resolver tus dudas en vivo.
               </p>
@@ -606,20 +628,38 @@ export function MedmindEventDetail({
         </section>
       )}
 
-      {/* 5. Registration Section (Background with primary brand color) */}
+      {/* 5. Agenda & benefits */}
+      <section id="beneficios" className="w-full border-t border-zinc-200 bg-zinc-50/70 py-16 sm:py-24">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-4xl">
+            <span className="block text-xs font-semibold uppercase tracking-wider text-teal-600">Agenda &amp; beneficios</span>
+            <h2 className="mt-3 text-4xl font-bold tracking-tight text-zinc-900 sm:text-5xl lg:text-6xl">
+              ¿Qué te llevas de este <span className="text-teal-600">webinar?</span>
+            </h2>
+            <p className="mt-5 max-w-2xl text-base leading-7 text-zinc-600 sm:text-lg">
+              Contenido pensado para que salgas con un plan claro, no solo con más información.
+            </p>
+          </div>
+          <div className="mt-10 grid border-y border-zinc-200 sm:grid-cols-2">
+            {webinarBenefits.map((item, index) => <BenefitCard key={item.title} item={item} index={index} />)}
+          </div>
+        </div>
+      </section>
+
+      {/* 6. Registration Section (Background with primary brand color) */}
       {form && (
         <section
           id="registro"
-          className="w-full bg-teal-600 py-16 sm:py-24 px-4 sm:px-6 lg:px-8"
+          className="w-full bg-teal-600 py-16 sm:py-24"
         >
-          <div className="w-full max-w-3xl mx-auto">
+          <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto w-full max-w-4xl">
             <div className="w-full rounded-3xl bg-white p-7 sm:p-12">
-              <div className="text-center max-w-xl mx-auto">
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-teal-200 bg-teal-50 px-3.5 py-1 text-xs font-semibold text-teal-700">
-                  <Sparkles className="size-3" />
-                  Acceso 100% Gratuito
-                </span>
-                <h2 className="text-2xl sm:text-3xl font-bold tracking-tight text-zinc-900 mt-3.5">
+              <div className="mx-auto text-center">
+                <p className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-teal-600">
+                  Acceso 100% gratuito
+                </p>
+                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-tight text-zinc-900">
                   Reserva tu cupo <span className="text-teal-600">gratis</span>
                 </h2>
                 <p className="text-sm text-zinc-600 mt-2">
@@ -681,17 +721,16 @@ export function MedmindEventDetail({
                 </form>
               )}
             </div>
+            </div>
           </div>
         </section>
       )}
 
-      {/* 6. Footer */}
+      {/* 7. Footer */}
       <footer className="w-full border-t border-zinc-200 bg-white py-12">
-        <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 text-center sm:flex-row sm:px-6 sm:text-left lg:px-8">
           <div>
-            <p className="text-lg font-bold tracking-tight text-zinc-900">
-              MedMind
-            </p>
+            <img src="/medmind/logo_medmind.svg" alt="MedMind" className="mx-auto h-8 w-auto max-w-[154px] sm:mx-0" />
             <p className="text-xs text-zinc-500 mt-1">
               Webinar oficial · {dateText} · {timeText} (Perú)
             </p>
