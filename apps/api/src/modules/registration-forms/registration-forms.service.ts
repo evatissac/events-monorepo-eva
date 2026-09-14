@@ -47,7 +47,7 @@ export class RegistrationFormsService {
         participantId: true,
         editionId: true,
         submittedAt: true,
-        form: { select: { mainEventId: true, editionId: true, title: true, purpose: true } },
+        form: { select: { mainEventId: true, editionId: true, title: true, purpose: true, fields: { select: { key: true, label: true, type: true } } } },
       },
       orderBy: { submittedAt: 'desc' },
     });
@@ -92,6 +92,8 @@ export class RegistrationFormsService {
         purpose,
         allowEditionSelection: !!data.allowEditionSelection,
         defaultEditionId: data.defaultEditionId || null,
+        thankYouMessage: data.thankYouMessage || null,
+        thankYouRedirectUrl: data.thankYouRedirectUrl || null,
         fields: {
           create: fields.map((field: any, position: number) => ({
             key: field.key,
@@ -160,7 +162,7 @@ export class RegistrationFormsService {
       include: {
         fields: { orderBy: { position: 'asc' } },
         mainEvent: { select: { eventName: true } },
-        edition: { select: { name: true } },
+        edition: { select: { name: true, startDate: true } },
       },
     });
     if (!form) throw new NotFoundException('Formulario no encontrado');
@@ -194,7 +196,9 @@ export class RegistrationFormsService {
         throw new BadRequestException(`El campo ${field.label} es obligatorio`);
       }
     }
-    const email = typeof answers.email === 'string' ? answers.email.trim().toLowerCase() : null;
+    const emailField = form.fields.find((field: any) => field.type === 'email' || field.key === 'email');
+    const emailValue = emailField ? answers[emailField.key] : answers.email;
+    const email = typeof emailValue === 'string' ? emailValue.trim().toLowerCase() : null;
     if (email) {
       const existing = await this.prisma.registrationSubmission.findUnique({
         where: { formId_email: { formId: form.id, email } },
@@ -223,10 +227,10 @@ export class RegistrationFormsService {
       const participantId = await this.registerMainParticipant(form, submission.id, answers, editionId);
       await this.prisma.registrationSubmission.update({ where: { id: submission.id }, data: { participantId } });
     }
-    const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres].find((value) => typeof value === 'string') as string | undefined;
+    const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres, answers.nombres_completos].find((value) => typeof value === 'string') as string | undefined;
     const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
     await this.automations.enrollRegistration({ eventId: form.mainEventId, registrationFormId: form.id, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
-    return submission;
+    return { ...submission, thankYouMessage: form.thankYouMessage, thankYouRedirectUrl: form.thankYouRedirectUrl };
   }
 
   async makeMain(id: string) {
@@ -265,7 +269,9 @@ export class RegistrationFormsService {
   }
 
   private async registerMainParticipant(form: any, submissionId: string, answers: Record<string, unknown>, requestedEditionId?: string) {
-    const email = typeof answers.email === 'string' ? answers.email.trim().toLowerCase() : '';
+    const emailField = form.fields?.find((field: any) => field.type === 'email' || field.key === 'email');
+    const emailValue = emailField ? answers[emailField.key] : answers.email;
+    const email = typeof emailValue === 'string' ? emailValue.trim().toLowerCase() : '';
     if (!email) throw new BadRequestException('El correo electrónico es obligatorio');
     const fullName = String(answers.full_name || answers.name || '').trim();
     const firstName = String(answers.first_name || answers.firstName || fullName.split(/\s+/)[0] || 'Participante').trim();

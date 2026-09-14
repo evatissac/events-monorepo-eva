@@ -89,6 +89,8 @@ try {
                   </div>
                 ) : field.type === 'checkbox' || field.type === 'terms' ? (
                   <label class="check-option"><input id={field.key} name={field.key} type="checkbox" value="true" required={field.required} /><span>{field.options?.text || field.label}</span></label>
+                ) : field.type === 'phone' || /phone|telefono|teléfono|whatsapp|celular/i.test(`${field.key} ${field.label}`) ? (
+                  <div class="phone-input"><span>PE&nbsp; +51⌄</span><input id={field.key} name={field.key} type="tel" inputmode="tel" required={field.required} placeholder="987 654 321" class="form-input" /></div>
                 ) : (
                   <input
                     id={field.key}
@@ -221,9 +223,9 @@ try {
         throw new Error(errData.message || 'No se pudo procesar la inscripción');
       }
 
-      form.reset();
-      form.hidden = true;
-      document.querySelector<HTMLElement>('#registration-success')?.removeAttribute('hidden');
+      const submitted = await response.json().catch(() => ({}));
+      if (submitted.thankYouRedirectUrl) { window.location.assign(submitted.thankYouRedirectUrl); return; }
+      window.location.assign(`/${window.location.pathname.split('/').filter(Boolean).slice(0, 3).join('/')}/success`);
       if (status) {
         status.textContent = '¡Inscripción confirmada con éxito! Te hemos enviado los detalles por correo.';
         status.className = 'form-status success';
@@ -337,9 +339,12 @@ try {
   .email-availability.available { color: #34d399; }
   .email-availability.unavailable { color: #f87171; }
   .email-availability.checking { color: #818cf8; }
-  .choice-group { display: grid; gap: 0.6rem; }
-  .choice-option, .check-option { display: flex; gap: 0.65rem; align-items: flex-start; color: #dbe4ef; font-size: 0.9rem; line-height: 1.45; cursor: pointer; }
-  .choice-option input, .check-option input { margin-top: 0.2rem; accent-color: #818cf8; }
+  .choice-group { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+  .choice-option, .check-option { display: flex; gap: 0.65rem; align-items: center; color: #dbe4ef; font-size: 0.9rem; line-height: 1.45; cursor: pointer; }
+  .choice-option { border: 1px solid rgba(255,255,255,.18); border-radius: 999px; padding: .65rem 1rem; }
+  .choice-option:has(input:checked) { background: #818cf8; border-color: #818cf8; color: #fff; }
+  .choice-option input, .check-option input { margin: 0; accent-color: #818cf8; border: 0; }
+  .phone-input { display:flex; border:1px solid rgba(255,255,255,.14); border-radius:10px; overflow:hidden; background:#0c0e12; }.phone-input span { display:flex;align-items:center;padding:0 1rem;border-right:1px solid rgba(255,255,255,.14);font-size:.85rem;white-space:nowrap; }.phone-input .form-input { border:0; border-radius:0; }
 
   .form-input {
     width: 100%;
@@ -435,4 +440,5 @@ try {
   :global(html:not(.dark)) .email-availability.unavailable { color: #b91c1c; }
   :global(html:not(.dark)) .form-input { background: #ffffff; border-color: #cfd9e6; color: #172033; }
   :global(html:not(.dark)) .choice-option, :global(html:not(.dark)) .check-option { color: #334155; }
+  :global(html:not(.dark)) .choice-option { border-color:#d7e0ea; }:global(html:not(.dark)) .phone-input { background:#fff;border-color:#cfd9e6; }:global(html:not(.dark)) .phone-input span { border-color:#cfd9e6; }
 </style>

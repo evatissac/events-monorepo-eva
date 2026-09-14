@@ -111,6 +111,8 @@ export interface Attendee {
   sourceFormPurpose?: string
   sourceFormId?: string
   submissionId?: string
+  answers?: Record<string, unknown>
+  formFields?: Array<{ key: string; label: string }>
 }
 
 export interface ParticipantRole {
@@ -516,7 +518,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         submissions.forEach((submission: any) => {
           const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
           const fullName = String(answers.full_name || answers.name || submission.email || "Participante")
-          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id })
+          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id, answers, formFields: submission.form?.fields || [] })
         })
       }
 

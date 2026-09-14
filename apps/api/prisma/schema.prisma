@@ -469,6 +469,8 @@ model RegistrationForm {
   purpose               String                     @default("PARTICIPANT")
   allowEditionSelection Boolean                    @default(false) @map("allow_edition_selection")
   defaultEditionId      String?                    @map("default_edition_id") @db.Uuid
+  thankYouMessage       String?                    @map("thank_you_message")
+  thankYouRedirectUrl   String?                    @map("thank_you_redirect_url")
   createdAt             DateTime                   @default(now()) @map("created_at")
   updatedAt             DateTime                   @updatedAt @map("updated_at")
   mainEvent             MainEvent                  @relation(fields: [mainEventId], references: [id], onDelete: Cascade)
