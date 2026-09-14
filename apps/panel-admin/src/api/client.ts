@@ -39,6 +39,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 }
 
 export const api = {
+  publicEvents: {
+    list: (organizationSlug: string) => apiFetch<any>(`/public/organizations/${encodeURIComponent(organizationSlug)}/events`),
+    get: (organizationSlug: string, eventId: string) => apiFetch<any>(`/public/organizations/${encodeURIComponent(organizationSlug)}/events/${encodeURIComponent(eventId)}`),
+  },
   auth: {
     login: (email: string, password: string) => apiFetch<{ accessToken: string; refreshToken: string; user: any }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
     refresh: (refreshToken: string) => apiFetch<{ accessToken: string; refreshToken: string }>("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken }) }),
