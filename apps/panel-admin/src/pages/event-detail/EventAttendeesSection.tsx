@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Trash2, UserCheck, Check, ExternalLink } from "lucide-react"
+import { Plus, Trash2, UserCheck, Check, ExternalLink, Eye, RefreshCw } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
 import {
@@ -26,6 +26,8 @@ export function EventAttendeesSection() {
   const { events, editions, attendees, toggleAttendeeCheckIn, deleteAttendee, loadData } = useEventStore()
   const [forms, setForms] = useState<any[]>([])
   const [formFilter, setFormFilter] = useState("ALL")
+  const [detailAttendee, setDetailAttendee] = useState<any>(null)
+  const [refreshing, setRefreshing] = useState(false)
 
   const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
@@ -53,6 +55,19 @@ export function EventAttendeesSection() {
       toast.success("Inscripción eliminada")
     } catch (error: any) {
       toast.error(error?.message || "No se pudo eliminar la inscripción")
+    }
+  }
+
+  const refreshAttendees = async () => {
+    if (!event?.organizationId) return
+    setRefreshing(true)
+    try {
+      await loadData(event.organizationId)
+      toast.success("Lista de participantes actualizada")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo actualizar la lista")
+    } finally {
+      setRefreshing(false)
     }
   }
 
@@ -153,6 +168,7 @@ export function EventAttendeesSection() {
       className: "text-right p-3",
       cell: (at) => (
         <div className="flex items-center justify-end gap-1.5">
+          {at.source === "FORM" && <Button variant="ghost" className="size-7 p-0 text-muted-foreground hover:text-foreground" title="Ver respuestas" onClick={() => setDetailAttendee(at)}><Eye className="size-3.5" /></Button>}
           {at.profileId && (
             <Button
               asChild
@@ -216,6 +232,7 @@ export function EventAttendeesSection() {
           <option value="MANUAL">Participantes manuales</option>
           {forms.map((form) => <option key={form.id} value={form.id}>{form.purpose === "MAIN" ? "Registro principal" : "Formulario"}: {form.title}</option>)}
         </select>
+        <Button type="button" variant="outline" size="icon" onClick={() => void refreshAttendees()} disabled={refreshing} title="Actualizar lista" aria-label="Actualizar lista de participantes" className="size-9"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></Button>
       </div>
 
       {filteredAttendees.length === 0 ? (
@@ -225,6 +242,7 @@ export function EventAttendeesSection() {
       ) : (
         <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl" />
       )}
+      <AlertDialog open={!!detailAttendee} onOpenChange={(open) => !open && setDetailAttendee(null)}><AlertDialogContent className="max-w-lg"><AlertDialogHeader><AlertDialogTitle>Respuestas de {detailAttendee?.fullName}</AlertDialogTitle><AlertDialogDescription>{detailAttendee?.sourceFormTitle}</AlertDialogDescription></AlertDialogHeader><div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border p-3 text-sm">{Object.entries(detailAttendee?.answers || {}).map(([key, value]) => <div key={key} className="grid grid-cols-2 gap-3 border-b pb-2 last:border-0"><span className="font-medium text-muted-foreground">{detailAttendee?.formFields?.find((field: any) => field.key === key)?.label || key}</span><span className="break-words">{Array.isArray(value) ? value.join(", ") : String(value || "—")}</span></div>)}</div><AlertDialogFooter><AlertDialogCancel>Cerrar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   )
 }

@@ -17,6 +17,7 @@ export interface Event {
   isActive: boolean
   websiteUrl: string
   contactEmail: string
+  whatsappCommunityUrl?: string
   eventMode?: string
   venueAddress?: string
   latitude?: number | string
@@ -111,6 +112,8 @@ export interface Attendee {
   sourceFormPurpose?: string
   sourceFormId?: string
   submissionId?: string
+  answers?: Record<string, unknown>
+  formFields?: Array<{ key: string; label: string }>
 }
 
 export interface ParticipantRole {
@@ -274,6 +277,7 @@ function mapMainEvent(row: any): Event {
     isActive: row.is_active !== false,
     websiteUrl: row.website_url || "",
     contactEmail: row.contact_email || "",
+    whatsappCommunityUrl: row.whatsapp_community_url || row.whatsappCommunityUrl || "",
     eventMode: row.event_mode || row.eventMode || "",
     venueAddress: row.venue_address || row.venueAddress || "",
     latitude: row.latitude ?? undefined,
@@ -516,7 +520,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         submissions.forEach((submission: any) => {
           const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
           const fullName = String(answers.full_name || answers.name || submission.email || "Participante")
-          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id })
+          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id, answers, formFields: submission.form?.fields || [] })
         })
       }
 
@@ -641,7 +645,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
-        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
+        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, whatsappCommunityUrl: restUpdates.whatsappCommunityUrl, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
       }
 
       set((state) => ({

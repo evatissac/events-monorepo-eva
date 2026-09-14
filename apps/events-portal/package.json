@@ -11,9 +11,11 @@
   "dependencies": {
     "@astrojs/node": "^9.5.1",
     "@astrojs/react": "^4.4.2",
-    "@tailwindcss/vite": "^4.3.1",
-    "astro": "^5.16.12",
     "@lucide/astro": "^1.39.0",
+    "@tailwindcss/vite": "^4.3.1",
+    "@types/canvas-confetti": "^1.9.0",
+    "astro": "^5.16.12",
+    "canvas-confetti": "^1.9.4",
     "lucide-react": "^0.468.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
