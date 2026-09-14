@@ -264,7 +264,6 @@ export function MediaUploader({
     if (onFileSelect) {
       setSinglePendingFile(file)
       setSinglePendingPreview(localUrl)
-      onChange?.(localUrl)
       onFileSelect(file)
       return
     }

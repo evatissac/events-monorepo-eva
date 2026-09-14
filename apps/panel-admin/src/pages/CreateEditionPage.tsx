@@ -47,7 +47,7 @@ export function CreateEditionPage() {
     metaThumbnailUrl: z.string().trim().url("La imagen para redes no es válida.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
     endDate: z.string(),
-  }).refine((data) => /^\d{4}-\d{2}-\d{2}$/.test(data.startDate), { message: "Selecciona una fecha de inicio válida.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
+  }).refine((data) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(data.startDate), { message: "Selecciona fecha y hora de inicio válidas.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
     message: "La fecha de fin es requerida para una edición de varios días.",
     path: ["endDate"],
   })
@@ -222,11 +222,11 @@ export function CreateEditionPage() {
                 <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                   <div className="space-y-1.5">
                     <label htmlFor="ed-start" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Inicio (dd/mm/aaaa)
+                      Fecha y hora de inicio
                     </label>
                     <Input
                       id="ed-start"
-                      type="date"
+                      type="datetime-local"
                       lang="es-PE"
                       required
                       value={startDate}
@@ -236,11 +236,11 @@ export function CreateEditionPage() {
                   </div>
                   {!isSingleDay && <div className="space-y-1.5">
                     <label htmlFor="ed-end" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Fin (dd/mm/aaaa)
+                      Fecha y hora de fin
                     </label>
                     <Input
                       id="ed-end"
-                      type="date"
+                      type="datetime-local"
                       lang="es-PE"
                       required
                       value={endDate}

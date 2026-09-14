@@ -44,6 +44,7 @@ export function EventInfoSection() {
   const [isActive, setIsActive] = useState(true)
   const [websiteUrl, setWebsiteUrl] = useState("")
   const [contactEmail, setContactEmail] = useState("")
+  const [whatsappCommunityUrl, setWhatsappCommunityUrl] = useState("")
   const [eventMode, setEventMode] = useState("")
   const [venueAddress, setVenueAddress] = useState("")
   const [latitude, setLatitude] = useState("")
@@ -73,6 +74,7 @@ export function EventInfoSection() {
       setIsActive(event.isActive !== false)
       setWebsiteUrl(event.websiteUrl || "")
       setContactEmail(event.contactEmail || "")
+      setWhatsappCommunityUrl(event.whatsappCommunityUrl || "")
       setEventMode(event.eventMode || "")
       setVenueAddress(event.venueAddress || "")
       setLatitude(event.latitude?.toString() || "")
@@ -97,6 +99,7 @@ export function EventInfoSection() {
     shortDescription: z.string().trim().min(1, "La descripcion corta es obligatoria."),
     contactEmail: z.string().trim().email("El correo de contacto no es valido.").or(z.literal("")).optional(),
     websiteUrl: z.string().trim().url("El sitio web no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
+    whatsappCommunityUrl: z.string().trim().url("El enlace de WhatsApp no es válido.").or(z.literal("")).optional(),
     socialTwitter: z.string().trim().url("El enlace de Twitter/X no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
     socialFacebook: z.string().trim().url("El enlace de Facebook no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
     socialLinkedin: z.string().trim().url("El enlace de LinkedIn no es valido (debe empezar con http:// o https://).").or(z.literal("")).optional(),
@@ -111,6 +114,7 @@ export function EventInfoSection() {
       shortDescription,
       contactEmail,
       websiteUrl,
+      whatsappCommunityUrl,
       socialTwitter,
       socialFacebook,
       socialLinkedin,
@@ -131,6 +135,7 @@ export function EventInfoSection() {
         status,
         isActive,
         websiteUrl: websiteUrl.trim() || "",
+        whatsappCommunityUrl: whatsappCommunityUrl.trim() || "",
         contactEmail: contactEmail.trim() || "",
         eventMode,
         venueAddress: venueAddress.trim() || "",
@@ -323,6 +328,11 @@ export function EventInfoSection() {
           <div className="md:w-2/3 max-w-md w-full">
             <Input id="evt-website" type="url" placeholder="https://evento.com" value={websiteUrl} onChange={(e) => setWebsiteUrl(e.target.value)} className="bg-background" />
           </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+          <div className="md:w-1/3 space-y-1"><label htmlFor="evt-whatsapp" className="text-sm font-medium text-foreground">Comunidad de WhatsApp</label><p className="text-xs text-muted-foreground">Opcional. Se mostrará únicamente en la página de confirmación.</p></div>
+          <div className="md:w-2/3 max-w-md w-full"><Input id="evt-whatsapp" type="url" placeholder="https://chat.whatsapp.com/..." value={whatsappCommunityUrl} onChange={(e) => setWhatsappCommunityUrl(e.target.value)} className="bg-background" /></div>
         </div>
 
         <div className="p-6 space-y-4">

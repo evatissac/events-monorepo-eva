@@ -86,6 +86,10 @@ const DEFAULT_THEME: FormTheme = {
   fontFamily: "Inter, sans-serif",
 }
 
+const toAttributeKey = (value: string) => value
+  .trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "campo";
+
 export function EventFormBuilderPage() {
   const { id: eventId, formId } = useParams<{ id: string; formId: string }>()
   const navigate = useNavigate()
@@ -128,6 +132,8 @@ export function EventFormBuilderPage() {
   const [maxSubmissions, setMaxSubmissions] = useState("")
   const [emailTemplates, setEmailTemplates] = useState<any[]>([])
   const [welcomeTemplateId, setWelcomeTemplateId] = useState("")
+  const [thankYouMessage, setThankYouMessage] = useState("")
+  const [thankYouRedirectUrl, setThankYouRedirectUrl] = useState("")
 
   // Load Form Data
   useEffect(() => {
@@ -159,6 +165,8 @@ export function EventFormBuilderPage() {
         setOpensAt(data.opensAt ? new Date(data.opensAt).toISOString().slice(0, 16) : "")
         setClosesAt(data.closesAt ? new Date(data.closesAt).toISOString().slice(0, 16) : "")
         setMaxSubmissions(data.maxSubmissions ? String(data.maxSubmissions) : "")
+        setThankYouMessage(data.thankYouMessage || "")
+        setThankYouRedirectUrl(data.thankYouRedirectUrl || "")
         const welcomeAutomation = (data.automations || []).find((automation: any) => automation.trigger === "REGISTRATION_SUBMITTED")
         setWelcomeTemplateId(welcomeAutomation?.steps?.[0]?.templateId || "")
 
@@ -513,6 +521,17 @@ export function EventFormBuilderPage() {
     try {
       setSaving(true)
       const finalStatus = targetStatus || formStatus
+      const fields = blocks.map((b, index) => ({
+        key: ["header", "paragraph", "image", "divider"].includes(b.type)
+          ? `${b.type}_${index + 1}`
+          : toAttributeKey(String(b.options?.attributeKey || b.label)),
+        label: b.label,
+        type: b.type,
+        required: !!b.required,
+        options: b.options || null,
+      }));
+      const duplicate = fields.find((field, index) => fields.findIndex((other) => other.key === field.key) !== index);
+      if (duplicate) { toast.error(`El atributo “${duplicate.key}” está repetido. Usa un nombre único para cada campo.`); return; }
       const payload = {
         title: formTitle,
         slug: formSlug,
@@ -521,13 +540,9 @@ export function EventFormBuilderPage() {
         opensAt: opensAt || null,
         closesAt: closesAt || null,
         maxSubmissions: maxSubmissions ? Number(maxSubmissions) : null,
-        fields: blocks.map((b) => ({
-          key: b.key,
-          label: b.label,
-          type: b.type,
-          required: !!b.required,
-          options: b.options || null,
-        })),
+        thankYouMessage: thankYouMessage.trim() || null,
+        thankYouRedirectUrl: thankYouRedirectUrl.trim() || null,
+        fields,
       }
 
       await api.registrationForms.update(formId, payload)
@@ -1522,6 +1537,14 @@ export function EventFormBuilderPage() {
                 <option value="PAUSED">Pausado (PAUSED)</option>
                 <option value="ARCHIVED">Archivado (ARCHIVED)</option>
               </select>
+            </div>
+
+            <div className="space-y-1.5 border-t border-border/60 pt-4">
+              <label className="text-xs font-semibold text-foreground">Mensaje de agradecimiento</label>
+              <textarea value={thankYouMessage} onChange={(e) => setThankYouMessage(e.target.value)} placeholder="Gracias por inscribirte. Revisa tu correo para los siguientes pasos." className="min-h-20 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground" />
+              <label className="text-xs font-semibold text-foreground">Redireccionar después del registro</label>
+              <Input type="url" value={thankYouRedirectUrl} onChange={(e) => setThankYouRedirectUrl(e.target.value)} placeholder="https://… (opcional)" className="h-10 rounded-xl" />
+              <p className="text-xs text-muted-foreground">Si ingresas una URL, la persona irá a esa página al registrarse. Si no, verá el mensaje de agradecimiento en una página pública del formulario.</p>
             </div>
 
             <div className="space-y-1.5 border-t border-border/60 pt-4">
