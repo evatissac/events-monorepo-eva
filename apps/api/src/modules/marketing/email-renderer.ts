@@ -4,6 +4,25 @@ const escapeHtml = (value: unknown) => String(value ?? '').replace(/[&<>'"]/g, (
   '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
 }[char] || char));
 
+/** Keeps the small formatting vocabulary produced by the visual editor, while
+ * escaping arbitrary input before it is inserted into an email. */
+function richText(value: unknown, context: Record<string, unknown>) {
+  const tags: string[] = [];
+  const tokenized = String(value ?? '').replace(/<\/?(?:strong|b|em|i|br)\s*\/?\s*>|<a\b[^>]*>|<\/a\s*>/gi, (tag) => {
+    const href = tag.match(/href\s*=\s*["']([^"']+)["']/i)?.[1];
+    const safeAnchor = href && /^(https?:|mailto:|tel:)/i.test(href)
+      ? `<a href="${escapeHtml(href)}">`
+      : /^<a\b/i.test(tag) ? '' : tag.toLowerCase().replace(/\s+/g, '');
+    tags.push(safeAnchor);
+    return `@@EMAIL_TAG_${tags.length - 1}@@`;
+  });
+  const escaped = escapeHtml(tokenized);
+  const withVariables = interpolate(escaped, context);
+  return withVariables
+    .replace(/@@EMAIL_TAG_(\d+)@@/g, (_match, index) => tags[Number(index)] || '')
+    .replace(/\r?\n/g, '<br/>');
+}
+
 export function interpolate(value: string, context: Record<string, unknown>) {
   return value.replace(/{{\s*([\w.]+)\s*}}/g, (_match, key) => escapeHtml(variableValue(key, context) ?? ''));
 }
@@ -30,7 +49,7 @@ export function blocksToHtml(blocks: unknown, context: Record<string, unknown>) 
   if (!Array.isArray(blocks)) return '';
   const content = (blocks as TemplateBlock[]).map((block) => {
     const options = block.options || {};
-    const text = interpolate(String(options.text || block.label || ''), context);
+    const text = richText(options.text || block.label || '', context);
     const align = escapeHtml(options.align || 'left');
     if (block.type === 'heading') return `<h${Math.min(6, Math.max(1, Number(options.level || 2)))} style="text-align:${align};color:${escapeHtml(options.color || '#111827')}">${text}</h${Math.min(6, Math.max(1, Number(options.level || 2)))}>`;
     if (block.type === 'text' || block.type === 'dynamic') return `<p style="text-align:${align};color:${escapeHtml(options.color || '#374151')};line-height:${escapeHtml(options.lineHeight || 1.6)}">${text}</p>`;
