@@ -1507,9 +1507,10 @@ export function EventFormBuilderPage() {
                 </select>
               </div>
               <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cupo máximo</label><Input type="number" min="1" value={maxSubmissions} onChange={(e) => setMaxSubmissions(e.target.value)} placeholder="Sin límite" className="h-10 rounded-xl" /></div>
-              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-10 rounded-xl" /></div>
-              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-10 rounded-xl" /></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-10 rounded-xl" /><button type="button" onClick={() => setOpensAt("")} className="text-[11px] text-muted-foreground hover:text-primary">Sin fecha de apertura</button></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-10 rounded-xl" /><button type="button" onClick={() => setClosesAt("")} className="text-[11px] text-muted-foreground hover:text-primary">Sin fecha de cierre</button></div>
             </div>
+            <p className="text-[11px] text-muted-foreground">Déjalas vacías para mantener el registro abierto sin límite de fecha. Guardar elimina una fecha previamente configurada.</p>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">

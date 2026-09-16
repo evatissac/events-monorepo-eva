@@ -121,8 +121,13 @@ export class RegistrationFormsService {
       const mainForm = form && await this.prisma.registrationForm.findFirst({ where: { mainEventId: form.mainEventId, purpose: 'MAIN', status: { not: 'ARCHIVED' }, id: { not: id } } });
       if (mainForm) throw new BadRequestException('Este evento ya cuenta con un formulario de registro principal');
     }
-    if (clean.opensAt) clean.opensAt = new Date(clean.opensAt);
-    if (clean.closesAt) clean.closesAt = new Date(clean.closesAt);
+    if (clean.opensAt !== undefined && clean.opensAt !== null) clean.opensAt = new Date(clean.opensAt);
+    if (clean.closesAt !== undefined && clean.closesAt !== null) clean.closesAt = new Date(clean.closesAt);
+    if (clean.opensAt instanceof Date && Number.isNaN(clean.opensAt.getTime())) throw new BadRequestException('La fecha de apertura no es válida');
+    if (clean.closesAt instanceof Date && Number.isNaN(clean.closesAt.getTime())) throw new BadRequestException('La fecha de cierre no es válida');
+    if (clean.opensAt instanceof Date && clean.closesAt instanceof Date && clean.opensAt >= clean.closesAt) {
+      throw new BadRequestException('La fecha de cierre debe ser posterior a la fecha de apertura');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       if (Array.isArray(fields)) {
