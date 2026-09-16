@@ -9,10 +9,16 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
   app.use(cookieParser());
-  const frontendOrigins = (process.env.FRONTEND_URL ?? '')
+  const defaultFrontendOrigins = [
+    'https://dev-qa.nuiti.org',
+    'https://medmind.com.pe',
+    'http://localhost:3001',
+  ];
+  const configuredFrontendOrigins = (process.env.FRONTEND_URL ?? '')
     .split(',')
     .map((origin) => origin.trim())
     .filter(Boolean);
+  const frontendOrigins = [...defaultFrontendOrigins, ...configuredFrontendOrigins];
 
   app.enableCors({
     origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
@@ -22,7 +28,7 @@ async function bootstrap() {
       const isConfigured = frontendOrigins.includes(origin) || frontendOrigins.includes('*');
       const isLocalhost = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
 
-      if (isConfigured || isLocalhost || frontendOrigins.length === 0) {
+      if (isConfigured || isLocalhost) {
         return callback(null, true);
       }
       return callback(new Error(`Origin ${origin} not allowed by CORS`));

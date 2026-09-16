@@ -121,8 +121,13 @@ export class RegistrationFormsService {
       const mainForm = form && await this.prisma.registrationForm.findFirst({ where: { mainEventId: form.mainEventId, purpose: 'MAIN', status: { not: 'ARCHIVED' }, id: { not: id } } });
       if (mainForm) throw new BadRequestException('Este evento ya cuenta con un formulario de registro principal');
     }
-    if (clean.opensAt) clean.opensAt = new Date(clean.opensAt);
-    if (clean.closesAt) clean.closesAt = new Date(clean.closesAt);
+    if (clean.opensAt !== undefined && clean.opensAt !== null) clean.opensAt = new Date(clean.opensAt);
+    if (clean.closesAt !== undefined && clean.closesAt !== null) clean.closesAt = new Date(clean.closesAt);
+    if (clean.opensAt instanceof Date && Number.isNaN(clean.opensAt.getTime())) throw new BadRequestException('La fecha de apertura no es válida');
+    if (clean.closesAt instanceof Date && Number.isNaN(clean.closesAt.getTime())) throw new BadRequestException('La fecha de cierre no es válida');
+    if (clean.opensAt instanceof Date && clean.closesAt instanceof Date && clean.opensAt >= clean.closesAt) {
+      throw new BadRequestException('La fecha de cierre debe ser posterior a la fecha de apertura');
+    }
 
     return this.prisma.$transaction(async (tx) => {
       if (Array.isArray(fields)) {
@@ -236,7 +241,12 @@ export class RegistrationFormsService {
       const name = firstName || 'participante';
       const eventName = form.mainEvent.eventName;
       const eventDate = form.mainEvent.startDate.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' });
-      const logo = form.mainEvent.organization?.logoUrl ? `<img src="${form.mainEvent.organization.logoUrl}" alt="" style="max-height:42px;margin-bottom:20px"/>` : '';
+      const isMedmind = form.mainEvent.organization?.name?.trim().toLowerCase() === 'medmind';
+      const logo = isMedmind
+        ? '<img src="https://medmind.com.pe/assets/brands/logo_medmind.svg" alt="MedMind" width="150" style="display:block;width:150px;height:auto;margin:0 auto;filter:brightness(0) invert(1)"/>'
+        : form.mainEvent.organization?.logoUrl
+          ? `<img src="${form.mainEvent.organization.logoUrl}" alt="" style="max-height:42px;margin-bottom:20px"/>`
+          : '';
       const whatsapp = form.mainEvent.whatsappCommunityUrl ? `<p style="margin:26px 0;text-align:center"><a href="${form.mainEvent.whatsappCommunityUrl}" style="display:inline-block;background:#00a98f;color:#fff;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:700">QUIERO UNIRME A LA COMUNIDAD</a></p>` : '';
       void this.mail.send({ organizationId: form.mainEvent.organizationId, to: email, subject: `Inscripción confirmada · ${eventName}`, html: `<div style="font-family:Arial,sans-serif;background:#f3f5f5;padding:32px 12px"><div style="max-width:750px;margin:auto;background:#fff"><div style="background:#16b8aa;padding:26px;text-align:center">${logo || '<span style="color:#fff;font-size:38px;font-weight:700">MedMind</span>'}</div><div style="padding:46px 52px;color:#4b4b4b;font-size:18px;line-height:1.72"><h1 style="font-size:26px;margin:0 0 24px;color:#333">¡Hola, ${name} 👋!</h1><p style="margin:0 0 22px">Tu registro para nuestro <strong>${eventName}</strong> está confirmado.</p><p style="margin:0 0 22px">Si tienes <strong>menos de 13 puntos en tu CV</strong>, durante este webinar hablaremos de cómo puedes empezar a construir desde ahora una estrategia de ingreso más inteligente, cuándo podría tener sentido volver a rendir el ENAM y cómo hacerlo <strong>sin detener tu preparación para el Residentado</strong>.</p><h2 style="font-size:21px;margin:42px 0 16px;color:#333">Ahora solo falta un paso 👇</h2><p style="margin:0 0 16px">Únete a nuestra <strong>Comunidad Exclusiva RM 2027</strong>.</p><p style="margin:0 0 12px">Por ahí compartiremos:</p><ul style="margin:0 0 22px;padding-left:24px"><li>El <strong>link de acceso al webinar</strong></li><li>Recordatorios antes de empezar</li><li>Información importante de la sesión</li><li>Contenido exclusivo para tu postulación</li></ul>${whatsapp}<div style="margin-top:30px;padding:17px;background:#f2fbf9;border-radius:8px"><strong>${eventName}</strong><br/><span style="color:#65727a">${eventDate}</span></div><p style="margin:28px 0 0">Nos vemos dentro 🧠.</p><p style="margin:8px 0 0"><strong>Equipo ${form.mainEvent.organization?.name || 'MedMind'}</strong></p></div></div></div>` });
     }

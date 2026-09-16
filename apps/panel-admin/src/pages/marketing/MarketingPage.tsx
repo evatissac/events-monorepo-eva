@@ -23,6 +23,17 @@ import { PageHeader } from "@/components/page-header"
 
 type MainTab = "campaigns" | "automations" | "contacts" | "segments"
 
+const normalizeContact = (contact: any): Contact => ({
+  id: contact.id,
+  email: contact.email || contact.emailFallback || "Sin correo",
+  firstName: contact.firstName || contact.profile?.firstName || undefined,
+  lastName: contact.lastName || contact.profile?.lastName || undefined,
+  phone: contact.phone || contact.profile?.phone || undefined,
+  status: contact.status || contact.consentStatus || "UNSUBSCRIBED",
+  tags: Array.isArray(contact.tags) ? contact.tags : [],
+  createdAt: contact.createdAt || new Date().toISOString(),
+})
+
 export function MarketingPage() {
   const { selectedOrganization } = useAuthStore()
   const organizationId = selectedOrganization?.id
@@ -242,7 +253,7 @@ export function MarketingPage() {
       ])
 
       if (cRes.status === "fulfilled" && Array.isArray(cRes.value)) {
-        setContacts(cRes.value)
+        setContacts(cRes.value.map(normalizeContact))
       }
       if (sRes.status === "fulfilled" && Array.isArray(sRes.value)) {
         setSegments(sRes.value)
@@ -401,7 +412,7 @@ export function MarketingPage() {
     }
   }
 
-  const handleAddContact = (data: { email: string; firstName?: string; lastName?: string; tags?: string[] }) => {
+  const handleAddContact = async (data: { email: string; firstName?: string; lastName?: string; tags?: string[] }) => {
     const newContact: Contact = {
       id: `con-${Date.now()}`,
       email: data.email,
@@ -411,9 +422,12 @@ export function MarketingPage() {
       tags: data.tags || ["Manual"],
       createdAt: new Date().toISOString(),
     }
-    setContacts([newContact, ...contacts])
-    if (organizationId) {
-      void api.marketing.createContact(organizationId, data).catch(() => { })
+    if (!organizationId) return
+    try {
+      const created = await api.marketing.createContact(organizationId, data)
+      setContacts((current) => [normalizeContact({ ...newContact, ...created, ...data }), ...current])
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo guardar el contacto.")
     }
   }
 

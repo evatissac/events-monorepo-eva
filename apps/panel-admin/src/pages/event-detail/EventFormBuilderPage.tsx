@@ -90,6 +90,13 @@ const toAttributeKey = (value: string) => value
   .trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "campo";
 
+const toDateTimeLocal = (value?: string | null) => {
+  if (!value) return ""
+  const date = new Date(value)
+  const offset = date.getTimezoneOffset() * 60_000
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+}
+
 export function EventFormBuilderPage() {
   const { id: eventId, formId } = useParams<{ id: string; formId: string }>()
   const navigate = useNavigate()
@@ -162,8 +169,8 @@ export function EventFormBuilderPage() {
         setFormSlug(data.slug || "")
         setFormStatus(data.status || "DRAFT")
         setFormPurpose(data.purpose || "PARTICIPANT")
-        setOpensAt(data.opensAt ? new Date(data.opensAt).toISOString().slice(0, 16) : "")
-        setClosesAt(data.closesAt ? new Date(data.closesAt).toISOString().slice(0, 16) : "")
+        setOpensAt(toDateTimeLocal(data.opensAt))
+        setClosesAt(toDateTimeLocal(data.closesAt))
         setMaxSubmissions(data.maxSubmissions ? String(data.maxSubmissions) : "")
         setThankYouMessage(data.thankYouMessage || "")
         setThankYouRedirectUrl(data.thankYouRedirectUrl || "")
@@ -1478,15 +1485,15 @@ export function EventFormBuilderPage() {
       {/* STEP 1: Form Configuration Settings Modal (Matching Screenshot 2)        */}
       {/* ========================================================================= */}
       <Dialog open={openSettingsModal} onOpenChange={setOpenSettingsModal}>
-        <DialogContent className="sm:max-w-[550px] p-6 rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[550px]">
+          <DialogHeader className="shrink-0 px-6 pt-6">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <CheckCircle2 className="size-5 text-emerald-600" />
               Configuración del Formulario
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 pt-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
                 Nombre del formulario *
@@ -1507,9 +1514,10 @@ export function EventFormBuilderPage() {
                 </select>
               </div>
               <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cupo máximo</label><Input type="number" min="1" value={maxSubmissions} onChange={(e) => setMaxSubmissions(e.target.value)} placeholder="Sin límite" className="h-10 rounded-xl" /></div>
-              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-10 rounded-xl" /></div>
-              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-10 rounded-xl" /></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-10 rounded-xl" /><button type="button" onClick={() => setOpensAt("")} className="text-[11px] text-muted-foreground hover:text-primary">Sin fecha de apertura</button></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-10 rounded-xl" /><button type="button" onClick={() => setClosesAt("")} className="text-[11px] text-muted-foreground hover:text-primary">Sin fecha de cierre</button></div>
             </div>
+            <p className="text-[11px] text-muted-foreground">Déjalas vacías para mantener el registro abierto sin límite de fecha. Guardar elimina una fecha previamente configurada.</p>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
