@@ -101,9 +101,10 @@ const isLayoutBlock = (block: FormBlock) => ["header", "paragraph", "image", "di
 
 const toDateTimeLocal = (value?: string | null) => {
   if (!value) return ""
-  const date = new Date(value)
-  const offset = date.getTimezoneOffset() * 60_000
-  return new Date(date.getTime() - offset).toISOString().slice(0, 16)
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date(value))
+    .reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {})
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
 }
 
 export function EventFormBuilderPage() {

@@ -340,8 +340,8 @@ export function EventFormsSection() {
                     <Badge variant="outline" className="text-[11px] font-normal">
                       {form.purpose === "MAIN" ? "Registro principal" : form.purpose === "WAITLIST" ? "Lista de espera" : form.purpose === "OTHER" ? "Otro" : "Participantes"}
                     </Badge>
-                    {form.opensAt && <Badge variant="outline" className="text-[11px] font-normal">Abre: {new Date(form.opensAt).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" })}</Badge>}
-                    {form.closesAt && <Badge variant="outline" className="text-[11px] font-normal">Cierra: {new Date(form.closesAt).toLocaleDateString("es-PE")}</Badge>}
+                    {form.opensAt && <Badge variant="outline" className="text-[11px] font-normal">Abre: {new Date(form.opensAt).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short", timeZone: "America/Lima" })} (Perú)</Badge>}
+                    {form.closesAt && <Badge variant="outline" className="text-[11px] font-normal">Cierra: {new Date(form.closesAt).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short", timeZone: "America/Lima" })} (Perú)</Badge>}
                     {!form.opensAt && !form.closesAt && <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[11px] font-normal text-emerald-700 dark:text-emerald-400">Registro abierto sin límite</Badge>}
                   </div>
                 </div>
