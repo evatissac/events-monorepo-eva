@@ -13,7 +13,19 @@ import { useSEO } from "@/hooks/use-seo"
 import { LocationPickerMap } from "@/components/location-picker-map"
 import { MediaUploader } from "@/components/MediaUploader"
 
-const toDateTimeInputValue = (value: string) => value ? new Date(value).toISOString().slice(0, 16) : ""
+const toDateTimeInputValue = (value: string) => {
+  if (!value) return ""
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Lima",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(new Date(value)).reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {})
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
+}
 
 export function EditEditionPage() {
   const { eventId, editionId } = useParams<{ eventId: string; editionId: string }>()
@@ -270,7 +282,7 @@ export function EditEditionPage() {
                 <label className="text-sm font-medium text-foreground">
                   Fechas de la Edición <span className="text-destructive">*</span>
                 </label>
-                <p className="text-xs text-muted-foreground">Cuándo se llevará a cabo esta edición.</p>
+                <p className="text-xs text-muted-foreground">Cuándo se llevará a cabo esta edición. Todas las horas se guardan en hora de Perú (UTC−5).</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">

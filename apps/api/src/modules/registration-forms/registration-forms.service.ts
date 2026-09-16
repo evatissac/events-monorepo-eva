@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { parsePeruDateTime } from '../../common/peru-time.js';
 import { PrismaService } from '../../database/prisma.service.js';
 import { AutomationService } from '../marketing/automation.service.js';
 import { MailService } from '../mail/mail.service.js';
@@ -86,8 +87,8 @@ export class RegistrationFormsService {
         slug: data.slug,
         editionId: data.editionId || null,
         status: data.status || 'DRAFT',
-        opensAt: data.opensAt ? new Date(data.opensAt) : null,
-        closesAt: data.closesAt ? new Date(data.closesAt) : null,
+        opensAt: data.opensAt ? parsePeruDateTime(data.opensAt) : null,
+        closesAt: data.closesAt ? parsePeruDateTime(data.closesAt) : null,
         maxSubmissions: data.maxSubmissions || null,
         approvalMode: data.approvalMode || 'MANUAL',
         purpose,
@@ -121,8 +122,8 @@ export class RegistrationFormsService {
       const mainForm = form && await this.prisma.registrationForm.findFirst({ where: { mainEventId: form.mainEventId, purpose: 'MAIN', status: { not: 'ARCHIVED' }, id: { not: id } } });
       if (mainForm) throw new BadRequestException('Este evento ya cuenta con un formulario de registro principal');
     }
-    if (clean.opensAt !== undefined && clean.opensAt !== null) clean.opensAt = new Date(clean.opensAt);
-    if (clean.closesAt !== undefined && clean.closesAt !== null) clean.closesAt = new Date(clean.closesAt);
+    if (clean.opensAt !== undefined && clean.opensAt !== null) clean.opensAt = parsePeruDateTime(clean.opensAt);
+    if (clean.closesAt !== undefined && clean.closesAt !== null) clean.closesAt = parsePeruDateTime(clean.closesAt);
     if (clean.opensAt instanceof Date && Number.isNaN(clean.opensAt.getTime())) throw new BadRequestException('La fecha de apertura no es válida');
     if (clean.closesAt instanceof Date && Number.isNaN(clean.closesAt.getTime())) throw new BadRequestException('La fecha de cierre no es válida');
     if (clean.opensAt instanceof Date && clean.closesAt instanceof Date && clean.opensAt >= clean.closesAt) {
@@ -235,12 +236,13 @@ export class RegistrationFormsService {
     }
     const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres, answers.nombres_completos].find((value) => typeof value === 'string') as string | undefined;
     const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
-    await this.automations.enrollRegistration({ eventId: form.mainEventId, registrationFormId: form.id, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
+    await this.automations.enrollRegistration({ eventId: form.mainEventId, registrationFormId: form.id, editionId: editionId || form.editionId || form.defaultEditionId || undefined, submissionId: submission.id, email, firstName, lastName, registeredAt: submission.submittedAt });
     const hasWelcomeTemplate = await this.prisma.marketingAutomation.count({ where: { registrationFormId: form.id, trigger: 'REGISTRATION_SUBMITTED', status: 'ACTIVE', steps: { some: { templateId: { not: null } } } } });
     if (email && form.mainEvent.organizationId && !hasWelcomeTemplate) {
       const name = firstName || 'participante';
       const eventName = form.mainEvent.eventName;
-      const eventDate = form.mainEvent.startDate.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short' });
+      const scheduledAt = form.edition?.startDate || form.mainEvent.startDate;
+      const eventDate = scheduledAt.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Lima' });
       const isMedmind = form.mainEvent.organization?.name?.trim().toLowerCase() === 'medmind';
       const logo = isMedmind
         ? '<img src="https://medmind.com.pe/assets/brands/logo_medmind.svg" alt="MedMind" width="150" style="display:block;width:150px;height:auto;margin:0 auto;filter:brightness(0) invert(1)"/>'
@@ -248,7 +250,7 @@ export class RegistrationFormsService {
           ? `<img src="${form.mainEvent.organization.logoUrl}" alt="" style="max-height:42px;margin-bottom:20px"/>`
           : '';
       const whatsapp = form.mainEvent.whatsappCommunityUrl ? `<p style="margin:26px 0;text-align:center"><a href="${form.mainEvent.whatsappCommunityUrl}" style="display:inline-block;background:#00a98f;color:#fff;padding:14px 22px;border-radius:8px;text-decoration:none;font-weight:700">QUIERO UNIRME A LA COMUNIDAD</a></p>` : '';
-      void this.mail.send({ organizationId: form.mainEvent.organizationId, to: email, subject: `Inscripción confirmada · ${eventName}`, html: `<div style="font-family:Arial,sans-serif;background:#f3f5f5;padding:32px 12px"><div style="max-width:750px;margin:auto;background:#fff"><div style="background:#16b8aa;padding:26px;text-align:center">${logo || '<span style="color:#fff;font-size:38px;font-weight:700">MedMind</span>'}</div><div style="padding:46px 52px;color:#4b4b4b;font-size:18px;line-height:1.72"><h1 style="font-size:26px;margin:0 0 24px;color:#333">¡Hola, ${name} 👋!</h1><p style="margin:0 0 22px">Tu registro para nuestro <strong>${eventName}</strong> está confirmado.</p><p style="margin:0 0 22px">Si tienes <strong>menos de 13 puntos en tu CV</strong>, durante este webinar hablaremos de cómo puedes empezar a construir desde ahora una estrategia de ingreso más inteligente, cuándo podría tener sentido volver a rendir el ENAM y cómo hacerlo <strong>sin detener tu preparación para el Residentado</strong>.</p><h2 style="font-size:21px;margin:42px 0 16px;color:#333">Ahora solo falta un paso 👇</h2><p style="margin:0 0 16px">Únete a nuestra <strong>Comunidad Exclusiva RM 2027</strong>.</p><p style="margin:0 0 12px">Por ahí compartiremos:</p><ul style="margin:0 0 22px;padding-left:24px"><li>El <strong>link de acceso al webinar</strong></li><li>Recordatorios antes de empezar</li><li>Información importante de la sesión</li><li>Contenido exclusivo para tu postulación</li></ul>${whatsapp}<div style="margin-top:30px;padding:17px;background:#f2fbf9;border-radius:8px"><strong>${eventName}</strong><br/><span style="color:#65727a">${eventDate}</span></div><p style="margin:28px 0 0">Nos vemos dentro 🧠.</p><p style="margin:8px 0 0"><strong>Equipo ${form.mainEvent.organization?.name || 'MedMind'}</strong></p></div></div></div>` });
+      void this.mail.send({ organizationId: form.mainEvent.organizationId, to: email, subject: `Inscripción confirmada · ${eventName}`, html: `<div style="font-family:Arial,sans-serif;background:#f3f5f5;padding:32px 12px"><div style="max-width:750px;margin:auto;background:#fff"><div style="background:#16b8aa;padding:26px;text-align:center">${logo || '<span style="color:#fff;font-size:38px;font-weight:700">MedMind</span>'}</div><div style="padding:46px 52px;color:#4b4b4b;font-size:18px;line-height:1.72"><h1 style="font-size:26px;margin:0 0 24px;color:#333">¡Hola, ${name} 👋!</h1><p style="margin:0 0 22px">Tu registro para <strong>${eventName}</strong> está confirmado.</p><div style="margin:30px 0;padding:17px;background:#f2fbf9;border-radius:8px"><strong>${eventName}</strong><br/><span style="color:#65727a">${eventDate} (hora de Perú)</span></div>${whatsapp}<p style="margin:28px 0 0">Nos vemos pronto.</p><p style="margin:8px 0 0"><strong>Equipo ${form.mainEvent.organization?.name || 'MedMind'}</strong></p></div></div></div>` });
     }
     return { ...submission, mainEventId: form.mainEventId, thankYouMessage: form.thankYouMessage, thankYouRedirectUrl: form.thankYouRedirectUrl };
   }
