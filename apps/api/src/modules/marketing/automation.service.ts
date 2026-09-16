@@ -63,17 +63,21 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Enrola una inscripción sólo en automatizaciones activas de su evento. */
-  async enrollRegistration(input: { eventId: string; registrationFormId?: string; submissionId: string; email?: string | null; firstName?: string | null; lastName?: string | null; registeredAt?: Date }) {
+  async enrollRegistration(input: { eventId: string; registrationFormId?: string; editionId?: string; submissionId: string; email?: string | null; firstName?: string | null; lastName?: string | null; registeredAt?: Date }) {
     const email = String(input.email || '').trim().toLowerCase();
     if (!email) return { enrolled: 0, reason: 'La inscripción no tiene correo' };
     const event = await this.prisma.mainEvent.findUnique({ where: { id: input.eventId }, select: { id: true, organizationId: true, eventName: true, startDate: true, venueAddress: true } });
     if (!event?.organizationId) return { enrolled: 0, reason: 'El evento no tiene institución' };
+    const edition = input.editionId
+      ? await this.prisma.edition.findFirst({ where: { id: input.editionId, mainEventId: event.id }, select: { startDate: true } })
+      : null;
+    const scheduledAt = edition?.startDate || event.startDate;
     const contact = await this.prisma.marketingContact.upsert({ where: { organizationId_emailFallback: { organizationId: event.organizationId, emailFallback: email } }, update: { source: 'EVENT_REGISTRATION' }, create: { organizationId: event.organizationId, emailFallback: email, consentStatus: 'SUBSCRIBED', consentedAt: new Date(), source: 'EVENT_REGISTRATION' } });
     const automations = await this.prisma.marketingAutomation.findMany({ where: { organizationId: event.organizationId, eventId: event.id, status: 'ACTIVE', OR: [{ registrationFormId: null }, ...(input.registrationFormId ? [{ registrationFormId: input.registrationFormId }] : [])] }, include: { steps: { orderBy: { position: 'asc' } } } });
     let enrolled = 0;
     for (const automation of automations) {
       await this.prisma.marketingEventEnrollment.upsert({ where: { automationId_contactId: { automationId: automation.id, contactId: contact.id } }, update: { submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date(), attendanceStatus: 'REGISTERED' }, create: { organizationId: event.organizationId, eventId: event.id, automationId: automation.id, contactId: contact.id, submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date() } });
-      await this.queueContact(automation, contact, event, input.firstName || null, input.registeredAt || new Date(), { last_name: input.lastName || '', registration_code: input.submissionId });
+      await this.queueContact(automation, contact, event, input.firstName || null, input.registeredAt || new Date(), { last_name: input.lastName || '', registration_code: input.submissionId, event_start_date: scheduledAt.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Lima' }) });
       enrolled++;
     }
     return { enrolled };
