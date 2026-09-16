@@ -90,6 +90,15 @@ const toAttributeKey = (value: string) => value
   .trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "campo";
 
+const nextAvailableFieldKey = (base: string, used: Set<string>) => {
+  if (!used.has(base)) return base
+  let suffix = 2
+  while (used.has(`${base}_${suffix}`)) suffix++
+  return `${base}_${suffix}`
+}
+
+const isLayoutBlock = (block: FormBlock) => ["header", "paragraph", "image", "divider"].includes(block.type)
+
 const toDateTimeLocal = (value?: string | null) => {
   if (!value) return ""
   const date = new Date(value)
@@ -485,6 +494,19 @@ export function EventFormBuilderPage() {
         break
     }
 
+    // Cada control necesita una clave distinta en la respuesta. Al añadir el mismo
+    // componente repetidamente, diferenciamos su atributo automáticamente.
+    if (!isLayoutBlock(newBlock) && newBlock.options?.attributeKey) {
+      const usedKeys = new Set(blocks
+        .filter((block) => !isLayoutBlock(block))
+        .map((block) => toAttributeKey(String(block.options?.attributeKey || block.label))))
+      const attribute = String(newBlock.options.attributeKey)
+      const uniqueKey = nextAvailableFieldKey(toAttributeKey(attribute), usedKeys)
+      if (uniqueKey !== toAttributeKey(attribute)) {
+        newBlock = { ...newBlock, options: { ...newBlock.options, attributeKey: uniqueKey } }
+      }
+    }
+
     const updated = [...blocks, newBlock]
     updateBlocksWithHistory(updated)
     setSelectedBlockKey(newKey)
@@ -528,17 +550,21 @@ export function EventFormBuilderPage() {
     try {
       setSaving(true)
       const finalStatus = targetStatus || formStatus
-      const fields = blocks.map((b, index) => ({
-        key: ["header", "paragraph", "image", "divider"].includes(b.type)
+      const usedKeys = new Set<string>()
+      const fields = blocks.map((b, index) => {
+        const baseKey = ["header", "paragraph", "image", "divider"].includes(b.type)
           ? `${b.type}_${index + 1}`
-          : toAttributeKey(String(b.options?.attributeKey || b.label)),
-        label: b.label,
-        type: b.type,
-        required: !!b.required,
-        options: b.options || null,
-      }));
-      const duplicate = fields.find((field, index) => fields.findIndex((other) => other.key === field.key) !== index);
-      if (duplicate) { toast.error(`El atributo “${duplicate.key}” está repetido. Usa un nombre único para cada campo.`); return; }
+          : toAttributeKey(String(b.options?.attributeKey || b.label))
+        const key = nextAvailableFieldKey(baseKey, usedKeys)
+        usedKeys.add(key)
+        return {
+          key,
+          label: b.label,
+          type: b.type,
+          required: !!b.required,
+          options: b.options || null,
+        }
+      })
       const payload = {
         title: formTitle,
         slug: formSlug,
