@@ -12,6 +12,7 @@ import { Trash2 } from "lucide-react"
 import { useSEO } from "@/hooks/use-seo"
 import { LocationPickerMap } from "@/components/location-picker-map"
 import { MediaUploader } from "@/components/MediaUploader"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 
 const toDateTimeInputValue = (value: string) => {
   if (!value) return ""
@@ -235,13 +236,11 @@ export function EditEditionPage() {
                 <p className="text-xs text-muted-foreground">Resumen explicativo sobre los objetivos o enfoque de esta edición.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <textarea
+                <RichTextEditor
                   id="ed-desc"
-                  rows={3}
                   placeholder="Temática principal, lema de la edición..."
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                  onChange={setDescription}
                 />
               </div>
             </div>
