@@ -199,7 +199,7 @@ export function TemplatesListPage() {
             return (
               <div
                 key={template.id}
-                className="group relative rounded-2xl border border-border bg-background p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between hover:border-primary/40"
+                className="group relative rounded-2xl border border-border bg-card p-5 shadow-2xs hover:shadow-md transition-all flex flex-col justify-between hover:border-primary/40"
               >
                 <div>
                   {/* Top Status & Dropdown */}

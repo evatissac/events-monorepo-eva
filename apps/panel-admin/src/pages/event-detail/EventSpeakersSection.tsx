@@ -421,20 +421,6 @@ export function EventSpeakersSection() {
       }
     },
     {
-      header: "Check-In",
-      className: "p-3 text-center",
-      headerClassName: "p-3 text-center",
-      cell: (sp) => (
-        <button
-          onClick={() => handleToggleCheckIn(sp.id)}
-          className={`p-1.5 rounded-full border transition-colors inline-flex ${sp.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
-          title={sp.checkedIn ? "Acreditado (Haga clic para desmarcar)" : "Sin Acreditar (Haga clic para marcar)"}
-        >
-          {sp.checkedIn ? <UserCheck className="size-4" /> : <Check className="size-4" />}
-        </button>
-      )
-    },
-    {
       header: "Acciones",
       headerClassName: "text-right p-3",
       className: "text-right p-3",
