@@ -16,6 +16,7 @@ import {
 import { useSEO } from "@/hooks/use-seo"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { useAuthStore } from "@/store/auth.store"
+import { toast } from "sonner"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
 
 export function ProfilesPage() {
@@ -147,7 +148,7 @@ export function ProfilesPage() {
             <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="size-8 text-destructive hover:text-destructive" title="Eliminar perfil"><Trash2 className="size-4" /></Button></AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader><AlertDialogTitle>¿Eliminar este perfil?</AlertDialogTitle><AlertDialogDescription>Se eliminará el perfil de la institución y sus datos asociados. Esta acción no se puede deshacer.</AlertDialogDescription></AlertDialogHeader>
-              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void deleteProfile(p.id)}>Eliminar perfil</AlertDialogAction></AlertDialogFooter>
+              <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={() => void deleteProfile(p.id).then(() => toast.success("Perfil eliminado")).catch((error: any) => toast.error(error?.message || "No se pudo eliminar el perfil"))}>Eliminar perfil</AlertDialogAction></AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
         </div>
