@@ -323,13 +323,13 @@ function mapParticipantRole(row: any): ParticipantRole {
   }
   return {
     id: row.id,
-    mainEventId: row.main_event_id,
-    editionId: row.edition_id,
-    slug: row.slug,
+    mainEventId: row.mainEventId || row.main_event_id,
+    editionId: row.editionId || row.edition_id || null,
+    slug: row.slug || String(name.en || name.es || "").toLowerCase().replace(/[\s-]+/g, "_"),
     name,
-    badgeColor: row.badge_color,
-    isActive: row.is_active !== false,
-    createdAt: row.created_at || "",
+    badgeColor: row.badgeColor || row.badge_color,
+    isActive: row.isActive ?? row.is_active ?? true,
+    createdAt: row.createdAt || row.created_at || "",
   }
 }
 
@@ -522,7 +522,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
         submissions.forEach((submission: any) => {
           const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
-          const fullName = String(answers.full_name || answers.name || [answers.first_name || answers.firstName, answers.last_name || answers.lastName].filter(Boolean).join(" ") || submission.email || "Participante")
+          const fullName = String(answers.full_name || answers.name || answers.nombres_completos || [answers.first_name || answers.firstName || answers.nombres, answers.last_name || answers.lastName || answers.apellidos || answers.surname].filter(Boolean).join(" ") || submission.email || "Participante")
           const registrationData = { source: "FORM" as const, sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id, answers, formFields: submission.form?.fields || [] }
           const linkedParticipant = submission.participantId ? formattedAttendees.find((attendee) => attendee.id === submission.participantId) : undefined
           if (linkedParticipant) {
@@ -975,10 +975,15 @@ export const useEventStore = create<EventState>((set, get) => ({
   addAttendee: async (attendeeData) => {
     try {
       const state = get()
+      const createdManualParticipant = await api.participants.addManual(attendeeData.eventId, { editionId: attendeeData.editionId || undefined, firstName: attendeeData.firstName, lastName: attendeeData.lastName, email: attendeeData.email, identityDocumentType: attendeeData.identityDocumentType, identityDocumentNumber: attendeeData.identityDocumentNumber })
+      const manualOrganizationId = state.events.find((event) => event.id === attendeeData.eventId)?.organizationId
+      if (manualOrganizationId) await get().loadData(manualOrganizationId)
+      void createdManualParticipant
+      return
       let targetEditionId = attendeeData.editionId
 
-      if (targetEditionId === undefined) {
-        let edition = state.editions.find((ed) => ed.mainEventId === attendeeData.eventId)
+      if (!targetEditionId) {
+        let edition = state.editions.find((ed) => ed.mainEventId === attendeeData.eventId && ed.isCurrent) || state.editions.find((ed) => ed.mainEventId === attendeeData.eventId)
 
         if (!edition) {
           const editionId = crypto.randomUUID()
@@ -1018,7 +1023,6 @@ export const useEventStore = create<EventState>((set, get) => ({
       }
 
       const profileId = crypto.randomUUID()
-      const participantId = crypto.randomUUID()
 
       let firstName = attendeeData.firstName?.trim()
       let lastName = attendeeData.lastName?.trim()
@@ -1031,19 +1035,18 @@ export const useEventStore = create<EventState>((set, get) => ({
       const docType = attendeeData.identityDocumentType || null
       const docNumber = attendeeData.identityDocumentNumber?.trim() || null
 
-      await api.profiles.create({ id: profileId, firstName, lastName, email: attendeeData.email, identityDocumentType: docType, identityDocumentNumber: docNumber })
+      await api.profiles.create({ id: profileId, firstName, lastName, email: attendeeData.email, identityDocumentType: docType, identityDocumentNumber: docNumber, organizationId: state.events.find((event) => event.id === attendeeData.eventId)?.organizationId })
 
-      const ticketRole = attendeeData.ticketType.toLowerCase()
-      const roleData = (await api.content.roles(attendeeData.eventId)).find((role: any) => role.slug === ticketRole)
+      const roleData = (await api.content.roles(attendeeData.eventId)).find((role: any) => ["participant", "participante"].includes(String(role.name?.es || role.name || "").toLowerCase()))
 
       let roleId = roleData?.id
       if (!roleId) {
         roleId = crypto.randomUUID()
-        const createdRole = await api.content.createRole({ mainEventId: attendeeData.eventId, name: attendeeData.ticketType })
+        const createdRole = await api.content.createRole({ mainEventId: attendeeData.eventId, name: "participant" })
         roleId = createdRole.id
       }
 
-      await api.participants.add(targetEditionId!, profileId)
+      const createdParticipant = await api.participants.add(targetEditionId!, profileId, roleId)
 
       const fullName = `${firstName} ${lastName}`.trim()
       const { firstName: _, lastName: __, identityDocumentType: ___, identityDocumentNumber: ____, ...cleanAttendeeData } = attendeeData
@@ -1051,14 +1054,18 @@ export const useEventStore = create<EventState>((set, get) => ({
       set((state) => ({
         attendees: [...state.attendees, { 
           ...cleanAttendeeData,
-          id: participantId, 
+          id: createdParticipant.id,
           editionId: targetEditionId, 
           profileId,
-          fullName
+          fullName,
+          source: "PARTICIPANT",
         }]
       }))
+      const organizationId = state.events.find((event) => event.id === attendeeData.eventId)?.organizationId
+      if (organizationId) await get().loadData(organizationId)
     } catch (e) {
       console.error("Error adding attendee:", e)
+      throw e
     }
   },
 
@@ -1381,7 +1388,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addRole: async (roleData) => {
     try {
-      const created = await api.content.createRole({ name: roleData.name.es || roleData.name.en || roleData.slug, mainEventId: roleData.mainEventId, editionId: roleData.editionId || undefined })
+      const created = await api.content.createRole({ name: roleData.slug, mainEventId: roleData.mainEventId, editionId: roleData.editionId || undefined })
       const id = created.id
 
       const mapped: ParticipantRole = {
@@ -1406,7 +1413,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateRole: async (id, updates) => {
     try {
-      await api.content.updateRole(id, { name: updates.name?.es || updates.name?.en })
+      await api.content.updateRole(id, { name: updates.slug || updates.name?.en || updates.name?.es })
 
       set((state) => ({
         roles: state.roles.map((r) => r.id === id ? { ...r, ...updates } : r)
