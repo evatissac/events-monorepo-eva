@@ -749,7 +749,7 @@ export function EventFormBuilderPage() {
       {/* ========================================================================= */}
       {/* MAIN BODY: Left Sidebar + Center Preview Canvas                           */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="min-h-0 flex-1 flex overflow-hidden">
         {/* ========================================================================= */}
         {/* LEFT SIDEBAR: Tabs (Crear | Diseño) OR Attribute Inspector (Screenshot 5) */}
         {/* ========================================================================= */}
@@ -817,13 +817,20 @@ export function EventFormBuilderPage() {
                     Base de datos de atributos
                   </label>
                   <select
-                    value={selectedBlock.options?.attributeKey || (selectedBlock.type === "phone" ? "SMS" : "Nombre")}
+                    value={selectedBlock.options?.isCustomAttribute ? "__custom__" : (selectedBlock.options?.attributeKey || (selectedBlock.type === "phone" ? "SMS" : "Nombre"))}
                     onChange={(e) => {
                       const newAttr = e.target.value
+                      if (newAttr === "__custom__") {
+                        const usedKeys = new Set(blocks.filter((block) => block.key !== selectedBlock.key && !isLayoutBlock(block)).map((block) => toAttributeKey(String(block.options?.attributeKey || block.label))))
+                        const attributeKey = nextAvailableFieldKey("personalizado", usedKeys)
+                        updateSelectedBlock({ options: { ...selectedBlock.options, isCustomAttribute: true, attributeKey, placeholder: "" } })
+                        return
+                      }
                       updateSelectedBlock({
                         label: `Introduce tu ${newAttr}`,
                         options: {
                           ...selectedBlock.options,
+                          isCustomAttribute: false,
                           attributeKey: newAttr,
                           placeholder: newAttr.toUpperCase(),
                         },
@@ -839,8 +846,15 @@ export function EventFormBuilderPage() {
                     <option value="Cargo">Cargo / Puesto</option>
                     <option value="DNI">Documento de Identidad / DNI</option>
                     <option value="Ciudad">Ciudad / País</option>
+                    <option value="__custom__">Atributo personalizado…</option>
                   </select>
                 </div>
+
+                {selectedBlock.options?.isCustomAttribute && <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Clave del atributo personalizado</label>
+                  <Input value={selectedBlock.options?.attributeKey || ""} onChange={(event) => updateSelectedBlock({ options: { ...selectedBlock.options, attributeKey: toAttributeKey(event.target.value), isCustomAttribute: true } })} placeholder="ej. especialidad" className="h-10 rounded-xl font-mono text-xs" />
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">La clave se guarda en minúsculas con guiones bajos. No se repite: al guardar, el sistema asegura una clave única.</p>
+                </div>}
 
                 {/* Checkboxes / Switches (Screenshot 5) */}
                 <div className="space-y-4 pt-2 border-t border-border/40">
@@ -1345,7 +1359,7 @@ export function EventFormBuilderPage() {
         {/* CENTER CANVAS: Interactive Live Form Preview (Desktop vs Mobile Frame)   */}
         {/* ========================================================================= */}
         <main
-          className="flex-1 overflow-y-auto p-4 md:p-6 flex items-center justify-center transition-all duration-300"
+          className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 flex items-start justify-center transition-all duration-300"
           style={{ backgroundColor: theme.bgColor }}
           onClick={() => setSelectedBlockKey(null)}
         >
@@ -1512,7 +1526,7 @@ export function EventFormBuilderPage() {
       {/* STEP 1: Form Configuration Settings Modal (Matching Screenshot 2)        */}
       {/* ========================================================================= */}
       <Dialog open={openSettingsModal} onOpenChange={setOpenSettingsModal}>
-        <DialogContent className="flex max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[550px]">
+        <DialogContent className="flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[550px]">
           <DialogHeader className="shrink-0 px-6 pt-6">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <CheckCircle2 className="size-5 text-emerald-600" />
