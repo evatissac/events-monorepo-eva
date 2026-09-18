@@ -4,9 +4,14 @@ import { PrismaService } from '../../database/prisma.service.js';
 @Injectable()
 export class ProfilesService {
   constructor(private readonly prisma: PrismaService) {}
-  private serialize(profile: any) { const { authUser, ...details } = profile; return { ...details, email: authUser?.email ?? null, authId: authUser?.id ?? null, globalRole: authUser?.role ?? 'USER', accountType: authUser?.plan ?? 'FREE', accountActive: authUser?.isActive ?? false }; }
+  private serialize(profile: any) {
+    const { authUser, ...details } = profile;
+    const extraEmails = Array.isArray(details.additionalEmails) ? details.additionalEmails : [];
+    const fallbackEmail = extraEmails.find((email: unknown) => typeof email === 'string' && email.trim());
+    return { ...details, email: authUser?.email ?? fallbackEmail ?? null, authId: authUser?.id ?? null, globalRole: authUser?.role ?? 'USER', accountType: authUser?.plan ?? 'FREE', accountActive: authUser?.isActive ?? false };
+  }
   async list(organizationId?: string) { const profiles = await this.prisma.profile.findMany({ where: organizationId ? { OR: [{ organizationId }, { memberships: { some: { organizationId } } }, { participants: { some: { edition: { mainEvent: { organizationId } } } } }, { sessionSpeakers: { some: { session: { activity: { edition: { mainEvent: { organizationId } } } } } } }] } : undefined, include: { authUser: true }, orderBy: { createdAt: 'desc' } }); return profiles.map((profile) => this.serialize(profile)); }
-  create(data: { id: string; firstName: string; lastName: string; phone?: string; bio?: string; organizationId?: string }) { return this.prisma.profile.create({ data: { id: data.id, firstName: data.firstName, lastName: data.lastName, phone: data.phone, bio: data.bio, organizationId: data.organizationId } }); }
+  create(data: { id: string; firstName: string; lastName: string; email?: string; phone?: string; bio?: string; organizationId?: string }) { return this.prisma.profile.create({ data: { id: data.id, firstName: data.firstName, lastName: data.lastName, additionalEmails: data.email ? [data.email.trim().toLowerCase()] : [], phone: data.phone, bio: data.bio, organizationId: data.organizationId } }); }
   async get(id: string) { const profile = await this.prisma.profile.findUnique({ where: { id }, include: { authUser: true, education: true, employment: true, certifications: true } }); if (!profile) throw new NotFoundException('Perfil no encontrado'); return this.serialize(profile); }
   update(id: string, data: Record<string, unknown>) { const allowed = ['firstName', 'lastName', 'phone', 'avatarUrl', 'bio', 'identityDocumentType', 'identityDocumentNumber', 'birthDate', 'sex', 'location', 'institution', 'dedication', 'researchInterests', 'areasOfInterest', 'expertiseAreas', 'socialLinks', 'additionalEmails', 'isPublic', 'onboardingCompleted']; const clean = Object.fromEntries(Object.entries(data).filter(([key]) => allowed.includes(key))); return this.prisma.profile.update({ where: { id }, data: clean }); }
   async remove(id: string) {
