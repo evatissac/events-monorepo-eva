@@ -470,11 +470,14 @@ export const useEventStore = create<EventState>((set, get) => ({
           participantsData.forEach((part: any) => {
             const profile = part.profile || {}
             const matchedRole = formattedRoles.find((r) => r.id === part.roleId)
-            const roleSlug = matchedRole?.slug || "attendee"
+            const roleName = String(matchedRole?.name?.es || matchedRole?.name?.en || "")
+            const roleIdentifier = `${matchedRole?.slug || ""} ${roleName}`
+            const isSpeakerRole = /ponente|speaker(?:[_\s-]|$)/i.test(roleIdentifier)
+            const roleSlug = matchedRole?.slug || (isSpeakerRole ? "speaker" : roleName.toLowerCase().replace(/\s+/g, "-") || "attendee")
             const roleId = part.roleId || ""
             const fullName = `${profile.firstName || profile.first_name || ""} ${profile.lastName || profile.last_name || ""}`.trim() || "Participante"
 
-            if (roleSlug === "speaker" || roleSlug === "keynote-speaker") {
+            if (isSpeakerRole || roleSlug === "speaker" || roleSlug === "keynote-speaker") {
               formattedSpeakers.push({
                 id: part.id,
                 eventId: part.edition?.mainEventId || "",
@@ -517,10 +520,16 @@ export const useEventStore = create<EventState>((set, get) => ({
         }
 
         const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
-        submissions.filter((submission: any) => !submission.participantId).forEach((submission: any) => {
+        submissions.forEach((submission: any) => {
           const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
-          const fullName = String(answers.full_name || answers.name || submission.email || "Participante")
-          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id, answers, formFields: submission.form?.fields || [] })
+          const fullName = String(answers.full_name || answers.name || [answers.first_name || answers.firstName, answers.last_name || answers.lastName].filter(Boolean).join(" ") || submission.email || "Participante")
+          const registrationData = { source: "FORM" as const, sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id, answers, formFields: submission.form?.fields || [] }
+          const linkedParticipant = submission.participantId ? formattedAttendees.find((attendee) => attendee.id === submission.participantId) : undefined
+          if (linkedParticipant) {
+            Object.assign(linkedParticipant, registrationData, { fullName, email: submission.email || answers.email || linkedParticipant.email, editionId: submission.editionId || linkedParticipant.editionId })
+          } else if (!submission.participantId) {
+            formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, ...registrationData })
+          }
         })
       }
 
