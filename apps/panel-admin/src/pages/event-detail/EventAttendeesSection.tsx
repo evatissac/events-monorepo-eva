@@ -2,9 +2,11 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Trash2, UserCheck, Check, ExternalLink, Eye, RefreshCw } from "lucide-react"
+import { Plus, Trash2, ExternalLink, Eye, RefreshCw, Search, X, Download } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import ExcelJS from "exceljs"
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -23,15 +25,23 @@ import { api } from "@/api/client"
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { events, editions, attendees, toggleAttendeeCheckIn, deleteAttendee, loadData } = useEventStore()
+  const { events, editions, attendees, deleteAttendee, loadData } = useEventStore()
   const [forms, setForms] = useState<any[]>([])
   const [formFilter, setFormFilter] = useState("ALL")
+  const [editionFilter, setEditionFilter] = useState("ALL")
+  const [search, setSearch] = useState("")
   const [detailAttendee, setDetailAttendee] = useState<any>(null)
   const [refreshing, setRefreshing] = useState(false)
 
   const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
-  const filteredAttendees = eventAttendees.filter((attendee) => formFilter === "ALL" || (formFilter === "MANUAL" ? attendee.source !== "FORM" : attendee.sourceFormId === formFilter))
+  const filteredAttendees = eventAttendees.filter((attendee) => {
+    const matchesOrigin = formFilter === "ALL" || (formFilter === "MANUAL" ? attendee.source !== "FORM" : attendee.sourceFormId === formFilter)
+    const matchesEdition = editionFilter === "ALL" || attendee.editionId === editionFilter
+    const term = search.trim().toLowerCase()
+    const matchesSearch = !term || [attendee.fullName, attendee.email, attendee.ticketType, attendee.sourceFormTitle].filter(Boolean).some((value) => String(value).toLowerCase().includes(term))
+    return matchesOrigin && matchesEdition && matchesSearch
+  })
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
 
   useSEO({
@@ -69,6 +79,26 @@ export function EventAttendeesSection() {
     } finally {
       setRefreshing(false)
     }
+  }
+
+  const exportAttendees = async () => {
+    if (!id) return
+    const exportRows = await api.events.attendeeExport(id)
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet("Participantes")
+    sheet.columns = [
+      { header: "Participante", key: "name", width: 32 }, { header: "Correo", key: "email", width: 36 },
+      { header: "Edición", key: "edition", width: 24 }, { header: "Origen", key: "source", width: 26 },
+      { header: "Tipo", key: "type", width: 18 }, { header: "Registro", key: "registeredAt", width: 16 },
+    ]
+    exportRows.forEach((attendee) => sheet.addRow({ ...attendee, registeredAt: attendee.registeredAt ? new Date(attendee.registeredAt).toLocaleDateString("es-PE") : "" }))
+    sheet.getRow(1).font = { bold: true }
+    sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF6FF" } }
+    const file = new Blob([await workbook.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url = URL.createObjectURL(file)
+    const anchor = document.createElement("a")
+    anchor.href = url; anchor.download = `participantes-${event?.name?.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "evento"}.xlsx`; anchor.click()
+    URL.revokeObjectURL(url)
   }
 
 
@@ -150,19 +180,6 @@ export function EventAttendeesSection() {
       }
     },
     {
-      header: "Check-In",
-      className: "p-3 text-center",
-      headerClassName: "p-3 text-center",
-      cell: (at) => (
-        at.source === "FORM" ? <span className="text-xs text-muted-foreground">—</span> : <button
-          onClick={() => toggleAttendeeCheckIn(at.id)}
-          className={`p-1.5 rounded-full border transition-colors inline-flex ${at.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
-        >
-          {at.checkedIn ? <UserCheck className="size-4" /> : <Check className="size-4" />}
-        </button>
-      )
-    },
-    {
       header: "Acciones",
       headerClassName: "text-right p-3",
       className: "text-right p-3",
@@ -225,14 +242,19 @@ export function EventAttendeesSection() {
         }
       />
 
-      <div className="flex items-center gap-3">
-        <label className="text-xs font-medium text-muted-foreground">Mostrar inscripciones:</label>
-        <select value={formFilter} onChange={(event) => setFormFilter(event.target.value)} className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
+      <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input value={search} onChange={(input) => setSearch(input.target.value)} placeholder="Buscar por participante, correo o tipo..." className="h-9 pl-9" /></div>
+          <select value={formFilter} onChange={(event) => setFormFilter(event.target.value)} aria-label="Filtrar por origen" className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
           <option value="ALL">Todos los orígenes</option>
           <option value="MANUAL">Participantes manuales</option>
           {forms.map((form) => <option key={form.id} value={form.id}>{form.purpose === "MAIN" ? "Registro principal" : "Formulario"}: {form.title}</option>)}
-        </select>
-        <Button type="button" variant="outline" size="icon" onClick={() => void refreshAttendees()} disabled={refreshing} title="Actualizar lista" aria-label="Actualizar lista de participantes" className="size-9"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></Button>
+          </select>
+          <select value={editionFilter} onChange={(event) => setEditionFilter(event.target.value)} aria-label="Filtrar por edición" className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"><option value="ALL">Todas las ediciones</option>{eventEditions.map((edition) => <option key={edition.id} value={edition.id}>{edition.name}</option>)}</select>
+          <Button type="button" variant="outline" onClick={() => void exportAttendees()} disabled={!filteredAttendees.length} className="h-9 gap-2 text-xs"><Download className="size-4" />Exportar Excel</Button>
+          <Button type="button" variant="outline" size="icon" onClick={() => void refreshAttendees()} disabled={refreshing} title="Actualizar lista" aria-label="Actualizar lista de participantes" className="size-9"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></Button>
+        </div>
+        {(search || formFilter !== "ALL" || editionFilter !== "ALL") && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>Filtros activos:</span>{search && <button type="button" onClick={() => setSearch("")} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">Búsqueda: {search}<X className="size-3" /></button>}{formFilter !== "ALL" && <button type="button" onClick={() => setFormFilter("ALL")} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">Origen seleccionado<X className="size-3" /></button>}{editionFilter !== "ALL" && <button type="button" onClick={() => setEditionFilter("ALL")} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">Edición: {eventEditions.find((edition) => edition.id === editionFilter)?.name}<X className="size-3" /></button>}<button type="button" onClick={() => { setSearch(""); setFormFilter("ALL"); setEditionFilter("ALL") }} className="ml-1 font-medium text-primary hover:underline">Limpiar todo</button></div>}
       </div>
 
       {filteredAttendees.length === 0 ? (
@@ -240,7 +262,7 @@ export function EventAttendeesSection() {
           No hay participantes inscritos.
         </div>
       ) : (
-        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl" />
+        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl bg-card" />
       )}
       <AlertDialog open={!!detailAttendee} onOpenChange={(open) => !open && setDetailAttendee(null)}><AlertDialogContent className="max-w-lg"><AlertDialogHeader><AlertDialogTitle>Respuestas de {detailAttendee?.fullName}</AlertDialogTitle><AlertDialogDescription>{detailAttendee?.sourceFormTitle}</AlertDialogDescription></AlertDialogHeader><div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border p-3 text-sm">{Object.entries(detailAttendee?.answers || {}).map(([key, value]) => <div key={key} className="grid grid-cols-2 gap-3 border-b pb-2 last:border-0"><span className="font-medium text-muted-foreground">{detailAttendee?.formFields?.find((field: any) => field.key === key)?.label || key}</span><span className="break-words">{Array.isArray(value) ? value.join(", ") : String(value || "—")}</span></div>)}</div><AlertDialogFooter><AlertDialogCancel>Cerrar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>

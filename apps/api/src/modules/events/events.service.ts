@@ -26,6 +26,24 @@ export class EventsService {
     return event;
   }
   remove(id: string) { return this.prisma.mainEvent.delete({ where: { id } }); }
+  async attendeeExport(eventId: string) {
+    const [participants, submissions] = await Promise.all([
+      this.prisma.eventParticipant.findMany({ where: { edition: { mainEventId: eventId } }, include: { profile: { include: { authUser: true } }, edition: true, role: true }, orderBy: { registeredAt: 'desc' } }),
+      this.prisma.registrationSubmission.findMany({ where: { form: { mainEventId: eventId }, participantId: null }, include: { form: true, edition: true }, orderBy: { submittedAt: 'desc' } }),
+    ]);
+    return [
+      ...participants.map((participant) => {
+        const emails = Array.isArray(participant.profile.additionalEmails) ? participant.profile.additionalEmails : [];
+        const email = participant.profile.authUser?.email || emails.find((value: unknown) => typeof value === 'string' && value.trim()) || '';
+        return { name: [participant.profile.firstName, participant.profile.lastName].filter(Boolean).join(' ') || 'Participante', email, edition: participant.edition.name, source: 'Participante', type: participant.role?.name || 'General', registeredAt: participant.registeredAt };
+      }),
+      ...submissions.map((submission) => {
+        const answers = submission.answers && typeof submission.answers === 'object' ? submission.answers as Record<string, unknown> : {};
+        const name = String(answers.full_name || answers.name || [answers.first_name, answers.last_name].filter(Boolean).join(' ') || submission.email || 'Participante');
+        return { name, email: submission.email || String(answers.email || ''), edition: submission.edition?.name || 'Global', source: submission.form.title, type: 'Inscripción', registeredAt: submission.submittedAt };
+      }),
+    ];
+  }
   async getSetup(eventId: string) {
     const event = await this.prisma.mainEvent.findUnique({ where: { id: eventId }, select: { id: true, eventName: true, description: true, startDate: true, eventMode: true, contactEmail: true } });
     if (!event) throw new NotFoundException('Evento no encontrado');
