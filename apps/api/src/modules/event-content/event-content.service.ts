@@ -9,6 +9,16 @@ const isSpeakerRole = (name?: string | null) => {
     .replace(/[\s-]+/g, '_');
   return ['speaker', 'speakers', 'speaker_mg', 'ponente', 'ponentes'].includes(normalized);
 };
+const ALLOWED_ROLE_NAMES: Record<string, string> = {
+  participant: 'participant',
+  participante: 'participant', // legado: se normaliza al código en inglés
+  coordinator: 'coordinator',
+  coordinador: 'coordinator', // legado: se normaliza al código en inglés
+  speaker: 'speaker',
+  ponente: 'speaker', // legado: se normaliza al código en inglés
+  speaker_mg: 'speaker_mg',
+  ponente_magistral: 'speaker_mg', // legado: se normaliza al código en inglés
+};
 @Injectable()
 export class EventContentService {
   constructor(private readonly prisma: PrismaService) {}
@@ -34,12 +44,23 @@ export class EventContentService {
   deleteThematicLine(id: string) { return this.prisma.thematicLine.delete({ where: { id } }); }
   roles(mainEventId?: string, editionId?: string) { return this.prisma.participantRole.findMany({ where: { mainEventId: mainEventId || undefined, editionId: editionId || undefined }, orderBy: { createdAt: 'desc' } }); }
   async createRole(data: { name: string; mainEventId?: string; editionId?: string }) {
-    const name = data.name.trim();
+    const roleKey = data.name.trim().toLowerCase().replace(/[\s-]+/g, '_');
+    const name = ALLOWED_ROLE_NAMES[roleKey];
+    if (!name) throw new BadRequestException('Rol no permitido. Usa participant, coordinator, speaker o speaker_mg.');
     const existing = await this.prisma.participantRole.findFirst({ where: { mainEventId: data.mainEventId || null, editionId: data.editionId || null, name: { equals: name, mode: 'insensitive' } } });
     if (existing) return existing;
     return this.prisma.participantRole.create({ data: { ...data, name } });
   }
-  updateRole(id: string, data: { name?: string; mainEventId?: string; editionId?: string }) { return this.prisma.participantRole.update({ where: { id }, data }); }
+  updateRole(id: string, data: { name?: string; mainEventId?: string; editionId?: string }) {
+    const input: { name?: string; mainEventId?: string; editionId?: string } = { ...data };
+    if (data.name !== undefined) {
+      const roleKey = data.name.trim().toLowerCase().replace(/[\s-]+/g, '_');
+      const name = ALLOWED_ROLE_NAMES[roleKey];
+      if (!name) throw new BadRequestException('Rol no permitido. Usa participant, coordinator, speaker o speaker_mg.');
+      input.name = name;
+    }
+    return this.prisma.participantRole.update({ where: { id }, data: input });
+  }
   async deleteRole(id: string) {
     const assignedParticipants = await this.prisma.eventParticipant.count({ where: { roleId: id } });
     if (assignedParticipants > 0) throw new ConflictException(`No se puede eliminar este rol porque está asignado a ${assignedParticipants} participante${assignedParticipants === 1 ? '' : 's'}. Reasigna o elimina esos participantes primero.`);

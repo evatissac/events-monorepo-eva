@@ -296,15 +296,14 @@ export class RegistrationFormsService {
     const email = typeof emailValue === 'string' ? emailValue.trim().toLowerCase() : '';
     if (!email) throw new BadRequestException('El correo electrónico es obligatorio');
     const fullName = String(answers.full_name || answers.name || '').trim();
-    const firstName = String(answers.first_name || answers.firstName || fullName.split(/\s+/)[0] || 'Participante').trim();
-    const lastNameParts = String(answers.last_name || answers.lastName || fullName.split(/\s+/).slice(1).join(' ')).trim().split(/\s+/).filter(Boolean);
+    const firstName = String(answers.first_name || answers.firstName || answers.nombres || answers.nombres_completos || fullName.split(/\s+/)[0] || 'Participante').trim();
+    const lastNameParts = String(answers.last_name || answers.lastName || answers.apellidos || answers.surname || fullName.split(/\s+/).slice(1).join(' ')).trim().split(/\s+/).filter(Boolean);
     const selectedEdition = requestedEditionId || form.editionId;
     return this.prisma.$transaction(async (tx) => {
       let edition = selectedEdition ? await tx.edition.findFirst({ where: { id: selectedEdition, mainEventId: form.mainEventId } }) : await tx.edition.findFirst({ where: { mainEventId: form.mainEventId }, orderBy: { createdAt: 'asc' } });
       if (!edition) edition = await tx.edition.create({ data: { mainEventId: form.mainEventId, name: 'Edición Principal' } });
-      const ticketType = String(answers.ticket_type || 'Participante');
-      let role = await tx.participantRole.findFirst({ where: { mainEventId: form.mainEventId, name: ticketType } });
-      if (!role) role = await tx.participantRole.create({ data: { mainEventId: form.mainEventId, name: ticketType } });
+      let role = await tx.participantRole.findFirst({ where: { mainEventId: form.mainEventId, name: { equals: 'participant', mode: 'insensitive' } } });
+      if (!role) role = await tx.participantRole.create({ data: { mainEventId: form.mainEventId, name: 'participant' } });
       const profile = await tx.profile.create({ data: { organizationId: form.mainEvent.organizationId, firstName, lastName: lastNameParts.join(' '), identityDocumentType: String(answers.document_type || '') || null, identityDocumentNumber: String(answers.document_number || '') || null, additionalEmails: [email] } });
       const participant = await tx.eventParticipant.create({ data: { editionId: edition.id, profileId: profile.id, roleId: role.id } });
       return { participantId: participant.id, profileId: profile.id };
