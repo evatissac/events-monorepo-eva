@@ -231,8 +231,8 @@ export class RegistrationFormsService {
       throw error;
     }
     if (form.purpose === 'MAIN') {
-      const participantId = await this.registerMainParticipant(form, submission.id, answers, editionId);
-      await this.prisma.registrationSubmission.update({ where: { id: submission.id }, data: { participantId } });
+      const registration = await this.registerMainParticipant(form, submission.id, answers, editionId);
+      await this.prisma.registrationSubmission.update({ where: { id: submission.id }, data: registration });
     }
     const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres, answers.nombres_completos].find((value) => typeof value === 'string') as string | undefined;
     const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
@@ -305,9 +305,9 @@ export class RegistrationFormsService {
       const ticketType = String(answers.ticket_type || 'Participante');
       let role = await tx.participantRole.findFirst({ where: { mainEventId: form.mainEventId, name: ticketType } });
       if (!role) role = await tx.participantRole.create({ data: { mainEventId: form.mainEventId, name: ticketType } });
-      const profile = await tx.profile.create({ data: { firstName, lastName: lastNameParts.join(' '), identityDocumentType: String(answers.document_type || '') || null, identityDocumentNumber: String(answers.document_number || '') || null, additionalEmails: [email] } });
+      const profile = await tx.profile.create({ data: { organizationId: form.mainEvent.organizationId, firstName, lastName: lastNameParts.join(' '), identityDocumentType: String(answers.document_type || '') || null, identityDocumentNumber: String(answers.document_number || '') || null, additionalEmails: [email] } });
       const participant = await tx.eventParticipant.create({ data: { editionId: edition.id, profileId: profile.id, roleId: role.id } });
-      return participant.id;
+      return { participantId: participant.id, profileId: profile.id };
     });
   }
 }

@@ -472,7 +472,7 @@ export const useEventStore = create<EventState>((set, get) => ({
             const matchedRole = formattedRoles.find((r) => r.id === part.roleId)
             const roleSlug = matchedRole?.slug || "attendee"
             const roleId = part.roleId || ""
-            const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Participante"
+            const fullName = `${profile.firstName || profile.first_name || ""} ${profile.lastName || profile.last_name || ""}`.trim() || "Participante"
 
             if (roleSlug === "speaker" || roleSlug === "keynote-speaker") {
               formattedSpeakers.push({
@@ -486,7 +486,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 lastName: profile.lastName || "",
                 name: fullName,
                 email: profile.email || "",
-                avatar: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+                avatar: profile.avatarUrl || profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 talkTitle: part.ticketReference || "",
                 talkDescription: profile.bio || "",
                 bio: profile.bio || "",
@@ -507,7 +507,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 registrationDate: part.registeredAt ? part.registeredAt.split("T")[0] : new Date().toISOString().split("T")[0],
                 checkedIn: !!part.checkedIn,
                 source: "PARTICIPANT",
-                avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+                avatarUrl: profile.avatarUrl || profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 identityDocumentType: profile.identity_document_type || null,
                 identityDocumentNumber: profile.identity_document_number || null,
                 roleId: roleId,
@@ -517,7 +517,7 @@ export const useEventStore = create<EventState>((set, get) => ({
         }
 
         const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
-        submissions.forEach((submission: any) => {
+        submissions.filter((submission: any) => !submission.participantId).forEach((submission: any) => {
           const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
           const fullName = String(answers.full_name || answers.name || submission.email || "Participante")
           formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id, answers, formFields: submission.form?.fields || [] })

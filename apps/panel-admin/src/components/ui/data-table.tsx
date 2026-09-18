@@ -55,15 +55,15 @@ export function DataTable<T>({ columns, data, emptyState, containerClassName = "
 
   if (!data || data.length === 0) return emptyState ? <>{emptyState}</> : null
 
-  return <div className={cn("overflow-hidden border border-border rounded-xl bg-background shadow-xs", containerClassName)}>
+  return <div className={cn("overflow-hidden border border-border rounded-xl bg-card shadow-xs", containerClassName)}>
     <div className="overflow-auto" style={{ maxHeight }}>
-      <table className={cn("w-full text-sm text-left border-collapse bg-background", tableClassName)}>
+      <table className={cn("w-full text-sm text-left border-collapse bg-card", tableClassName)}>
         <thead className="sticky top-0 z-10"><tr className={cn("bg-muted text-xs font-semibold text-muted-foreground border-b border-border", theadClassName)}>
           {columns.map((col, idx) => <th key={idx} scope="col" className={cn("p-4 whitespace-nowrap", col.headerClassName)}>{col.header}</th>)}
         </tr></thead>
-        <tbody className={cn("divide-y divide-border/50 bg-background", tbodyClassName)}>{visibleData.map((row, rowIdx) => {
+        <tbody className={cn("divide-y divide-border/50 bg-card", tbodyClassName)}>{visibleData.map((row, rowIdx) => {
           const rClassName = typeof rowClassName === "function" ? rowClassName(row, rowIdx) : rowClassName
-          return <tr key={rowIdx} onClick={() => onRowClick?.(row, rowIdx)} className={cn("hover:bg-muted/40 transition-colors bg-background", onRowClick && "cursor-pointer", rClassName)}>
+          return <tr key={rowIdx} onClick={() => onRowClick?.(row, rowIdx)} className={cn("hover:bg-muted/40 transition-colors bg-card", onRowClick && "cursor-pointer", rClassName)}>
             {columns.map((col, colIdx) => <td key={colIdx} className={cn("p-4", col.className)}>{col.cell ? col.cell(row, rowIdx) : col.accessorKey ? String((row as Record<string, unknown>)[String(col.accessorKey)] ?? "") : null}</td>)}
           </tr>
         })}</tbody>
