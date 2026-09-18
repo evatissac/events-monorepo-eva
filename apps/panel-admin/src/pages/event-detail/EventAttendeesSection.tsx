@@ -21,11 +21,13 @@ import {
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
 import { api } from "@/api/client"
+import { useAuthStore } from "@/store/auth.store"
 
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const { events, editions, attendees, deleteAttendee, loadData } = useEventStore()
+  const selectedOrganization = useAuthStore((state) => state.selectedOrganization)
   const [forms, setForms] = useState<any[]>([])
   const [formFilter, setFormFilter] = useState("ALL")
   const [editionFilter, setEditionFilter] = useState("ALL")
@@ -51,8 +53,24 @@ export function EventAttendeesSection() {
 
   useEffect(() => {
     if (!id) return
-    api.registrationForms.list(id).then(setForms).catch(() => setForms([]))
+    api.registrationForms.list(id).then((loadedForms) => {
+      setForms(loadedForms)
+      const mainForm = loadedForms.find((form) => form.purpose === "MAIN" && form.status !== "ARCHIVED")
+      setFormFilter(mainForm?.id || "ALL")
+    }).catch(() => setForms([]))
   }, [id])
+
+  useEffect(() => {
+    const activeEdition = editions.find((edition) => edition.mainEventId === id && edition.isCurrent)
+    if (activeEdition) setEditionFilter(activeEdition.id)
+  }, [id, editions])
+
+  // The event shell can already be loaded while its participant collection is stale.
+  // Refresh this module's source data every time the event changes.
+  useEffect(() => {
+    const organizationId = event?.organizationId || selectedOrganization?.id
+    if (id && organizationId) void loadData(organizationId)
+  }, [id, event?.organizationId, selectedOrganization?.id, loadData])
 
   const removeAttendee = async (attendee: any) => {
     try {

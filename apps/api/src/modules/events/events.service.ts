@@ -29,8 +29,11 @@ export class EventsService {
   async attendeeExport(eventId: string) {
     const [participants, submissions] = await Promise.all([
       this.prisma.eventParticipant.findMany({ where: { edition: { mainEventId: eventId } }, include: { profile: { include: { authUser: true } }, edition: true, role: true }, orderBy: { registeredAt: 'desc' } }),
-      this.prisma.registrationSubmission.findMany({ where: { form: { mainEventId: eventId }, participantId: null }, include: { form: true, edition: true }, orderBy: { submittedAt: 'desc' } }),
+      this.prisma.registrationSubmission.findMany({ where: { form: { mainEventId: eventId }, participantId: null }, include: { form: true }, orderBy: { submittedAt: 'desc' } }),
     ]);
+    const editionIds = submissions.map((submission) => submission.editionId).filter((editionId): editionId is string => Boolean(editionId));
+    const editions = editionIds.length ? await this.prisma.edition.findMany({ where: { id: { in: editionIds } }, select: { id: true, name: true } }) : [];
+    const editionNames = new Map(editions.map((edition) => [edition.id, edition.name]));
     return [
       ...participants.map((participant) => {
         const emails = Array.isArray(participant.profile.additionalEmails) ? participant.profile.additionalEmails : [];
@@ -40,7 +43,7 @@ export class EventsService {
       ...submissions.map((submission) => {
         const answers = submission.answers && typeof submission.answers === 'object' ? submission.answers as Record<string, unknown> : {};
         const name = String(answers.full_name || answers.name || [answers.first_name, answers.last_name].filter(Boolean).join(' ') || submission.email || 'Participante');
-        return { name, email: submission.email || String(answers.email || ''), edition: submission.edition?.name || 'Global', source: submission.form.title, type: 'Inscripción', registeredAt: submission.submittedAt };
+        return { name, email: submission.email || String(answers.email || ''), edition: submission.editionId ? editionNames.get(submission.editionId) || 'Global' : 'Global', source: submission.form.title, type: 'Inscripción', registeredAt: submission.submittedAt };
       }),
     ];
   }
