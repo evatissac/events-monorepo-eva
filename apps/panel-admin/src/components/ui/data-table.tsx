@@ -17,6 +17,7 @@ export interface DataTablePagination {
   onPageChange?: (page: number) => void
   onPageSizeChange?: (pageSize: number) => void
   loading?: boolean
+  itemLabel?: string
 }
 
 interface DataTableProps<T> {
@@ -69,6 +70,6 @@ export function DataTable<T>({ columns, data, emptyState, containerClassName = "
         })}</tbody>
       </table>
     </div>
-    {isPaginated && totalItems > 0 && <TablePagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={changePage} onPageSizeChange={changePageSize} loading={paginationOptions.loading} />}
+    {isPaginated && totalItems > 0 && <TablePagination page={page} pageSize={pageSize} totalItems={totalItems} onPageChange={changePage} onPageSizeChange={changePageSize} loading={paginationOptions.loading} itemLabel={paginationOptions.itemLabel} />}
   </div>
 }

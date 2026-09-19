@@ -72,6 +72,7 @@ export const api = {
   organizations: {
     list: () => apiFetch<any[]>("/organizations"),
     get: (id: string) => apiFetch<any>(`/organizations/${id}`),
+    access: (id: string) => apiFetch<{ organizationId: string; role: string; permissions: string[] }>(`/organizations/${id}/access`),
     create: (data: any) => apiFetch<any>("/organizations", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/organizations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: string) => apiFetch<any>(`/organizations/${id}`, { method: "DELETE" }),

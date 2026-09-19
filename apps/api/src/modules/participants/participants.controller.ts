@@ -12,5 +12,5 @@ export class ParticipantsController {
   @Get('participants/:id') get(@Param('id') id: string) { return this.participants.get(id); }
   @Patch('participants/:id') update(@Param('id') id: string, @Body() body: { checkedIn?: boolean }) { return this.participants.update(id, body); }
   @Patch('participants/:id/role') changeRole(@Param('id') id: string, @Body('roleId') roleId: string, @Req() request: any) { return this.participants.changeRole(id, roleId, request.user); }
-  @Delete('participants/:id') remove(@Param('id') id: string) { return this.participants.remove(id); }
+  @Delete('participants/:id') remove(@Param('id') id: string, @Req() request: any) { return this.participants.remove(id, request.user); }
 }

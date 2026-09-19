@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { parsePeruDateTime } from '../../common/peru-time.js';
 import { PrismaService } from '../../database/prisma.service.js';
@@ -55,9 +55,13 @@ export class RegistrationFormsService {
     });
   }
 
-  async removeSubmission(id: string) {
-    const submission = await this.prisma.registrationSubmission.findUnique({ where: { id }, select: { participantId: true } });
+  async removeSubmission(id: string, actor: { accountId?: string; role?: string }) {
+    const submission = await this.prisma.registrationSubmission.findUnique({ where: { id }, select: { participantId: true, form: { select: { mainEvent: { select: { organizationId: true } } } } } });
     if (!submission) throw new NotFoundException('Inscripción no encontrada');
+    const isGlobalAdmin = ['SUPER_ADMIN', 'SAAS_ADMIN'].includes(actor.role || '');
+    const organizationId = submission.form.mainEvent.organizationId;
+    const membership = actor.accountId && organizationId ? await this.prisma.organizationMember.findFirst({ where: { organizationId, accountId: actor.accountId, role: { in: ['OWNER', 'ADMIN'] } } }) : null;
+    if (!isGlobalAdmin && !membership) throw new ForbiddenException('Solo un administrador de la organización puede eliminar inscripciones.');
     return this.prisma.$transaction(async (tx) => {
       if (submission.participantId) await tx.eventParticipant.delete({ where: { id: submission.participantId } });
       return tx.registrationSubmission.delete({ where: { id } });
