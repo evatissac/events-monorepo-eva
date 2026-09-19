@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { RegistrationFormsService } from './registration-forms.service.js';
 import { Public } from '../../common/public.decorator.js';
@@ -46,7 +46,7 @@ export class RegistrationFormsController {
   }
 
   @Delete('registration-submissions/:id')
-  removeSubmission(@Param('id') id: string) { return this.forms.removeSubmission(id); }
+  removeSubmission(@Param('id') id: string, @Req() request: any) { return this.forms.removeSubmission(id, request.user); }
 
   @Public() @Get('public/registration-forms/:slug')
   publicForm(@Param('slug') slug: string) {

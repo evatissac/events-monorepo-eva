@@ -77,7 +77,7 @@ export function EventAttendeeFormPage() {
         fullName: `${firstName} ${lastName}`.trim(),
         email,
         ticketType: "Participante",
-        registrationDate: new Date().toISOString().split("T")[0],
+        registrationDate: new Date().toISOString(),
         checkedIn: false,
       })
 
