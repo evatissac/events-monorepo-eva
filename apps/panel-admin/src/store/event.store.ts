@@ -507,7 +507,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 fullName,
                 email: profile.email || "",
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
-                registrationDate: part.registeredAt ? part.registeredAt.split("T")[0] : new Date().toISOString().split("T")[0],
+                registrationDate: part.registeredAt || new Date().toISOString(),
                 checkedIn: !!part.checkedIn,
                 source: "PARTICIPANT",
                 avatarUrl: profile.avatarUrl || profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
@@ -528,7 +528,7 @@ export const useEventStore = create<EventState>((set, get) => ({
           if (linkedParticipant) {
             Object.assign(linkedParticipant, registrationData, { fullName, email: submission.email || answers.email || linkedParticipant.email, editionId: submission.editionId || linkedParticipant.editionId })
           } else if (!submission.participantId) {
-            formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, ...registrationData })
+            formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt || "", checkedIn: false, ...registrationData })
           }
         })
       }

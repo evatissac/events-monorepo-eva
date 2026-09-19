@@ -41,5 +41,13 @@ export class ParticipantsService {
     if (!role) throw new NotFoundException('El rol no pertenece a este evento o edición');
     return this.prisma.eventParticipant.update({ where: { id }, data: { roleId }, include: { profile: true, role: true } });
   }
-  remove(id: string) { return this.prisma.eventParticipant.delete({ where: { id } }); }
+  async remove(id: string, actor: { accountId?: string; role?: string }) {
+    const participant = await this.prisma.eventParticipant.findUnique({ where: { id }, include: { edition: { include: { mainEvent: true } } } });
+    if (!participant) throw new NotFoundException('Participante no encontrado');
+    const isGlobalAdmin = ['SUPER_ADMIN', 'SAAS_ADMIN'].includes(actor.role || '');
+    const organizationId = participant.edition.mainEvent.organizationId;
+    const membership = actor.accountId && organizationId ? await this.prisma.organizationMember.findFirst({ where: { organizationId, accountId: actor.accountId, role: { in: ['OWNER', 'ADMIN'] } } }) : null;
+    if (!isGlobalAdmin && !membership) throw new ForbiddenException('Solo un administrador de la organización puede eliminar participantes.');
+    return this.prisma.eventParticipant.delete({ where: { id } });
+  }
 }

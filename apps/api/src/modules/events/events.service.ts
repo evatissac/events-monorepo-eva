@@ -27,10 +27,12 @@ export class EventsService {
   }
   remove(id: string) { return this.prisma.mainEvent.delete({ where: { id } }); }
   async attendeeExport(eventId: string) {
-    const [participants, submissions] = await Promise.all([
+    const [allParticipants, submissions] = await Promise.all([
       this.prisma.eventParticipant.findMany({ where: { edition: { mainEventId: eventId } }, include: { profile: { include: { authUser: true } }, edition: true, role: true }, orderBy: { registeredAt: 'desc' } }),
       this.prisma.registrationSubmission.findMany({ where: { form: { mainEventId: eventId } }, include: { form: { include: { fields: true } } }, orderBy: { submittedAt: 'desc' } }),
     ]);
+    const isSpeakerRole = (roleName?: string | null) => /^(speaker(?:_mg)?|ponente(?:_mg)?)$/i.test(String(roleName || '').trim());
+    const participants = allParticipants.filter((participant) => !isSpeakerRole(participant.role?.name));
     const editionIds = submissions.map((submission) => submission.editionId).filter((editionId): editionId is string => Boolean(editionId));
     const editions = editionIds.length ? await this.prisma.edition.findMany({ where: { id: { in: editionIds } }, select: { id: true, name: true } }) : [];
     const editionNames = new Map(editions.map((edition) => [edition.id, edition.name]));

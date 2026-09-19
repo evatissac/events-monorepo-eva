@@ -28,12 +28,14 @@ export function EventAttendeesSection() {
   const navigate = useNavigate()
   const { events, editions, attendees, roles, deleteAttendee, loadData } = useEventStore()
   const selectedOrganization = useAuthStore((state) => state.selectedOrganization)
+  const currentUser = useAuthStore((state) => state.user)
   const [forms, setForms] = useState<any[]>([])
   const [formFilter, setFormFilter] = useState("ALL")
   const [editionFilter, setEditionFilter] = useState("ALL")
   const [search, setSearch] = useState("")
   const [detailAttendee, setDetailAttendee] = useState<any>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [canManageAttendees, setCanManageAttendees] = useState(false)
 
   const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
@@ -72,6 +74,18 @@ export function EventAttendeesSection() {
     const organizationId = event?.organizationId || selectedOrganization?.id
     if (id && organizationId) void loadData(organizationId)
   }, [id, event?.organizationId, selectedOrganization?.id, loadData])
+
+  useEffect(() => {
+    const organizationId = event?.organizationId || selectedOrganization?.id
+    if (!organizationId) return
+    if (["SUPER_ADMIN", "SAAS_ADMIN"].includes(currentUser?.role || "")) {
+      setCanManageAttendees(true)
+      return
+    }
+    void api.organizations.access(organizationId)
+      .then((access) => setCanManageAttendees(["OWNER", "ADMIN"].includes(access.role)))
+      .catch(() => setCanManageAttendees(false))
+  }, [event?.organizationId, selectedOrganization?.id, currentUser?.role])
 
   const removeAttendee = async (attendee: any) => {
     try {
@@ -123,8 +137,11 @@ export function EventAttendeesSection() {
       ...attributeKeys.map((key) => ({ header: exportRows.find((attendee) => attendee.attributeLabels?.[key])?.attributeLabels?.[key] || key, key: `attribute:${key}`, width: 24 })),
     ]
     exportRows.forEach((attendee) => sheet.addRow({ ...attendee, registeredAt: attendee.registeredAt ? new Date(attendee.registeredAt).toLocaleDateString("es-PE") : "", ...Object.fromEntries(attributeKeys.map((key) => [`attribute:${key}`, Array.isArray(attendee.attributes?.[key]) ? attendee.attributes[key].join(", ") : String(attendee.attributes?.[key] ?? "")])) }))
-    sheet.getRow(1).font = { bold: true }
-    sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FFEFF6FF" } }
+    const headerRow = sheet.getRow(1)
+    headerRow.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } }
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } }
+    headerRow.alignment = { vertical: "middle" }
+    headerRow.height = 24
     const file = new Blob([await workbook.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
     const url = URL.createObjectURL(file)
     const anchor = document.createElement("a")
@@ -201,10 +218,32 @@ export function EventAttendeesSection() {
       }
     },
     {
+      header: "Registrado",
+      className: "p-3 whitespace-nowrap",
+      headerClassName: "p-3",
+      cell: (at) => {
+        const registeredAt = at.registrationDate ? new Date(at.registrationDate) : null
+        if (!registeredAt || Number.isNaN(registeredAt.getTime())) {
+          return <span className="text-xs text-muted-foreground">—</span>
+        }
+
+        return (
+          <div className="text-xs leading-5">
+            <div className="font-medium text-foreground">
+              {registeredAt.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Lima" })}
+            </div>
+            <div className="text-muted-foreground">
+              {registeredAt.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Lima" })}
+            </div>
+          </div>
+        )
+      }
+    },
+    {
       header: "Rol",
       className: "p-3",
       headerClassName: "p-3",
-      cell: (at) => <select value={at.roleId || ""} onChange={(event) => void changeParticipantRole(at, event.target.value)} className="h-8 max-w-36 rounded-md border border-border bg-background px-2 text-xs" aria-label={`Cambiar rol de ${at.fullName}`}><option value="" disabled>Sin rol</option>{eventRoles.map((role) => <option key={role.id} value={role.id}>{role.name?.es || role.name?.en || role.slug}</option>)}</select>,
+      cell: (at) => canManageAttendees ? <select value={at.roleId || ""} onChange={(event) => void changeParticipantRole(at, event.target.value)} className="h-8 max-w-36 rounded-md border border-border bg-background px-2 text-xs" aria-label={`Cambiar rol de ${at.fullName}`}><option value="" disabled>Sin rol</option>{eventRoles.map((role) => <option key={role.id} value={role.id}>{role.name?.es || role.name?.en || role.slug}</option>)}</select> : <span className="text-xs text-muted-foreground">{eventRoles.find((role) => role.id === at.roleId)?.name?.es || eventRoles.find((role) => role.id === at.roleId)?.name?.en || "Sin rol"}</span>,
     },
     {
       header: "Acciones",
@@ -230,7 +269,7 @@ export function EventAttendeesSection() {
               </a>
             </Button>
           )}
-          <AlertDialog>
+          {canManageAttendees && <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
                 <Trash2 className="size-3.5" />
@@ -250,7 +289,7 @@ export function EventAttendeesSection() {
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
-          </AlertDialog>
+          </AlertDialog>}
         </div>
       )
     }
@@ -289,7 +328,7 @@ export function EventAttendeesSection() {
           No hay participantes inscritos.
         </div>
       ) : (
-        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl bg-card" />
+        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl bg-card" pagination={{ itemLabel: "participantes" }} />
       )}
       <AlertDialog open={!!detailAttendee} onOpenChange={(open) => !open && setDetailAttendee(null)}><AlertDialogContent className="max-w-lg"><AlertDialogHeader><AlertDialogTitle>Detalle de {detailAttendee?.fullName}</AlertDialogTitle><AlertDialogDescription>{detailAttendee?.sourceFormTitle || "Registro de participante"}</AlertDialogDescription></AlertDialogHeader><div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border p-3 text-sm"><div className="grid grid-cols-2 gap-3 border-b pb-2"><span className="font-medium text-muted-foreground">Correo</span><span className="break-words">{detailAttendee?.email || "—"}</span></div><div className="grid grid-cols-2 gap-3 border-b pb-2"><span className="font-medium text-muted-foreground">Edición</span><span>{eventEditions.find((edition) => edition.id === detailAttendee?.editionId)?.name || "Global"}</span></div>{Object.entries(detailAttendee?.answers || {}).map(([key, value]) => <div key={key} className="grid grid-cols-2 gap-3 border-b pb-2 last:border-0"><span className="font-medium text-muted-foreground">{detailAttendee?.formFields?.find((field: any) => field.key === key)?.label || key}</span><span className="break-words">{Array.isArray(value) ? value.join(", ") : String(value || "—")}</span></div>)}</div><AlertDialogFooter><AlertDialogCancel>Cerrar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
