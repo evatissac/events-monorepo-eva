@@ -1,5 +1,5 @@
 ---
-import { CalendarDays, ChevronRight, Clock3, Video } from '@lucide/astro';
+import { MedmindEventDetail as MedmindEventDetailReact } from './MedmindEventDetail';
 
 interface Props {
   institution: string;
@@ -13,6 +13,12 @@ interface Props {
   apiUrl: string;
 }
 
+<<<<<<< HEAD
+const props = Astro.props;
+---
+
+<MedmindEventDetailReact client:load {...props} />
+=======
 const { institution, event, edition, speakers, activities, form, heroImage, heroVideo, apiUrl } = Astro.props;
 const startDate = edition?.startDate || event.startDate;
 const date = startDate ? new Date(startDate) : null;
@@ -162,3 +168,4 @@ const coloredTitle = titleWords.slice(splitAt).join(' ');
   .medmind-detail{color:#172033;background:#fbfdfd;min-height:100vh;font-family:Inter,system-ui,sans-serif;padding-top:76px}.medmind-wrap{width:100%;max-width:1520px;margin:auto;padding:0 clamp(1.25rem,4vw,4.5rem);box-sizing:border-box}.medmind-nav{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 max(1.25rem,calc((100vw - 1520px)/2));position:fixed;inset:0 0 auto;z-index:30;background:#fbfdfdf5;border-bottom:1px solid #dfe9e8}.medmind-brand,.medmind-nav a,.primary-action{color:#172033;text-decoration:none}.medmind-brand{display:flex;gap:.7rem;align-items:center}.medmind-brand img,.medmind-footer img{width:112px;height:34px}.medmind-nav nav,.event-facts,.hero-actions{display:flex;gap:1.2rem}.nav-cta,.primary-action{background:#00a98f;color:white!important;border-radius:999px;padding:.75rem 1.1rem;text-decoration:none}.medmind-hero,.medmind-section,.registration-section{padding:6rem 0;border-bottom:1px solid #dfe9e8}.hero-content{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}.hero-copy h1,.medmind-section h2,.registration-heading h2{font-size:clamp(2.3rem,5vw,4.8rem);line-height:1.05}.hero-title-accent,.section-kicker{color:#00a98f}.hero-description,.section-intro{color:#52615f;line-height:1.7}.event-facts{flex-wrap:wrap}.event-facts div,.speaker-card,.agenda-card{padding:1rem;border:1px solid #d8e5e3;border-radius:14px;background:#fff}.event-facts p{margin:0}.hero-art{min-height:420px}.hero-art img,.hero-art video{width:100%;height:100%;object-fit:contain}.speakers-list,.agenda-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.agenda-section{background:#f4fbfa}.registration-section{background:#00a98f}.registration-wrap{max-width:1240px}.registration-heading{color:#fff}.medmind-form,#medmind-success{background:#fff;padding:2rem;border-radius:22px}.medmind-form label{display:grid;gap:.45rem;margin-bottom:1rem;font-size:.85rem;font-weight:600}.medmind-form input,.medmind-form textarea,.medmind-form select{min-height:46px;border:1px solid #cbdcd8;border-radius:10px;padding:.7rem .8rem;font:inherit}.medmind-form small{font-weight:400;color:#64748b}.medmind-form textarea{min-height:110px}.medmind-form button{width:100%;border:0;border-radius:999px;background:#172c2a;color:#fff;padding:1rem;font-weight:600}.required{color:#e11d48;margin-left:.18rem}.choice-group{border:1px solid #d6e2df;border-radius:12px;padding:1rem;margin:0 0 1rem}.choice-group legend{font-weight:600}.choice-group label{display:flex;gap:.55rem;margin:.65rem 0;font-weight:500}.choice-group input{width:18px;height:18px}.medmind-footer{background:#102422;color:#d9e7e4;padding:2rem 0}.medmind-footer .medmind-wrap{display:flex;justify-content:space-between}@media(max-width:760px){.medmind-detail{padding-top:64px}.medmind-nav{height:64px}.medmind-nav nav{display:none}.hero-content,.speakers-list,.agenda-grid{grid-template-columns:1fr}.hero-art{min-height:260px}}
   .radio-cards{border:0;padding:0;display:flex;flex-wrap:wrap;gap:.6rem}.radio-cards legend{width:100%;margin-bottom:0}.radio-cards label{margin:0;align-items:center;border:1px solid #d6e2df;border-radius:999px;padding:.65rem 1rem;cursor:pointer}.radio-cards label:has(input:checked){background:#00a98f;color:#fff;border-color:#00a98f}.radio-cards input,.checkbox-field input{border:0;accent-color:#00a98f}.phone-input{display:flex;border:1px solid #cbdcd8;border-radius:10px;overflow:hidden}.phone-input span{display:flex;align-items:center;padding:0 .9rem;border-right:1px solid #cbdcd8;font-size:.85rem;white-space:nowrap}.phone-input input{border:0!important;border-radius:0!important;min-width:0;flex:1}
 </style>
+>>>>>>> 7af2cdfd2e570e965ac003020dfa18ddd4d13e9f

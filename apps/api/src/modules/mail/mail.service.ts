@@ -21,7 +21,7 @@ export class MailService {
   constructor(
     private readonly templateService: TemplateService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) { }
 
   /**
    * Universal send method. If organizationId is specified, uses the organization's

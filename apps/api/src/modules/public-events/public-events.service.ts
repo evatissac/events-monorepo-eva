@@ -11,7 +11,7 @@ const isSpeakerRole = (name?: string | null) => {
 
 @Injectable()
 export class PublicEventsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService) { }
 
   async list(organizationSlug: string) {
     const organization = await this.prisma.organization.findFirst({ where: { slug: organizationSlug, isActive: true }, select: { id: true, name: true, slug: true, description: true, logoUrl: true, coverUrl: true, portal: { select: { isPublished: true, heroTitle: true, heroDescription: true, heroImageUrl: true, featuredEventId: true, sections: true, navigation: true, seoTitle: true, seoDescription: true } } } });
@@ -32,7 +32,13 @@ export class PublicEventsService {
     }));
     const activeEdition = editions.find((edition) => edition.isCurrent) ?? editions[0];
     const heroMedia = await this.prisma.mediaLink.findFirst({
-      where: { OR: [...(activeEdition ? [{ ownerType: 'EDITION' as const, ownerId: activeEdition.id }] : []), { ownerType: 'EVENT', ownerId: item.id }], isFeatured: true },
+      where: {
+        OR: [
+          ...(activeEdition ? [{ ownerType: 'EDITION' as const, ownerId: activeEdition.id }] : []),
+          { ownerType: 'EVENT', ownerId: item.id },
+        ],
+        isFeatured: true,
+      },
       include: { media: { select: { url: true, mimeType: true, orientation: true } } },
       orderBy: [{ ownerType: 'desc' }, { position: 'asc' }],
     });

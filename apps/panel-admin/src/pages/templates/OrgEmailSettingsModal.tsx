@@ -73,6 +73,7 @@ export function OrgEmailSettingsModal({
   // Test states
   const [testEmail, setTestEmail] = useState(user?.email || "")
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
+  const [credentialNeedsRotation, setCredentialNeedsRotation] = useState(false)
 
   useEffect(() => {
     if (open && orgId) {
@@ -87,6 +88,7 @@ export function OrgEmailSettingsModal({
       const data = await api.emailSettings.get(orgId)
 
       setProvider(data.defaultProvider || "RESEND")
+      setCredentialNeedsRotation(Boolean(data.credentialNeedsRotation))
       setResendApiKey(data.resendApiKeyMasked || "")
       setResendDomain(data.resendDomain || "")
       setResendFromEmail(data.resendFromEmail || "")
@@ -239,6 +241,11 @@ export function OrgEmailSettingsModal({
           </div>
         ) : (
           <div className="p-6 space-y-6">
+            {credentialNeedsRotation && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-3 text-xs leading-5 text-amber-800 dark:text-amber-300">
+                Las credenciales restauradas pertenecen a una clave de cifrado anterior. Ingresa y guarda nuevamente la API key de Resend o la contraseña SMTP antes de enviar correos.
+              </div>
+            )}
             {/* Provider Selector */}
             <div className="space-y-2">
               <label className="text-xs font-bold text-foreground">Proveedor de Envíos</label>

@@ -49,13 +49,29 @@ export class EmailSettingsService {
         verifiedSenders: [],
         isActive: false,
         isUsingSystemFallback: false,
+        deliveryReady: false,
+        defaultSender: null,
       };
     }
 
+    const provider = settings.defaultProvider || 'RESEND';
+    const resendSecret = decryptCredential(settings.resendApiKeyEncrypted || '');
+    const smtpSecret = decryptCredential(settings.smtpPassEncrypted || '');
+    const credentialNeedsRotation = Boolean(
+      (settings.resendApiKeyEncrypted && !resendSecret) ||
+      (settings.smtpPassEncrypted && !smtpSecret),
+    );
+    const hasCredentials = provider === 'RESEND'
+      ? Boolean(resendSecret && settings.resendFromEmail)
+      : Boolean(settings.smtpUser && smtpSecret && (settings.smtpFromEmail || settings.smtpUser));
+    const defaultSender = provider === 'RESEND'
+      ? settings.resendFromEmail
+      : (settings.smtpFromEmail || settings.smtpUser);
+
     return {
       configured: true,
-      defaultProvider: settings.defaultProvider || 'RESEND',
-      resendApiKeyMasked: maskSecret(settings.resendApiKeyEncrypted),
+      defaultProvider: provider,
+      resendApiKeyMasked: resendSecret ? maskSecret(resendSecret) : '',
       resendDomain: settings.resendDomain || (settings.resendFromEmail?.includes('@') ? settings.resendFromEmail.split('@')[1] : ''),
       resendFromEmail: settings.resendFromEmail || '',
       resendFromName: settings.resendFromName || '',
@@ -63,12 +79,15 @@ export class EmailSettingsService {
       smtpPort: settings.smtpPort || 587,
       smtpSecure: settings.smtpSecure || false,
       smtpUser: settings.smtpUser || '',
-      smtpPassMasked: maskSecret(settings.smtpPassEncrypted),
+      smtpPassMasked: smtpSecret ? maskSecret(smtpSecret) : '',
       smtpFromEmail: settings.smtpFromEmail || '',
       smtpFromName: settings.smtpFromName || '',
       verifiedSenders: (settings.verifiedSenders as any[]) || [],
       isActive: settings.isActive,
       isUsingSystemFallback: !settings.resendApiKeyEncrypted && !settings.smtpPassEncrypted,
+      deliveryReady: Boolean(settings.isActive && hasCredentials),
+      defaultSender: defaultSender || null,
+      credentialNeedsRotation,
     };
   }
 

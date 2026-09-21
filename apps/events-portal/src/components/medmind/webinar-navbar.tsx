@@ -2,12 +2,17 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { motion } from 'framer-motion'
-import { Moon, Sun, Menu, X, ArrowRight, Sparkles } from 'lucide-react'
+import { Moon, Sun, Menu, X, ArrowRight } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { LogoRender } from '@/components/app/logo-render'
 
-export function WebinarNavbar() {
+export interface WebinarNavbarProps {
+    institution?: string;
+    hasSpeakers?: boolean;
+    hasAgenda?: boolean;
+}
+
+export function WebinarNavbar({ institution = 'medmind', hasSpeakers = true, hasAgenda = true }: WebinarNavbarProps) {
     const [isAtTop, setIsAtTop] = useState(true)
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
     const { theme, setTheme } = useTheme()
@@ -44,7 +49,7 @@ export function WebinarNavbar() {
                 <div className="flex items-center justify-between h-16 sm:h-20">
                     {/* Brand */}
                     <div className="flex items-center gap-3">
-                        <Link href="/" className="flex items-center">
+                        <Link href={`/${institution}`} className="flex items-center">
                             <LogoRender
                                 variant="full"
                                 className="w-28 sm:w-32 text-foreground"
@@ -58,18 +63,22 @@ export function WebinarNavbar() {
 
                     {/* Navigation Desktop */}
                     <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground">
-                        <button
-                            onClick={() => scrollToSection('mentores')}
-                            className="hover:text-foreground transition-colors cursor-pointer"
-                        >
-                            Expositores
-                        </button>
-                        <button
-                            onClick={() => scrollToSection('temario')}
-                            className="hover:text-foreground transition-colors cursor-pointer"
-                        >
-                            Temario
-                        </button>
+                        {hasSpeakers && (
+                            <button
+                                onClick={() => scrollToSection('mentores')}
+                                className="hover:text-foreground transition-colors cursor-pointer"
+                            >
+                                Expositores
+                            </button>
+                        )}
+                        {hasAgenda && (
+                            <button
+                                onClick={() => scrollToSection('temario')}
+                                className="hover:text-foreground transition-colors cursor-pointer"
+                            >
+                                Temario
+                            </button>
+                        )}
                         <button
                             onClick={() => scrollToSection('registro')}
                             className="hover:text-foreground transition-colors cursor-pointer"
@@ -117,18 +126,22 @@ export function WebinarNavbar() {
             {/* Mobile dropdown */}
             {isMobileMenuOpen && (
                 <div className="md:hidden border-b border-border bg-background px-4 py-4 space-y-3">
-                    <button
-                        onClick={() => scrollToSection('mentores')}
-                        className="block w-full text-left py-2 text-sm font-medium text-foreground hover:text-medmind-cyan"
-                    >
-                        Expositores
-                    </button>
-                    <button
-                        onClick={() => scrollToSection('temario')}
-                        className="block w-full text-left py-2 text-sm font-medium text-foreground hover:text-medmind-cyan"
-                    >
-                        Temario
-                    </button>
+                    {hasSpeakers && (
+                        <button
+                            onClick={() => scrollToSection('mentores')}
+                            className="block w-full text-left py-2 text-sm font-medium text-foreground hover:text-medmind-cyan"
+                        >
+                            Expositores
+                        </button>
+                    )}
+                    {hasAgenda && (
+                        <button
+                            onClick={() => scrollToSection('temario')}
+                            className="block w-full text-left py-2 text-sm font-medium text-foreground hover:text-medmind-cyan"
+                        >
+                            Temario
+                        </button>
+                    )}
                     <button
                         onClick={() => scrollToSection('registro')}
                         className="block w-full text-left py-2 text-sm font-medium text-foreground hover:text-medmind-cyan"

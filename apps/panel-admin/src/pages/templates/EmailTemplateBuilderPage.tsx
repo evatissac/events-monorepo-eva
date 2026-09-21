@@ -196,8 +196,8 @@ export function EmailTemplateBuilderPage() {
   const [templateName, setTemplateName] = useState("Nueva plantilla")
   const [subject, setSubject] = useState("")
   const [previewText, setPreviewText] = useState("")
-  const [senderEmail, setSenderEmail] = useState("daylersan@gmail.com")
-  const [senderName, setSenderName] = useState("IIAP")
+  const [senderEmail, setSenderEmail] = useState("")
+  const [senderName, setSenderName] = useState("Organización")
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "DRAFT">("DRAFT")
 
   // Canvas View Mode (Desktop vs Mobile)
@@ -224,7 +224,7 @@ export function EmailTemplateBuilderPage() {
 
   // Preview & Test Modal
   const [openPreviewModal, setOpenPreviewModal] = useState(false)
-  const [testEmail, setTestEmail] = useState("daylersan@gmail.com")
+  const [testEmail, setTestEmail] = useState("")
 
   // Push history on block changes
   const recordHistory = (newBlocks: EmailBlock[]) => {
@@ -280,8 +280,8 @@ export function EmailTemplateBuilderPage() {
       setTemplateName(data.name || "Plantilla")
       setSubject(data.subject || "")
       setPreviewText(data.previewText || "")
-      setSenderEmail(data.senderEmail || "daylersan@gmail.com")
-      setSenderName(data.senderName || "IIAP")
+      setSenderEmail(data.senderEmail || "")
+      setSenderName(data.senderName || data.organization?.name || "Organización")
       setStatus(data.status || "DRAFT")
 
       let initialBlocks: EmailBlock[] = []
@@ -395,7 +395,7 @@ export function EmailTemplateBuilderPage() {
         }
         break
       case "dynamic":
-        defaultOptions = { variable: "contact.FIRSTNAME", fallback: "Estimado/a asistente" }
+        defaultOptions = { text: "Hola, {{ first_name }}.", variable: "first_name", fallback: "Estimado/a asistente" }
         break
       case "logo":
         defaultOptions = { text: "Logo", align: "center", width: 140 }
@@ -1076,10 +1076,27 @@ export function EmailTemplateBuilderPage() {
 
                 {selectedBlock.type === "dynamic" && (
                   <div className="space-y-3">
-                    <InspectorInput label="Variable" value={selectedBlock.options?.variable || ""} onChange={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} placeholder="first_name" />
-                    <VariablePicker onInsert={(variable) => updateSelectedBlock({ options: { ...selectedBlock.options, variable } })} detectedVariables={selectedBlock.options?.variable ? [selectedBlock.options.variable] : []} variables={availableVariables} />
-                    <InspectorInput label="Valor alternativo" value={selectedBlock.options?.fallback || ""} onChange={(fallback) => updateSelectedBlock({ options: { ...selectedBlock.options, fallback } })} placeholder="Asistente" />
-                    <p className="text-[11px] text-muted-foreground">Se enviará como <code>{`{{ ${selectedBlock.options?.variable || "first_name"} }}`}</code>. Usa el valor alternativo cuando no exista información.</p>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Contenido dinámico</label>
+                      <textarea
+                        value={selectedBlock.options?.text || ""}
+                        onChange={(e) => updateSelectedBlock({ options: { ...selectedBlock.options, text: e.target.value } })}
+                        rows={5}
+                        placeholder="Hola, {{ first_name }}."
+                        className="w-full text-xs rounded-xl border border-border bg-background p-3 focus:outline-hidden focus:ring-2 focus:ring-primary resize-none font-mono"
+                      />
+                      <VariableChipsBar
+                        currentValue={selectedBlock.options?.text || ""}
+                        variables={availableVariables}
+                        onInsert={(varKey) => {
+                          const current = selectedBlock.options?.text || ""
+                          const space = current.length > 0 && !current.endsWith(" ") ? " " : ""
+                          updateSelectedBlock({ options: { ...selectedBlock.options, text: `${current}${space}{{ ${varKey} }} ` } })
+                        }}
+                      />
+                    </div>
+                    <InspectorInput label="Valor alternativo" value={selectedBlock.options?.fallback || ""} onChange={(fallback) => updateSelectedBlock({ options: { ...selectedBlock.options, fallback } })} placeholder="Estimado/a asistente" />
+                    <p className="text-[11px] text-muted-foreground">Puedes combinar texto, HTML básico y varias variables. El valor alternativo se usa cuando el bloque contiene únicamente una variable sin datos.</p>
                   </div>
                 )}
 
@@ -1303,7 +1320,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 6. Contenido dinámico */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "dynamic")}
-                      onClick={() => addBlock("dynamic", "Contenido dinámico")}
+                      onClick={() => addBlock("dynamic", "Variable dinámica")}
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform font-mono text-sm font-bold">
@@ -1773,11 +1790,21 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable =
       )
 
     case "dynamic":
+      {
+        const fallback = String(opt.fallback || "").trim()
+        const content = opt.text || `{{ ${opt.variable || "first_name"} }}`
+
       return (
-        <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/30 text-violet-700 dark:text-violet-300 font-mono text-xs text-center">
-          {"{{ " + (opt.variable || "contact.FIRSTNAME") + " }}"}
+        <div className="p-3 rounded-xl bg-violet-500/10 border border-violet-500/30 text-center">
+          <div className="text-sm text-foreground" dangerouslySetInnerHTML={{ __html: formatTextWithVariables(content) }} />
+          {fallback && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Valor alternativo: {fallback}
+            </p>
+          )}
         </div>
       )
+      }
 
     case "social":
       return (

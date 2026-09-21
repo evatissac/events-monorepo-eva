@@ -22,13 +22,26 @@ import Image from 'next/image'
 
 const DEFAULT_EVENT_TYPE = WEBINAR_EVENT_TYPE || 'webinar-7-setiembre-2026'
 
-interface WebinarRegistrationFormProps {
+export interface WebinarRegistrationFormProps {
     eventType?: string
     webinarId?: string
+    formSlug?: string
+    apiUrl?: string
+    dateLabel?: string
+    timeLabel?: string
+    eventTitle?: string
 }
 
-export function WebinarRegistrationForm({ eventType, webinarId }: WebinarRegistrationFormProps) {
-    const targetEventType = eventType || webinarId || DEFAULT_EVENT_TYPE
+export function WebinarRegistrationForm({
+    eventType,
+    webinarId,
+    formSlug,
+    apiUrl,
+    dateLabel = 'Lunes, 7 de setiembre de 2026',
+    timeLabel = '8:00 PM (Hora Perú)',
+    eventTitle,
+}: WebinarRegistrationFormProps) {
+    const targetEventType = formSlug || eventType || webinarId || DEFAULT_EVENT_TYPE
 
     const [formData, setFormData] = useState({
         firstName: '',
@@ -173,6 +186,8 @@ export function WebinarRegistrationForm({ eventType, webinarId }: WebinarRegistr
         try {
             const res = await registerEvent({
                 eventType: targetEventType,
+                formSlug: formSlug || targetEventType,
+                apiUrl: apiUrl,
                 firstName: formData.firstName.trim(),
                 lastName: formData.lastName.trim(),
                 email: formData.email.trim().toLowerCase(),
@@ -278,7 +293,7 @@ export function WebinarRegistrationForm({ eventType, webinarId }: WebinarRegistr
                                         Hemos enviado tu confirmación y enlace de acceso a <strong className="text-foreground font-medium">{formData.email}</strong>.
                                     </p>
                                     <p className="text-xs text-muted-foreground font-normal">
-                                        📅 <strong className="text-foreground font-medium">Lunes, 7 de setiembre de 2026</strong> · 🕗 <strong className="text-foreground font-medium">8:00 PM (Hora Perú)</strong> vía Zoom en Vivo.
+                                        📅 <strong className="text-foreground font-medium">{dateLabel}</strong> · 🕗 <strong className="text-foreground font-medium">{timeLabel}</strong> vía Zoom en Vivo.
                                     </p>
                                 </div>
 
