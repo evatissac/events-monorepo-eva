@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import { useSearchParams } from "react-router-dom"
 import {
   Search,
   Trash2,
@@ -8,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
+import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import {
   Dialog,
   DialogContent,
@@ -19,22 +21,40 @@ import type { Contact } from "../types"
 
 interface ContactsTabProps {
   contacts: Contact[]
+  page: number
+  totalItems: number
+  onPageChange: (page: number) => void
   onAddContact: (contact: { email: string; firstName?: string; lastName?: string; tags?: string[] }) => void
   onDeleteContact: (id: string) => void
 }
 
 export function ContactsTab({
   contacts,
+  page,
+  totalItems,
+  onPageChange,
   onAddContact,
   onDeleteContact,
 }: ContactsTabProps) {
-  const [search, setSearch] = useState("")
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("q") || "")
   const [statusFilter, setStatusFilter] = useState<string>("ALL")
   const [openModal, setOpenModal] = useState(false)
   const [email, setEmail] = useState("")
   const [firstName, setFirstName] = useState("")
   const [lastName, setLastName] = useState("")
   const [tagInput, setTagInput] = useState("")
+
+  useEffect(() => setSearch(searchParams.get("q") || ""), [searchParams])
+
+  const updateSearch = (value: string) => {
+    setSearch(value)
+    const next = new URLSearchParams(searchParams)
+    if (value.trim()) next.set("q", value.trim())
+    else next.delete("q")
+    next.set("page", "1")
+    setSearchParams(next)
+  }
 
   const filteredContacts = contacts.filter((c) => {
     const email = c.email || ""
@@ -70,6 +90,44 @@ export function ContactsTab({
     toast.success("Exportando base de contactos en formato CSV...")
   }
 
+  const columns: ColumnDef<Contact>[] = [
+    {
+      header: "Contacto / Nombre",
+      cell: (contact) => {
+        const fullName = [contact.firstName, contact.lastName].filter(Boolean).join(" ")
+        return <span className="text-foreground">{fullName || "—"}</span>
+      },
+    },
+    { header: "Correo electrónico", cell: (contact) => <span className="text-foreground">{contact.email}</span> },
+    {
+      header: "Estado",
+      cell: (contact) => (
+        <Badge variant="secondary" className={`rounded-full px-2.5 py-0.5 text-[10px] font-medium border-0 ${contact.status === "SUBSCRIBED"
+          ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+          : contact.status === "BOUNCED"
+            ? "bg-red-500/10 text-red-600 dark:text-red-400"
+            : "bg-muted text-muted-foreground"
+          }`}>
+          {contact.status === "SUBSCRIBED" ? "Suscrito" : contact.status === "BOUNCED" ? "Rebotado" : "Desuscrito"}
+        </Badge>
+      ),
+    },
+    {
+      header: "Etiquetas",
+      cell: (contact) => <div className="flex flex-wrap gap-1">{contact.tags?.map((tag) => <span key={tag} className="rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-600 dark:text-violet-400">#{tag}</span>)}</div>,
+    },
+    {
+      header: "Fecha de alta",
+      cell: (contact) => <span className="text-muted-foreground">{new Date(contact.createdAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })}</span>,
+    },
+    {
+      header: "Acciones",
+      headerClassName: "text-right",
+      className: "text-right",
+      cell: (contact) => <Button variant="ghost" size="icon" onClick={() => onDeleteContact(contact.id)} className="size-8 text-muted-foreground hover:text-destructive" title="Eliminar contacto" aria-label={`Eliminar ${contact.email}`}><Trash2 className="size-3.5" /></Button>,
+    },
+  ]
+
   return (
     <div className="space-y-5">
       {/* Top Filter & Actions */}
@@ -80,7 +138,7 @@ export function ContactsTab({
             <Input
               placeholder="Buscar por nombre, email o etiqueta..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => updateSearch(e.target.value)}
               className="pl-8 h-9 text-xs rounded-xl border-border bg-background"
             />
           </div>
@@ -118,92 +176,13 @@ export function ContactsTab({
         </div>
       </div>
 
-      {/* Contacts Table */}
-      <div className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-2xs">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
-            <thead className="bg-muted/50 text-left font-semibold text-muted-foreground border-b border-border">
-              <tr>
-                <th className="p-3.5 pl-5">Contacto / Nombre</th>
-                <th className="p-3.5">Correo electrónico</th>
-                <th className="p-3.5">Estado</th>
-                <th className="p-3.5">Etiquetas</th>
-                <th className="p-3.5">Fecha de alta</th>
-                <th className="p-3.5 pr-5 text-right">Acciones</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {filteredContacts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="p-8 text-center text-muted-foreground">
-                    No se encontraron contactos registrados.
-                  </td>
-                </tr>
-              ) : (
-                filteredContacts.map((contact) => {
-                  const fullName = [contact.firstName, contact.lastName].filter(Boolean).join(" ")
-
-                  return (
-                    <tr key={contact.id} className="hover:bg-muted/20 transition-colors">
-                      <td className="p-3.5 pl-5 font-bold text-foreground">
-                        {fullName || "—"}
-                      </td>
-                      <td className="p-3.5 text-foreground font-medium">
-                        {contact.email}
-                      </td>
-                      <td className="p-3.5">
-                        <Badge
-                          variant="secondary"
-                          className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold border-0 ${contact.status === "SUBSCRIBED"
-                            ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                            : contact.status === "BOUNCED"
-                              ? "bg-red-500/10 text-red-600 dark:text-red-400"
-                              : "bg-muted text-muted-foreground"
-                            }`}
-                        >
-                          {contact.status === "SUBSCRIBED"
-                            ? "Suscrito"
-                            : contact.status === "BOUNCED"
-                              ? "Rebotado"
-                              : "Desuscrito"}
-                        </Badge>
-                      </td>
-                      <td className="p-3.5">
-                        <div className="flex flex-wrap gap-1">
-                          {contact.tags?.map((t) => (
-                            <span
-                              key={t}
-                              className="text-[10px] px-2 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400 font-medium"
-                            >
-                              #{t}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-muted-foreground">
-                        {new Date(contact.createdAt).toLocaleDateString("es-ES", {
-                          day: "numeric",
-                          month: "short",
-                          year: "numeric",
-                        })}
-                      </td>
-                      <td className="p-3.5 pr-5 text-right">
-                        <button
-                          onClick={() => onDeleteContact(contact.id)}
-                          className="p-1.5 text-muted-foreground hover:text-red-500 rounded-lg hover:bg-muted"
-                          title="Eliminar contacto"
-                        >
-                          <Trash2 className="size-3.5" />
-                        </button>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable
+        columns={columns}
+        data={filteredContacts}
+        emptyState={<div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">No se encontraron contactos registrados.</div>}
+        containerClassName="border border-border rounded-xl bg-card"
+        pagination={{ page, pageSize: 20, totalItems: statusFilter === "ALL" ? totalItems : filteredContacts.length, itemLabel: "contactos", onPageChange }}
+      />
 
       {/* Add Contact Modal */}
       <Dialog open={openModal} onOpenChange={setOpenModal}>

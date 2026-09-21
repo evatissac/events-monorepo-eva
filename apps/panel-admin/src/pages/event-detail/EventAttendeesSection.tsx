@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { toast } from "sonner"
-import { useParams, useNavigate } from "react-router-dom"
+import { useParams, useNavigate, useSearchParams } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
 import { Plus, Trash2, ExternalLink, Eye, RefreshCw, Search, X, Download } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
@@ -26,6 +26,7 @@ import { useAuthStore } from "@/store/auth.store"
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { events, editions, attendees, roles, deleteAttendee, loadData } = useEventStore()
   const selectedOrganization = useAuthStore((state) => state.selectedOrganization)
   const currentUser = useAuthStore((state) => state.user)
@@ -33,12 +34,15 @@ export function EventAttendeesSection() {
   const [formFilter, setFormFilter] = useState("ALL")
   const [editionFilter, setEditionFilter] = useState("ALL")
   const [search, setSearch] = useState("")
+  const [serverAttendees, setServerAttendees] = useState<any[] | null>(null)
+  const [totalAttendees, setTotalAttendees] = useState(0)
+  const page = Math.max(Number(searchParams.get("page")) || 1, 1)
   const [detailAttendee, setDetailAttendee] = useState<any>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [canManageAttendees, setCanManageAttendees] = useState(false)
 
   const event = events.find((e) => e.id === id)
-  const eventAttendees = attendees.filter((at) => at.eventId === id)
+  const eventAttendees = serverAttendees !== null ? serverAttendees.map((item) => ({ ...item, fullName: item.name, email: item.email || "", registrationDate: item.registeredAt, source: item.submissionId ? "FORM" : "MANUAL", ticketType: item.type })) : attendees.filter((at) => at.eventId === id)
   const filteredAttendees = eventAttendees.filter((attendee) => {
     const matchesOrigin = formFilter === "ALL" || (formFilter === "MANUAL" ? attendee.source !== "FORM" : attendee.sourceFormId === formFilter)
     const matchesEdition = editionFilter === "ALL" || attendee.editionId === editionFilter
@@ -74,6 +78,11 @@ export function EventAttendeesSection() {
     const organizationId = event?.organizationId || selectedOrganization?.id
     if (id && organizationId) void loadData(organizationId)
   }, [id, event?.organizationId, selectedOrganization?.id, loadData])
+
+  useEffect(() => {
+    if (!id) return
+    api.events.attendees(id, searchParams.get("q") || "", page).then((result) => { setServerAttendees(result.items); setTotalAttendees(result.total) }).catch(() => { setServerAttendees(null); setTotalAttendees(0) })
+  }, [id, page, searchParams])
 
   useEffect(() => {
     const organizationId = event?.organizationId || selectedOrganization?.id
@@ -310,7 +319,7 @@ export function EventAttendeesSection() {
 
       <div className="rounded-xl border border-border bg-card p-3 space-y-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input value={search} onChange={(input) => setSearch(input.target.value)} placeholder="Buscar por participante, correo o tipo..." className="h-9 pl-9" /></div>
+          <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input value={search} onChange={(input) => { const value = input.target.value; setSearch(value); const next = new URLSearchParams(searchParams); if (value.trim()) next.set("q", value.trim()); else next.delete("q"); next.set("page", "1"); setSearchParams(next) }} placeholder="Buscar por participante, correo o tipo..." className="h-9 pl-9" /></div>
           <select value={formFilter} onChange={(event) => setFormFilter(event.target.value)} aria-label="Filtrar por origen" className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
           <option value="ALL">Todos los orígenes</option>
           <option value="MANUAL">Participantes manuales</option>
@@ -328,7 +337,7 @@ export function EventAttendeesSection() {
           No hay participantes inscritos.
         </div>
       ) : (
-        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl bg-card" pagination={{ itemLabel: "participantes" }} />
+        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl bg-card" pagination={{ page, pageSize: 20, totalItems: totalAttendees, itemLabel: "participantes", onPageChange: (nextPage) => { const next = new URLSearchParams(searchParams); next.set("page", String(nextPage)); setSearchParams(next) } }} />
       )}
       <AlertDialog open={!!detailAttendee} onOpenChange={(open) => !open && setDetailAttendee(null)}><AlertDialogContent className="max-w-lg"><AlertDialogHeader><AlertDialogTitle>Detalle de {detailAttendee?.fullName}</AlertDialogTitle><AlertDialogDescription>{detailAttendee?.sourceFormTitle || "Registro de participante"}</AlertDialogDescription></AlertDialogHeader><div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border p-3 text-sm"><div className="grid grid-cols-2 gap-3 border-b pb-2"><span className="font-medium text-muted-foreground">Correo</span><span className="break-words">{detailAttendee?.email || "—"}</span></div><div className="grid grid-cols-2 gap-3 border-b pb-2"><span className="font-medium text-muted-foreground">Edición</span><span>{eventEditions.find((edition) => edition.id === detailAttendee?.editionId)?.name || "Global"}</span></div>{Object.entries(detailAttendee?.answers || {}).map(([key, value]) => <div key={key} className="grid grid-cols-2 gap-3 border-b pb-2 last:border-0"><span className="font-medium text-muted-foreground">{detailAttendee?.formFields?.find((field: any) => field.key === key)?.label || key}</span><span className="break-words">{Array.isArray(value) ? value.join(", ") : String(value || "—")}</span></div>)}</div><AlertDialogFooter><AlertDialogCancel>Cerrar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>

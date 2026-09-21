@@ -40,6 +40,7 @@ import {
   EventSpeakersImportPage,
   EventCertificatesSection,
   EventFormsSection,
+  EventPublicApiSection,
   EventFormBuilderPage,
 } from "@/pages/event-detail"
 import { GlobalCertificatesPage } from "@/pages/GlobalCertificatesPage"
@@ -163,6 +164,7 @@ export function AppRouter() {
           <Route path="templates/new" element={<TemplateConfigPage />} />
           <Route path="templates/:templateId/edit" element={<TemplateConfigPage />} />
           <Route path="marketing" element={<Navigate to="/dashboard/marketing/campaigns" replace />} />
+          <Route path="marketing/campaigns/:campaignId/settings" element={<MarketingPage />} />
           <Route path="marketing/:section" element={<MarketingPage />} />
 
           {/* Registered Profiles Catalog */}
@@ -282,6 +284,7 @@ export function AppRouter() {
           <Route path="tickets" element={<EventTicketsSection />} />
           <Route path="certificates" element={<EventCertificatesSection />} />
           <Route path="forms" element={<EventFormsSection />} />
+          <Route path="public-api" element={<EventPublicApiSection />} />
         </Route>
 
         {/* Profiles Detail - Standalone (no admin layout) */}

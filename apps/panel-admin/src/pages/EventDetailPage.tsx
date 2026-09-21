@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { to: "tickets", label: "Tickets" },
   { to: "certificates", label: "Certificados" },
   { to: "forms", label: "Formularios" },
+  { to: "public-api", label: "API pública" },
 ]
 
 export function EventDetailPage() {
