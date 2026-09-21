@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Check, Users } from "lucide-react"
 import {
   Dialog,
@@ -26,6 +26,8 @@ export function RecipientsModal({
 }: RecipientsModalProps) {
   const [selected, setSelected] = useState<string[]>(selectedSegmentIds)
 
+  useEffect(() => setSelected(selectedSegmentIds), [selectedSegmentIds, open])
+
   const toggleSegment = (id: string) => {
     if (selected.includes(id)) {
       setSelected(selected.filter((item) => item !== id))
@@ -39,38 +41,7 @@ export function RecipientsModal({
     onOpenChange(false)
   }
 
-  const defaultMockSegments: Segment[] = [
-    {
-      id: "seg-1",
-      name: "Participantes CONIAP 2024",
-      description: "Todos los inscritos al congreso internacional",
-      createdAt: new Date().toISOString(),
-      _count: { members: 88 },
-    },
-    {
-      id: "seg-2",
-      name: "Ponentes y Expositores",
-      description: "Speakers confirmados en todas las salas",
-      createdAt: new Date().toISOString(),
-      _count: { members: 24 },
-    },
-    {
-      id: "seg-3",
-      name: "Estudiantes y Becarios",
-      description: "Alumnos con tarifa preferencial",
-      createdAt: new Date().toISOString(),
-      _count: { members: 142 },
-    },
-    {
-      id: "seg-4",
-      name: "Asistentes Generales",
-      description: "Base completa de asistentes activos",
-      createdAt: new Date().toISOString(),
-      _count: { members: 310 },
-    },
-  ]
-
-  const activeSegments = segments.length > 0 ? segments : defaultMockSegments
+  const activeSegments = segments
 
   const totalRecipients = activeSegments
     .filter((s) => selected.includes(s.id))
@@ -90,6 +61,7 @@ export function RecipientsModal({
 
         <div className="space-y-4 pt-1">
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
+            {activeSegments.length === 0 && <p className="py-8 text-center text-xs text-muted-foreground">No hay segmentos reales todavía. Crea uno desde “Segmentos” y añade contactos.</p>}
             {activeSegments.map((segment) => {
               const isChecked = selected.includes(segment.id)
               return (

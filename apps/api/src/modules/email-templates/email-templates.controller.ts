@@ -89,8 +89,8 @@ export class EmailTemplatesController {
   }
 
   @Post('email-templates/:id/duplicate')
-  duplicate(@Param('id') id: string) {
-    return this.templates.duplicate(id);
+  duplicate(@Param('id') id: string, @Body() data: any) {
+    return this.templates.duplicate(id, data);
   }
 
   @Post('email-templates/:id/test')

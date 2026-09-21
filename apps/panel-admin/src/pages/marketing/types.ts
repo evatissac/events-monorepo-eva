@@ -33,6 +33,7 @@ export interface Campaign {
   }
   content?: string
   templateId?: string
+  sourceTemplateId?: string
   tags?: string[]
 }
 

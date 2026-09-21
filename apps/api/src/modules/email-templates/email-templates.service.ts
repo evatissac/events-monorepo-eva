@@ -2,7 +2,7 @@ import { BadRequestException, Injectable, NotFoundException } from '@nestjs/comm
 import { PrismaService } from '../../database/prisma.service.js';
 import { blocksToHtml, interpolate } from '../marketing/email-renderer.js';
 
-export const STARTER_TEMPLATES = [
+const LEGACY_STARTER_TEMPLATES = [
   {
     id: 'starter-default',
     name: 'Plantilla predeterminada',
@@ -208,6 +208,36 @@ export const STARTER_TEMPLATES = [
   },
 ];
 
+/** Plantillas iniciales oficiales: estructura breve, monocroma y variables del catálogo público. */
+export const STARTER_TEMPLATES = [
+  {
+    id: 'starter-registration', name: 'Confirmación de registro', category: 'BASIC',
+    subject: 'Registro confirmado: {{ event_name }}',
+    previewText: 'Tu inscripción fue registrada correctamente.',
+    thumbnailUrl: null,
+    content: [
+      { id: 'header', type: 'logo', label: 'Cabecera institucional', options: { text: 'LOGOTIPO DE LA INSTITUCIÓN', imageUrl: '', alt: 'Logotipo institucional', align: 'center', width: 140, bgColor: '#171717', textColor: '#ffffff', paddingY: 16 } },
+      { id: 'title', type: 'heading', label: 'Registro confirmado', options: { text: 'Tu registro está confirmado', level: 1, align: 'center', color: '#171717', fontSize: 26, fontWeight: 500 } },
+      { id: 'content', type: 'dynamic', label: 'Detalle de registro', options: { text: 'Hola, {{ first_name }}.<br/><br/>Tu registro para <strong>{{ event_name }}</strong> fue confirmado.<br/>Fecha: {{ event_start_date }}<br/>Lugar: {{ event_location }}<br/>Código: <strong>{{ registration_code }}</strong>', align: 'center', color: '#404040', fontSize: 14, lineHeight: 1.65, fallback: 'Hola.' } },
+      { id: 'footer-line', type: 'divider', label: 'Separador', options: { color: '#d4d4d4', height: 1, marginY: 24 } },
+      { id: 'footer', type: 'text', label: 'Pie institucional', options: { text: '<a href="{{ unsubscribe_url }}">Cancelar suscripción</a>', align: 'center', color: '#525252', fontSize: 12, lineHeight: 1.5 } },
+    ],
+  },
+  {
+    id: 'starter-reminder', name: 'Recordatorio de evento', category: 'BASIC',
+    subject: 'Recordatorio: {{ event_name }}',
+    previewText: 'Revisa la fecha, ubicación y los datos de tu registro.',
+    thumbnailUrl: null,
+    content: [
+      { id: 'header', type: 'logo', label: 'Cabecera institucional', options: { text: 'LOGOTIPO DE LA INSTITUCIÓN', imageUrl: '', alt: 'Logotipo institucional', align: 'center', width: 140, bgColor: '#171717', textColor: '#ffffff', paddingY: 16 } },
+      { id: 'title', type: 'heading', label: 'Recordatorio', options: { text: 'Te esperamos en {{ event_name }}', level: 1, align: 'center', color: '#171717', fontSize: 26, fontWeight: 500 } },
+      { id: 'content', type: 'text', label: 'Detalle del evento', options: { text: 'Hola, {{ first_name }}.<br/><br/>Te recordamos que el evento se realizará el {{ event_start_date }}.<br/>Ubicación: {{ event_location }}.', align: 'center', color: '#404040', fontSize: 14, lineHeight: 1.65 } },
+      { id: 'cta', type: 'button', label: 'Comunidad del evento', options: { text: 'Ir a la comunidad', url: '{{ whatsapp_community_url }}', align: 'center', bgColor: '#171717', textColor: '#ffffff', borderRadius: 3 } },
+      { id: 'footer', type: 'text', label: 'Pie institucional', options: { text: '<a href="{{ unsubscribe_url }}">Cancelar suscripción</a>', align: 'center', color: '#525252', fontSize: 12, lineHeight: 1.5 } },
+    ],
+  },
+];
+
 import { MailService } from '../mail/mail.service.js';
 
 @Injectable()
@@ -347,13 +377,13 @@ export class EmailTemplatesService {
     return this.prisma.emailTemplate.delete({ where: { id } });
   }
 
-  async duplicate(id: string) {
+  async duplicate(id: string, data: { campaignId?: string; name?: string } = {}) {
     const original = await this.get(id);
 
     return this.prisma.emailTemplate.create({
       data: {
         organizationId: (original as any).organizationId,
-        name: `${original.name} (Copia)`,
+        name: data.name?.trim() || `${original.name} (Copia)`,
         channel: (original as any).channel || 'EMAIL',
         status: 'DRAFT',
         subject: original.subject,
@@ -365,13 +395,14 @@ export class EmailTemplatesService {
         htmlContent: (original as any).htmlContent,
         thumbnailUrl: (original as any).thumbnailUrl,
         tags: (original as any).tags || [],
+        sourceTemplateId: (original as any).sourceTemplateId || original.id,
       },
     });
   }
 
   async sendTest(id: string, recipientEmail: string) {
     if (!recipientEmail || !recipientEmail.includes('@')) {
-      throw new Error('Debes proporcionar un correo destinatario válido.');
+      throw new BadRequestException('Debes proporcionar un correo destinatario válido.');
     }
 
     const template = await this.get(id);
@@ -401,7 +432,7 @@ export class EmailTemplatesService {
     });
 
     if (!result.sent) {
-      throw new Error(`No se pudo enviar el correo de prueba: ${result.reason || 'Error desconocido'}`);
+      throw new BadRequestException(`No se pudo enviar el correo de prueba: ${result.reason || 'Error desconocido'}`);
     }
 
     return {
