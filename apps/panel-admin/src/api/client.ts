@@ -76,6 +76,7 @@ export const api = {
   organizations: {
     list: () => apiFetch<any[]>("/organizations"),
     get: (id: string) => apiFetch<any>(`/organizations/${id}`),
+    access: (id: string) => apiFetch<{ organizationId: string; role: string; permissions: string[] }>(`/organizations/${id}/access`),
     create: (data: any) => apiFetch<any>("/organizations", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/organizations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: string) => apiFetch<any>(`/organizations/${id}`, { method: "DELETE" }),
@@ -96,6 +97,7 @@ export const api = {
     create: (data: any) => apiFetch<any>("/events", { method: "POST", body: JSON.stringify(data) }),
     update: (id: string, data: any) => apiFetch<any>(`/events/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: string) => apiFetch<any>(`/events/${id}`, { method: "DELETE" }),
+    attendeeExport: (id: string) => apiFetch<any[]>(`/events/${id}/attendees/export`),
     setup: (id: string) => apiFetch<any>(`/events/${id}/setup`),
     updateSetup: (id: string, data: any) => apiFetch<any>(`/events/${id}/setup`, { method: "PATCH", body: JSON.stringify(data) }),
     completeSetup: (id: string) => apiFetch<any>(`/events/${id}/setup/complete`, { method: "POST" }),
@@ -132,9 +134,11 @@ export const api = {
   },
   participants: {
     list: (editionId: string) => apiFetch<any[]>(`/editions/${editionId}/participants`),
-    add: (editionId: string, profileId: string) => apiFetch<any>(`/editions/${editionId}/participants`, { method: "POST", body: JSON.stringify({ profileId }) }),
+    add: (editionId: string, profileId: string, roleId?: string) => apiFetch<any>(`/editions/${editionId}/participants`, { method: "POST", body: JSON.stringify({ profileId, roleId }) }),
+    addManual: (eventId: string, data: any) => apiFetch<any>(`/events/${eventId}/manual-participants`, { method: "POST", body: JSON.stringify(data) }),
     get: (id: string) => apiFetch<any>(`/participants/${id}`),
     update: (id: string, data: any) => apiFetch<any>(`/participants/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    changeRole: (id: string, roleId: string) => apiFetch<any>(`/participants/${id}/role`, { method: "PATCH", body: JSON.stringify({ roleId }) }),
     remove: (id: string) => apiFetch<any>(`/participants/${id}`, { method: "DELETE" }),
   },
   certificates: {

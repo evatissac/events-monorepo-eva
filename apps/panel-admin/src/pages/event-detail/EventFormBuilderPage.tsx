@@ -86,6 +86,27 @@ const DEFAULT_THEME: FormTheme = {
   fontFamily: "Inter, sans-serif",
 }
 
+const toAttributeKey = (value: string) => value
+  .trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "campo";
+
+const nextAvailableFieldKey = (base: string, used: Set<string>) => {
+  if (!used.has(base)) return base
+  let suffix = 2
+  while (used.has(`${base}_${suffix}`)) suffix++
+  return `${base}_${suffix}`
+}
+
+const isLayoutBlock = (block: FormBlock) => ["header", "paragraph", "image", "divider"].includes(block.type)
+
+const toDateTimeLocal = (value?: string | null) => {
+  if (!value) return ""
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Lima", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+    .formatToParts(new Date(value))
+    .reduce<Record<string, string>>((result, part) => ({ ...result, [part.type]: part.value }), {})
+  return `${parts.year}-${parts.month}-${parts.day}T${parts.hour}:${parts.minute}`
+}
+
 export function EventFormBuilderPage() {
   const { id: eventId, formId } = useParams<{ id: string; formId: string }>()
   const navigate = useNavigate()
@@ -128,6 +149,8 @@ export function EventFormBuilderPage() {
   const [maxSubmissions, setMaxSubmissions] = useState("")
   const [emailTemplates, setEmailTemplates] = useState<any[]>([])
   const [welcomeTemplateId, setWelcomeTemplateId] = useState("")
+  const [thankYouMessage, setThankYouMessage] = useState("")
+  const [thankYouRedirectUrl, setThankYouRedirectUrl] = useState("")
 
   // Load Form Data
   useEffect(() => {
@@ -156,9 +179,11 @@ export function EventFormBuilderPage() {
         setFormSlug(data.slug || "")
         setFormStatus(data.status || "DRAFT")
         setFormPurpose(data.purpose || "PARTICIPANT")
-        setOpensAt(data.opensAt ? new Date(data.opensAt).toISOString().slice(0, 16) : "")
-        setClosesAt(data.closesAt ? new Date(data.closesAt).toISOString().slice(0, 16) : "")
+        setOpensAt(toDateTimeLocal(data.opensAt))
+        setClosesAt(toDateTimeLocal(data.closesAt))
         setMaxSubmissions(data.maxSubmissions ? String(data.maxSubmissions) : "")
+        setThankYouMessage(data.thankYouMessage || "")
+        setThankYouRedirectUrl(data.thankYouRedirectUrl || "")
         const welcomeAutomation = (data.automations || []).find((automation: any) => automation.trigger === "REGISTRATION_SUBMITTED")
         setWelcomeTemplateId(welcomeAutomation?.steps?.[0]?.templateId || "")
 
@@ -470,6 +495,19 @@ export function EventFormBuilderPage() {
         break
     }
 
+    // Cada control necesita una clave distinta en la respuesta. Al añadir el mismo
+    // componente repetidamente, diferenciamos su atributo automáticamente.
+    if (!isLayoutBlock(newBlock) && newBlock.options?.attributeKey) {
+      const usedKeys = new Set(blocks
+        .filter((block) => !isLayoutBlock(block))
+        .map((block) => toAttributeKey(String(block.options?.attributeKey || block.label))))
+      const attribute = String(newBlock.options.attributeKey)
+      const uniqueKey = nextAvailableFieldKey(toAttributeKey(attribute), usedKeys)
+      if (uniqueKey !== toAttributeKey(attribute)) {
+        newBlock = { ...newBlock, options: { ...newBlock.options, attributeKey: uniqueKey } }
+      }
+    }
+
     const updated = [...blocks, newBlock]
     updateBlocksWithHistory(updated)
     setSelectedBlockKey(newKey)
@@ -513,6 +551,21 @@ export function EventFormBuilderPage() {
     try {
       setSaving(true)
       const finalStatus = targetStatus || formStatus
+      const usedKeys = new Set<string>()
+      const fields = blocks.map((b, index) => {
+        const baseKey = ["header", "paragraph", "image", "divider"].includes(b.type)
+          ? `${b.type}_${index + 1}`
+          : toAttributeKey(String(b.options?.attributeKey || b.label))
+        const key = nextAvailableFieldKey(baseKey, usedKeys)
+        usedKeys.add(key)
+        return {
+          key,
+          label: b.label,
+          type: b.type,
+          required: !!b.required,
+          options: b.options || null,
+        }
+      })
       const payload = {
         title: formTitle,
         slug: formSlug,
@@ -521,13 +574,9 @@ export function EventFormBuilderPage() {
         opensAt: opensAt || null,
         closesAt: closesAt || null,
         maxSubmissions: maxSubmissions ? Number(maxSubmissions) : null,
-        fields: blocks.map((b) => ({
-          key: b.key,
-          label: b.label,
-          type: b.type,
-          required: !!b.required,
-          options: b.options || null,
-        })),
+        thankYouMessage: thankYouMessage.trim() || null,
+        thankYouRedirectUrl: thankYouRedirectUrl.trim() || null,
+        fields,
       }
 
       await api.registrationForms.update(formId, payload)
@@ -700,7 +749,7 @@ export function EventFormBuilderPage() {
       {/* ========================================================================= */}
       {/* MAIN BODY: Left Sidebar + Center Preview Canvas                           */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="min-h-0 flex-1 flex overflow-hidden">
         {/* ========================================================================= */}
         {/* LEFT SIDEBAR: Tabs (Crear | Diseño) OR Attribute Inspector (Screenshot 5) */}
         {/* ========================================================================= */}
@@ -768,13 +817,20 @@ export function EventFormBuilderPage() {
                     Base de datos de atributos
                   </label>
                   <select
-                    value={selectedBlock.options?.attributeKey || (selectedBlock.type === "phone" ? "SMS" : "Nombre")}
+                    value={selectedBlock.options?.isCustomAttribute ? "__custom__" : (selectedBlock.options?.attributeKey || (selectedBlock.type === "phone" ? "SMS" : "Nombre"))}
                     onChange={(e) => {
                       const newAttr = e.target.value
+                      if (newAttr === "__custom__") {
+                        const usedKeys = new Set(blocks.filter((block) => block.key !== selectedBlock.key && !isLayoutBlock(block)).map((block) => toAttributeKey(String(block.options?.attributeKey || block.label))))
+                        const attributeKey = nextAvailableFieldKey("personalizado", usedKeys)
+                        updateSelectedBlock({ options: { ...selectedBlock.options, isCustomAttribute: true, attributeKey, placeholder: "" } })
+                        return
+                      }
                       updateSelectedBlock({
                         label: `Introduce tu ${newAttr}`,
                         options: {
                           ...selectedBlock.options,
+                          isCustomAttribute: false,
                           attributeKey: newAttr,
                           placeholder: newAttr.toUpperCase(),
                         },
@@ -790,8 +846,15 @@ export function EventFormBuilderPage() {
                     <option value="Cargo">Cargo / Puesto</option>
                     <option value="DNI">Documento de Identidad / DNI</option>
                     <option value="Ciudad">Ciudad / País</option>
+                    <option value="__custom__">Atributo personalizado…</option>
                   </select>
                 </div>
+
+                {selectedBlock.options?.isCustomAttribute && <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-slate-700 dark:text-slate-300">Clave del atributo personalizado</label>
+                  <Input value={selectedBlock.options?.attributeKey || ""} onChange={(event) => updateSelectedBlock({ options: { ...selectedBlock.options, attributeKey: toAttributeKey(event.target.value), isCustomAttribute: true } })} placeholder="ej. especialidad" className="h-10 rounded-xl font-mono text-xs" />
+                  <p className="text-[11px] leading-relaxed text-muted-foreground">La clave se guarda en minúsculas con guiones bajos. No se repite: al guardar, el sistema asegura una clave única.</p>
+                </div>}
 
                 {/* Checkboxes / Switches (Screenshot 5) */}
                 <div className="space-y-4 pt-2 border-t border-border/40">
@@ -1296,7 +1359,7 @@ export function EventFormBuilderPage() {
         {/* CENTER CANVAS: Interactive Live Form Preview (Desktop vs Mobile Frame)   */}
         {/* ========================================================================= */}
         <main
-          className="flex-1 overflow-y-auto p-4 md:p-6 flex items-center justify-center transition-all duration-300"
+          className="min-h-0 flex-1 overflow-y-auto p-4 md:p-6 flex items-start justify-center transition-all duration-300"
           style={{ backgroundColor: theme.bgColor }}
           onClick={() => setSelectedBlockKey(null)}
         >
@@ -1463,15 +1526,15 @@ export function EventFormBuilderPage() {
       {/* STEP 1: Form Configuration Settings Modal (Matching Screenshot 2)        */}
       {/* ========================================================================= */}
       <Dialog open={openSettingsModal} onOpenChange={setOpenSettingsModal}>
-        <DialogContent className="sm:max-w-[550px] p-6 rounded-2xl">
-          <DialogHeader>
+        <DialogContent className="flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[550px]">
+          <DialogHeader className="shrink-0 px-6 pt-6">
             <DialogTitle className="text-xl font-bold flex items-center gap-2">
               <CheckCircle2 className="size-5 text-emerald-600" />
               Configuración del Formulario
             </DialogTitle>
           </DialogHeader>
 
-          <div className="space-y-4 pt-2">
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-6 pt-4">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
                 Nombre del formulario *
@@ -1492,9 +1555,10 @@ export function EventFormBuilderPage() {
                 </select>
               </div>
               <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cupo máximo</label><Input type="number" min="1" value={maxSubmissions} onChange={(e) => setMaxSubmissions(e.target.value)} placeholder="Sin límite" className="h-10 rounded-xl" /></div>
-              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-10 rounded-xl" /></div>
-              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-10 rounded-xl" /></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Abre el</label><Input type="datetime-local" value={opensAt} onChange={(e) => setOpensAt(e.target.value)} className="h-10 rounded-xl" /><button type="button" onClick={() => setOpensAt("")} className="text-[11px] text-muted-foreground hover:text-primary">Sin fecha de apertura</button></div>
+              <div className="space-y-1.5"><label className="text-xs font-semibold text-foreground">Cierra el</label><Input type="datetime-local" value={closesAt} onChange={(e) => setClosesAt(e.target.value)} className="h-10 rounded-xl" /><button type="button" onClick={() => setClosesAt("")} className="text-[11px] text-muted-foreground hover:text-primary">Sin fecha de cierre</button></div>
             </div>
+            <p className="text-[11px] text-muted-foreground">Déjalas vacías para mantener el registro abierto sin límite de fecha. Guardar elimina una fecha previamente configurada.</p>
 
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">
@@ -1522,6 +1586,14 @@ export function EventFormBuilderPage() {
                 <option value="PAUSED">Pausado (PAUSED)</option>
                 <option value="ARCHIVED">Archivado (ARCHIVED)</option>
               </select>
+            </div>
+
+            <div className="space-y-1.5 border-t border-border/60 pt-4">
+              <label className="text-xs font-semibold text-foreground">Mensaje de agradecimiento</label>
+              <textarea value={thankYouMessage} onChange={(e) => setThankYouMessage(e.target.value)} placeholder="Gracias por inscribirte. Revisa tu correo para los siguientes pasos." className="min-h-20 w-full rounded-xl border border-border bg-background px-3 py-2 text-xs text-foreground" />
+              <label className="text-xs font-semibold text-foreground">Redireccionar después del registro</label>
+              <Input type="url" value={thankYouRedirectUrl} onChange={(e) => setThankYouRedirectUrl(e.target.value)} placeholder="https://… (opcional)" className="h-10 rounded-xl" />
+              <p className="text-xs text-muted-foreground">Si ingresas una URL, la persona irá a esa página al registrarse. Si no, verá el mensaje de agradecimiento en una página pública del formulario.</p>
             </div>
 
             <div className="space-y-1.5 border-t border-border/60 pt-4">

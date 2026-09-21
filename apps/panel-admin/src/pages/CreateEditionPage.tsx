@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input"
 import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { LocationPickerMap } from "@/components/location-picker-map"
+import { RichTextEditor } from "@/components/ui/rich-text-editor"
 
 import { useSEO } from "@/hooks/use-seo"
 
@@ -47,7 +48,7 @@ export function CreateEditionPage() {
     metaThumbnailUrl: z.string().trim().url("La imagen para redes no es válida.").or(z.literal("")).optional(),
     startDate: z.string().min(1, "La fecha de inicio es requerida."),
     endDate: z.string(),
-  }).refine((data) => /^\d{4}-\d{2}-\d{2}$/.test(data.startDate), { message: "Selecciona una fecha de inicio válida.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
+  }).refine((data) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(data.startDate), { message: "Selecciona fecha y hora de inicio válidas.", path: ["startDate"] }).refine((data) => isSingleDay || data.endDate.length > 0, {
     message: "La fecha de fin es requerida para una edición de varios días.",
     path: ["endDate"],
   })
@@ -155,13 +156,11 @@ export function CreateEditionPage() {
                 <p className="text-xs text-muted-foreground">Resumen explicativo sobre los objetivos o enfoque de esta edición.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <textarea
+                <RichTextEditor
                   id="ed-desc"
-                  rows={3}
                   placeholder="Temática principal, lema de la edición..."
                   value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring text-foreground"
+                  onChange={setDescription}
                 />
               </div>
             </div>
@@ -201,7 +200,7 @@ export function CreateEditionPage() {
                 <label className="text-sm font-medium text-foreground">
                   Fechas de la Edición <span className="text-destructive">*</span>
                 </label>
-                <p className="text-xs text-muted-foreground">Cuándo se llevará a cabo esta edición.</p>
+                <p className="text-xs text-muted-foreground">Cuándo se llevará a cabo esta edición. Todas las horas se guardan en hora de Perú (UTC−5).</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
                 <label className="mb-4 flex cursor-pointer items-start gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm">
@@ -222,11 +221,11 @@ export function CreateEditionPage() {
                 <div className={`grid gap-4 ${isSingleDay ? "grid-cols-1" : "grid-cols-2"}`}>
                   <div className="space-y-1.5">
                     <label htmlFor="ed-start" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Inicio (dd/mm/aaaa)
+                      Fecha y hora de inicio
                     </label>
                     <Input
                       id="ed-start"
-                      type="date"
+                      type="datetime-local"
                       lang="es-PE"
                       required
                       value={startDate}
@@ -236,11 +235,11 @@ export function CreateEditionPage() {
                   </div>
                   {!isSingleDay && <div className="space-y-1.5">
                     <label htmlFor="ed-end" className="text-[10px] font-bold uppercase text-muted-foreground">
-                      Fecha Fin (dd/mm/aaaa)
+                      Fecha y hora de fin
                     </label>
                     <Input
                       id="ed-end"
-                      type="date"
+                      type="datetime-local"
                       lang="es-PE"
                       required
                       value={endDate}

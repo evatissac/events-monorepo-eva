@@ -83,11 +83,26 @@ function EventCardSkeleton() {
   )
 }
 
+function EventTableSkeleton() {
+  return <div className="overflow-hidden rounded-xl border border-border bg-background">
+    <div className="grid grid-cols-[5rem_minmax(14rem,1fr)_7rem_8rem_8rem] gap-4 border-b border-border bg-muted p-4">
+      {Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-3 w-16" />)}
+    </div>
+    {Array.from({ length: 8 }).map((_, row) => <div key={row} className="grid grid-cols-[5rem_minmax(14rem,1fr)_7rem_8rem_8rem] items-center gap-4 border-b border-border/50 p-4 last:border-b-0">
+      <Skeleton className="h-10 w-16 rounded-md" />
+      <div className="space-y-2"><Skeleton className="h-4 w-3/4" /><Skeleton className="h-3 w-1/2" /></div>
+      <Skeleton className="h-5 w-16 rounded-full" />
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="h-8 w-20 justify-self-end rounded-md" />
+    </div>)}
+  </div>
+}
+
 import { useSEO } from "@/hooks/use-seo"
 
 export function EventsPage() {
   const { selectedOrganization } = useAuthStore()
-  const { events, isLoading, loadData } = useEventStore()
+  const { events, editions, isLoading, loadData } = useEventStore()
   const navigate = useNavigate()
 
   useSEO({
@@ -98,7 +113,7 @@ export function EventsPage() {
   })
 
   const [searchParams, setSearchParams] = useSearchParams()
-  const view = searchParams.get("view") === "table" ? "table" : "grid"
+  const view = searchParams.get("view") === "grid" ? "grid" : "table"
   const setView = (nextView: "grid" | "table") => {
     const params = new URLSearchParams(searchParams)
     params.set("view", nextView)
@@ -153,8 +168,10 @@ export function EventsPage() {
     }
   }
 
+  const thumbnailFor = (event: any) => event.coverUrl || editions.find((edition) => edition.mainEventId === event.id && edition.isCurrent)?.coverUrl || editions.find((edition) => edition.mainEventId === event.id)?.coverUrl || defaultBanner
   const eventColumns: ColumnDef<any>[] = [
-    { header: "Evento", cell: (event) => <button type="button" title={`Abrir ${event.name}`} onClick={() => navigate(`/dashboard/events/${event.id}`)} className="cursor-pointer text-left font-semibold text-foreground hover:text-primary hover:underline">{event.name}</button> },
+    { header: "Miniatura", cell: (event) => <img src={thumbnailFor(event)} onError={(image) => { image.currentTarget.src = defaultBanner }} alt={`Portada de ${event.name}`} className="h-10 w-16 rounded-md object-cover" /> },
+    { header: "Evento", cell: (event) => <div className="min-w-48 max-w-md"><button type="button" title={`Abrir ${event.name}`} onClick={() => navigate(`/dashboard/events/${event.id}`)} className="cursor-pointer text-left font-semibold text-foreground hover:text-primary hover:underline">{event.name}</button><p className="mt-0.5 truncate text-xs text-muted-foreground">{event.shortDescription || "Sin descripción"}</p></div> },
     { header: "Estado", cell: (event) => getStatusBadge(event.status) },
     { header: "Creado", cell: (event) => event.createdAt ? new Date(event.createdAt).toLocaleDateString("es-ES") : "—" },
     { header: "Acción", headerClassName: "text-right", className: "text-right", cell: (event) => <div className="flex justify-end gap-2"><Button variant="outline" size="sm" onClick={() => navigate(`/dashboard/events/${event.id}`)}>Gestionar</Button><DeleteEventDialog event={event} /></div> },
@@ -190,6 +207,7 @@ export function EventsPage() {
 
       {/* Events Grid */}
       {isLoading ? (
+        view === "table" ? <EventTableSkeleton /> :
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <EventCardSkeleton key={i} />
@@ -221,7 +239,8 @@ export function EventsPage() {
             >
               <div className="h-44 w-full overflow-hidden bg-muted relative">
                 <img
-                  src={event.coverUrl || defaultBanner}
+                  src={thumbnailFor(event)}
+                  onError={(image) => { image.currentTarget.src = defaultBanner }}
                   alt={event.name}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 />

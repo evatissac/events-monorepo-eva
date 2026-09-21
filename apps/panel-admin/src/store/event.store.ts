@@ -17,6 +17,7 @@ export interface Event {
   isActive: boolean
   websiteUrl: string
   contactEmail: string
+  whatsappCommunityUrl?: string
   eventMode?: string
   venueAddress?: string
   latitude?: number | string
@@ -111,6 +112,8 @@ export interface Attendee {
   sourceFormPurpose?: string
   sourceFormId?: string
   submissionId?: string
+  answers?: Record<string, unknown>
+  formFields?: Array<{ key: string; label: string }>
 }
 
 export interface ParticipantRole {
@@ -274,6 +277,7 @@ function mapMainEvent(row: any): Event {
     isActive: row.is_active !== false,
     websiteUrl: row.website_url || "",
     contactEmail: row.contact_email || "",
+    whatsappCommunityUrl: row.whatsapp_community_url || row.whatsappCommunityUrl || "",
     eventMode: row.event_mode || row.eventMode || "",
     venueAddress: row.venue_address || row.venueAddress || "",
     latitude: row.latitude ?? undefined,
@@ -319,13 +323,13 @@ function mapParticipantRole(row: any): ParticipantRole {
   }
   return {
     id: row.id,
-    mainEventId: row.main_event_id,
-    editionId: row.edition_id,
-    slug: row.slug,
+    mainEventId: row.mainEventId || row.main_event_id,
+    editionId: row.editionId || row.edition_id || null,
+    slug: row.slug || String(name.en || name.es || "").toLowerCase().replace(/[\s-]+/g, "_"),
     name,
-    badgeColor: row.badge_color,
-    isActive: row.is_active !== false,
-    createdAt: row.created_at || "",
+    badgeColor: row.badgeColor || row.badge_color,
+    isActive: row.isActive ?? row.is_active ?? true,
+    createdAt: row.createdAt || row.created_at || "",
   }
 }
 
@@ -466,11 +470,14 @@ export const useEventStore = create<EventState>((set, get) => ({
           participantsData.forEach((part: any) => {
             const profile = part.profile || {}
             const matchedRole = formattedRoles.find((r) => r.id === part.roleId)
-            const roleSlug = matchedRole?.slug || "attendee"
+            const roleName = String(matchedRole?.name?.es || matchedRole?.name?.en || "")
+            const roleIdentifier = `${matchedRole?.slug || ""} ${roleName}`
+            const isSpeakerRole = /ponente|speaker(?:[_\s-]|$)/i.test(roleIdentifier)
+            const roleSlug = matchedRole?.slug || (isSpeakerRole ? "speaker" : roleName.toLowerCase().replace(/\s+/g, "-") || "attendee")
             const roleId = part.roleId || ""
-            const fullName = `${profile.first_name || ""} ${profile.last_name || ""}`.trim() || "Participante"
+            const fullName = `${profile.firstName || profile.first_name || ""} ${profile.lastName || profile.last_name || ""}`.trim() || "Participante"
 
-            if (roleSlug === "speaker" || roleSlug === "keynote-speaker") {
+            if (isSpeakerRole || roleSlug === "speaker" || roleSlug === "keynote-speaker") {
               formattedSpeakers.push({
                 id: part.id,
                 eventId: part.edition?.mainEventId || "",
@@ -482,7 +489,7 @@ export const useEventStore = create<EventState>((set, get) => ({
                 lastName: profile.lastName || "",
                 name: fullName,
                 email: profile.email || "",
-                avatar: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+                avatar: profile.avatarUrl || profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 talkTitle: part.ticketReference || "",
                 talkDescription: profile.bio || "",
                 bio: profile.bio || "",
@@ -500,10 +507,10 @@ export const useEventStore = create<EventState>((set, get) => ({
                 fullName,
                 email: profile.email || "",
                 ticketType: roleSlug === "vip" ? "VIP" : "General",
-                registrationDate: part.registeredAt ? part.registeredAt.split("T")[0] : new Date().toISOString().split("T")[0],
+                registrationDate: part.registeredAt || new Date().toISOString(),
                 checkedIn: !!part.checkedIn,
                 source: "PARTICIPANT",
-                avatarUrl: profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
+                avatarUrl: profile.avatarUrl || profile.avatar_url || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(fullName)}`,
                 identityDocumentType: profile.identity_document_type || null,
                 identityDocumentNumber: profile.identity_document_number || null,
                 roleId: roleId,
@@ -515,8 +522,14 @@ export const useEventStore = create<EventState>((set, get) => ({
         const submissions = (await Promise.all(mainEventIds.map((eventId) => api.registrationForms.submissions(eventId)))).flat()
         submissions.forEach((submission: any) => {
           const answers = submission.answers && typeof submission.answers === "object" ? submission.answers : {}
-          const fullName = String(answers.full_name || answers.name || submission.email || "Participante")
-          formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt?.split("T")[0] || "", checkedIn: false, source: "FORM", sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id })
+          const fullName = String(answers.full_name || answers.name || answers.nombres_completos || [answers.first_name || answers.firstName || answers.nombres, answers.last_name || answers.lastName || answers.apellidos || answers.surname].filter(Boolean).join(" ") || submission.email || "Participante")
+          const registrationData = { source: "FORM" as const, sourceFormTitle: submission.form?.title || "Formulario", sourceFormPurpose: submission.form?.purpose || "PARTICIPANT", sourceFormId: submission.formId, submissionId: submission.id, answers, formFields: submission.form?.fields || [] }
+          const linkedParticipant = submission.participantId ? formattedAttendees.find((attendee) => attendee.id === submission.participantId) : undefined
+          if (linkedParticipant) {
+            Object.assign(linkedParticipant, registrationData, { fullName, email: submission.email || answers.email || linkedParticipant.email, editionId: submission.editionId || linkedParticipant.editionId })
+          } else if (!submission.participantId) {
+            formattedAttendees.push({ id: `form:${submission.id}`, eventId: submission.form?.mainEventId || "", editionId: submission.editionId || submission.form?.editionId || null, fullName, email: submission.email || answers.email || "", ticketType: "Inscripción", registrationDate: submission.submittedAt || "", checkedIn: false, ...registrationData })
+          }
         })
       }
 
@@ -641,7 +654,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       mappedUpdates.updated_at = new Date().toISOString()
 
       if (Object.keys(mappedUpdates).length > 1) {
-        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
+        await api.events.update(id, { eventName: mappedUpdates.name, description: restUpdates.shortDescription, detailContent: typeof restUpdates.about === "string" ? restUpdates.about : restUpdates.about?.es, status: mappedUpdates.status, coverUrl, logoUrl, contactEmail: restUpdates.contactEmail, whatsappCommunityUrl: restUpdates.whatsappCommunityUrl, eventMode: restUpdates.eventMode, venueAddress: restUpdates.venueAddress, latitude: restUpdates.latitude, longitude: restUpdates.longitude })
       }
 
       set((state) => ({
@@ -962,90 +975,13 @@ export const useEventStore = create<EventState>((set, get) => ({
   addAttendee: async (attendeeData) => {
     try {
       const state = get()
-      let targetEditionId = attendeeData.editionId
-
-      if (targetEditionId === undefined) {
-        let edition = state.editions.find((ed) => ed.mainEventId === attendeeData.eventId)
-
-        if (!edition) {
-          const editionId = crypto.randomUUID()
-          const defaultEdition = {
-            id: editionId,
-            main_event_id: attendeeData.eventId,
-            slug: `default-${editionId.substring(0, 8)}`,
-            year: new Date().getFullYear(),
-            name: { es: "Edición Principal" },
-            start_date: new Date().toISOString().split("T")[0],
-            end_date: new Date().toISOString().split("T")[0],
-            is_current: true
-          }
-          await api.editions.create(attendeeData.eventId, { name: "Edición Principal", startDate: defaultEdition.start_date, endDate: defaultEdition.end_date })
-
-          const newEd: Edition = {
-            id: editionId,
-            mainEventId: attendeeData.eventId,
-            slug: defaultEdition.slug,
-            year: defaultEdition.year,
-            name: "Edición Principal",
-            startDate: defaultEdition.start_date,
-            endDate: defaultEdition.end_date,
-            isCurrent: true,
-            description: "",
-            coverUrl: "",
-            location: "",
-            modality: "presencial",
-          }
-
-          set((state) => ({
-            editions: [...state.editions, newEd]
-          }))
-          edition = newEd
-        }
-        targetEditionId = edition.id
-      }
-
-      const profileId = crypto.randomUUID()
-      const participantId = crypto.randomUUID()
-
-      let firstName = attendeeData.firstName?.trim()
-      let lastName = attendeeData.lastName?.trim()
-      if (firstName === undefined || lastName === undefined) {
-        const nameParts = attendeeData.fullName ? attendeeData.fullName.trim().split(" ") : []
-        firstName = firstName ?? (nameParts[0] || "Asistente")
-        lastName = lastName ?? (nameParts.slice(1).join(" ") || "")
-      }
-
-      const docType = attendeeData.identityDocumentType || null
-      const docNumber = attendeeData.identityDocumentNumber?.trim() || null
-
-      await api.profiles.create({ id: profileId, firstName, lastName, email: attendeeData.email, identityDocumentType: docType, identityDocumentNumber: docNumber })
-
-      const ticketRole = attendeeData.ticketType.toLowerCase()
-      const roleData = (await api.content.roles(attendeeData.eventId)).find((role: any) => role.slug === ticketRole)
-
-      let roleId = roleData?.id
-      if (!roleId) {
-        roleId = crypto.randomUUID()
-        const createdRole = await api.content.createRole({ mainEventId: attendeeData.eventId, name: attendeeData.ticketType })
-        roleId = createdRole.id
-      }
-
-      await api.participants.add(targetEditionId!, profileId)
-
-      const fullName = `${firstName} ${lastName}`.trim()
-      const { firstName: _, lastName: __, identityDocumentType: ___, identityDocumentNumber: ____, ...cleanAttendeeData } = attendeeData
-
-      set((state) => ({
-        attendees: [...state.attendees, { 
-          ...cleanAttendeeData,
-          id: participantId, 
-          editionId: targetEditionId, 
-          profileId,
-          fullName
-        }]
-      }))
+      const createdManualParticipant = await api.participants.addManual(attendeeData.eventId, { editionId: attendeeData.editionId || undefined, firstName: attendeeData.firstName, lastName: attendeeData.lastName, email: attendeeData.email, identityDocumentType: attendeeData.identityDocumentType, identityDocumentNumber: attendeeData.identityDocumentNumber })
+      const manualOrganizationId = state.events.find((event) => event.id === attendeeData.eventId)?.organizationId
+      if (manualOrganizationId) await get().loadData(manualOrganizationId)
+      void createdManualParticipant
     } catch (e) {
       console.error("Error adding attendee:", e)
+      throw e
     }
   },
 
@@ -1368,7 +1304,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   addRole: async (roleData) => {
     try {
-      const created = await api.content.createRole({ name: roleData.name.es || roleData.name.en || roleData.slug, mainEventId: roleData.mainEventId, editionId: roleData.editionId || undefined })
+      const created = await api.content.createRole({ name: roleData.slug, mainEventId: roleData.mainEventId, editionId: roleData.editionId || undefined })
       const id = created.id
 
       const mapped: ParticipantRole = {
@@ -1393,7 +1329,7 @@ export const useEventStore = create<EventState>((set, get) => ({
 
   updateRole: async (id, updates) => {
     try {
-      await api.content.updateRole(id, { name: updates.name?.es || updates.name?.en })
+      await api.content.updateRole(id, { name: updates.slug || updates.name?.en || updates.name?.es })
 
       set((state) => ({
         roles: state.roles.map((r) => r.id === id ? { ...r, ...updates } : r)

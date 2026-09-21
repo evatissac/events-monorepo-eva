@@ -11,7 +11,7 @@ export class EventsService {
   async update(id: string, data: Record<string, unknown>) {
     const { detailContent, ...eventData } = data;
     const input: any = {};
-    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'contactEmail', 'venueAddress', 'latitude', 'longitude']) if (eventData[key] !== undefined) input[key] = eventData[key];
+    for (const key of ['eventName', 'description', 'coverUrl', 'logoUrl', 'organizationId', 'contactEmail', 'whatsappCommunityUrl', 'venueAddress', 'latitude', 'longitude']) if (eventData[key] !== undefined) input[key] = eventData[key];
     if (eventData.eventMode !== undefined) {
       const mode = String(eventData.eventMode).trim().toUpperCase();
       input.eventMode = ['PHYSICAL', 'ONLINE', 'HYBRID'].includes(mode) ? mode : null;
@@ -26,6 +26,36 @@ export class EventsService {
     return event;
   }
   remove(id: string) { return this.prisma.mainEvent.delete({ where: { id } }); }
+  async attendeeExport(eventId: string) {
+    const [allParticipants, submissions] = await Promise.all([
+      this.prisma.eventParticipant.findMany({ where: { edition: { mainEventId: eventId } }, include: { profile: { include: { authUser: true } }, edition: true, role: true }, orderBy: { registeredAt: 'desc' } }),
+      this.prisma.registrationSubmission.findMany({ where: { form: { mainEventId: eventId } }, include: { form: { include: { fields: true } } }, orderBy: { submittedAt: 'desc' } }),
+    ]);
+    const isSpeakerRole = (roleName?: string | null) => /^(speaker(?:_mg)?|ponente(?:_mg)?)$/i.test(String(roleName || '').trim());
+    const participants = allParticipants.filter((participant) => !isSpeakerRole(participant.role?.name));
+    const editionIds = submissions.map((submission) => submission.editionId).filter((editionId): editionId is string => Boolean(editionId));
+    const editions = editionIds.length ? await this.prisma.edition.findMany({ where: { id: { in: editionIds } }, select: { id: true, name: true } }) : [];
+    const editionNames = new Map(editions.map((edition) => [edition.id, edition.name]));
+    const submissionsByParticipant = new Map(submissions.filter((submission) => submission.participantId).map((submission) => [submission.participantId!, submission]));
+    const exportRow = (submission: typeof submissions[number] | undefined, fallback: Record<string, unknown>) => {
+      const attributes = submission?.answers && typeof submission.answers === 'object' ? submission.answers as Record<string, unknown> : {};
+      const labels = Object.fromEntries((submission?.form.fields || []).map((field) => [field.key, field.label]));
+      return { ...fallback, attributes, attributeLabels: labels };
+    };
+    return [
+      ...participants.map((participant) => {
+        const emails = Array.isArray(participant.profile.additionalEmails) ? participant.profile.additionalEmails : [];
+        const email = participant.profile.authUser?.email || emails.find((value: unknown) => typeof value === 'string' && value.trim()) || '';
+        const submission = submissionsByParticipant.get(participant.id);
+        return exportRow(submission, { name: [participant.profile.firstName, participant.profile.lastName].filter(Boolean).join(' ') || 'Participante', email, edition: participant.edition.name, source: submission?.form.title || 'Participante', type: participant.role?.name || 'Participante', registeredAt: participant.registeredAt });
+      }),
+      ...submissions.filter((submission) => !submission.participantId).map((submission) => {
+        const answers = submission.answers && typeof submission.answers === 'object' ? submission.answers as Record<string, unknown> : {};
+        const name = String(answers.full_name || answers.name || answers.nombres_completos || [answers.first_name || answers.nombres, answers.last_name || answers.apellidos || answers.surname].filter(Boolean).join(' ') || submission.email || 'Participante');
+        return exportRow(submission, { name, email: submission.email || String(answers.email || ''), edition: submission.editionId ? editionNames.get(submission.editionId) || 'Global' : 'Global', source: submission.form.title, type: 'Inscripción', registeredAt: submission.submittedAt });
+      }),
+    ];
+  }
   async getSetup(eventId: string) {
     const event = await this.prisma.mainEvent.findUnique({ where: { id: eventId }, select: { id: true, eventName: true, description: true, startDate: true, eventMode: true, contactEmail: true } });
     if (!event) throw new NotFoundException('Evento no encontrado');

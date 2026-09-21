@@ -1,8 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
 import { IsArray, IsBoolean, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { RegistrationFormsService } from './registration-forms.service.js';
 import { Public } from '../../common/public.decorator.js';
-class FormDto { @IsString() @MinLength(2) title!: string; @IsString() @MinLength(2) slug!: string; @IsOptional() @IsString() description?: string; @IsOptional() @IsString() editionId?: string; @IsOptional() @IsIn(['DRAFT','PUBLISHED','PAUSED','ARCHIVED']) status?: string; @IsOptional() @IsIn(['MAIN','PARTICIPANT','WAITLIST','OTHER']) purpose?: string; @IsOptional() @IsString() opensAt?: string; @IsOptional() @IsString() closesAt?: string; @IsOptional() maxSubmissions?: number; @IsOptional() @IsString() approvalMode?: string; @IsOptional() @IsArray() fields?: any[]; @IsOptional() @IsBoolean() allowEditionSelection?: boolean; }
+class FormDto { @IsString() @MinLength(2) title!: string; @IsString() @MinLength(2) slug!: string; @IsOptional() @IsString() description?: string; @IsOptional() @IsString() editionId?: string; @IsOptional() @IsIn(['DRAFT','PUBLISHED','PAUSED','ARCHIVED']) status?: string; @IsOptional() @IsIn(['MAIN','PARTICIPANT','WAITLIST','OTHER']) purpose?: string; @IsOptional() @IsString() opensAt?: string; @IsOptional() @IsString() closesAt?: string; @IsOptional() maxSubmissions?: number; @IsOptional() @IsString() approvalMode?: string; @IsOptional() @IsArray() fields?: any[]; @IsOptional() @IsBoolean() allowEditionSelection?: boolean; @IsOptional() @IsString() thankYouMessage?: string; @IsOptional() @IsString() thankYouRedirectUrl?: string; }
 @Controller()
 export class RegistrationFormsController {
   constructor(private readonly forms: RegistrationFormsService) {}
@@ -46,7 +46,7 @@ export class RegistrationFormsController {
   }
 
   @Delete('registration-submissions/:id')
-  removeSubmission(@Param('id') id: string) { return this.forms.removeSubmission(id); }
+  removeSubmission(@Param('id') id: string, @Req() request: any) { return this.forms.removeSubmission(id, request.user); }
 
   @Public() @Get('public/registration-forms/:slug')
   publicForm(@Param('slug') slug: string) {

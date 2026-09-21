@@ -13,6 +13,8 @@ interface Props {
 }
 
 const { organization, title, description, registrationUrl, venues = [], bare = false, imageUrl } = Astro.props;
+const isMedmind = organization.slug?.toLowerCase() === 'medmind' || organization.name?.toLowerCase() === 'medmind';
+const brandLogo = isMedmind ? '/medmind/logo_medmind.svg' : organization.logoUrl;
 ---
 <!doctype html>
 <html lang="es">
@@ -40,8 +42,8 @@ const { organization, title, description, registrationUrl, venues = [], bare = f
       <div class="header-left">
         <!-- Organization Brand -->
         <a href={`/${organization.slug}`} class="tdc-brand-link">
-          {organization.logoUrl && (
-            <img src={organization.logoUrl} alt={organization.name} class="tdc-logo" />
+          {brandLogo && (
+            <img src={brandLogo} alt={organization.name} class="tdc-logo" />
           )}
           <span class="tdc-brand-text">{organization.name}</span>
         </a>
@@ -70,6 +72,7 @@ const { organization, title, description, registrationUrl, venues = [], bare = f
       <div class="tdc-container">
         <div class="footer-grid">
           <div class="footer-brand-pane">
+            {isMedmind && <img src="/medmind/logo_medmind.svg" alt="MedMind" class="footer-medmind-logo" />}
             <span class="footer-org-name">{organization.name.toUpperCase()}</span>
             <p class="footer-desc">
               {organization.description || 'Portal oficial de experiencias, conferencias magistrales, congresos y talleres.'}
@@ -128,8 +131,6 @@ const { organization, title, description, registrationUrl, venues = [], bare = f
 <style>
   :global(*) {
     box-sizing: border-box;
-    margin: 0;
-    padding: 0;
   }
   :global(html) {
     scroll-behavior: smooth;
@@ -224,6 +225,7 @@ const { organization, title, description, registrationUrl, venues = [], bare = f
     max-width: 230px;
     object-fit: contain;
   }
+  .footer-medmind-logo { width: 132px; height: auto; margin-bottom: 1rem; }
   .tdc-brand-text {
     font-family: 'Inter', sans-serif;
     font-size: 0.88rem;

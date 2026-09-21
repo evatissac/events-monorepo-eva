@@ -2,9 +2,11 @@ import { useEffect, useState } from "react"
 import { toast } from "sonner"
 import { useParams, useNavigate } from "react-router-dom"
 import { useEventStore } from "@/store/event.store"
-import { Plus, Trash2, UserCheck, Check, ExternalLink } from "lucide-react"
+import { Plus, Trash2, ExternalLink, Eye, RefreshCw, Search, X, Download } from "lucide-react"
 import { DataTable, type ColumnDef } from "@/components/ui/data-table"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import ExcelJS from "exceljs"
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -19,18 +21,33 @@ import {
 import { useSEO } from "@/hooks/use-seo"
 import { PageHeader } from "@/components/page-header"
 import { api } from "@/api/client"
+import { useAuthStore } from "@/store/auth.store"
 
 export function EventAttendeesSection() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { events, editions, attendees, toggleAttendeeCheckIn, deleteAttendee, loadData } = useEventStore()
+  const { events, editions, attendees, roles, deleteAttendee, loadData } = useEventStore()
+  const selectedOrganization = useAuthStore((state) => state.selectedOrganization)
+  const currentUser = useAuthStore((state) => state.user)
   const [forms, setForms] = useState<any[]>([])
   const [formFilter, setFormFilter] = useState("ALL")
+  const [editionFilter, setEditionFilter] = useState("ALL")
+  const [search, setSearch] = useState("")
+  const [detailAttendee, setDetailAttendee] = useState<any>(null)
+  const [refreshing, setRefreshing] = useState(false)
+  const [canManageAttendees, setCanManageAttendees] = useState(false)
 
   const event = events.find((e) => e.id === id)
   const eventAttendees = attendees.filter((at) => at.eventId === id)
-  const filteredAttendees = eventAttendees.filter((attendee) => formFilter === "ALL" || (formFilter === "MANUAL" ? attendee.source !== "FORM" : attendee.sourceFormId === formFilter))
+  const filteredAttendees = eventAttendees.filter((attendee) => {
+    const matchesOrigin = formFilter === "ALL" || (formFilter === "MANUAL" ? attendee.source !== "FORM" : attendee.sourceFormId === formFilter)
+    const matchesEdition = editionFilter === "ALL" || attendee.editionId === editionFilter
+    const term = search.trim().toLowerCase()
+    const matchesSearch = !term || [attendee.fullName, attendee.email, attendee.ticketType, attendee.sourceFormTitle].filter(Boolean).some((value) => String(value).toLowerCase().includes(term))
+    return matchesOrigin && matchesEdition && matchesSearch
+  })
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
+  const eventRoles = roles.filter((role) => role.mainEventId === id && role.isActive)
 
   useSEO({
     title: event ? `${event.name} - Participantes` : "Participantes de Evento",
@@ -39,8 +56,36 @@ export function EventAttendeesSection() {
 
   useEffect(() => {
     if (!id) return
-    api.registrationForms.list(id).then(setForms).catch(() => setForms([]))
+    api.registrationForms.list(id).then((loadedForms) => {
+      setForms(loadedForms)
+      const mainForm = loadedForms.find((form) => form.purpose === "MAIN" && form.status !== "ARCHIVED")
+      setFormFilter(mainForm?.id || "ALL")
+    }).catch(() => setForms([]))
   }, [id])
+
+  useEffect(() => {
+    const activeEdition = editions.find((edition) => edition.mainEventId === id && edition.isCurrent)
+    if (activeEdition) setEditionFilter(activeEdition.id)
+  }, [id, editions])
+
+  // The event shell can already be loaded while its participant collection is stale.
+  // Refresh this module's source data every time the event changes.
+  useEffect(() => {
+    const organizationId = event?.organizationId || selectedOrganization?.id
+    if (id && organizationId) void loadData(organizationId)
+  }, [id, event?.organizationId, selectedOrganization?.id, loadData])
+
+  useEffect(() => {
+    const organizationId = event?.organizationId || selectedOrganization?.id
+    if (!organizationId) return
+    if (["SUPER_ADMIN", "SAAS_ADMIN"].includes(currentUser?.role || "")) {
+      setCanManageAttendees(true)
+      return
+    }
+    void api.organizations.access(organizationId)
+      .then((access) => setCanManageAttendees(["OWNER", "ADMIN"].includes(access.role)))
+      .catch(() => setCanManageAttendees(false))
+  }, [event?.organizationId, selectedOrganization?.id, currentUser?.role])
 
   const removeAttendee = async (attendee: any) => {
     try {
@@ -54,6 +99,54 @@ export function EventAttendeesSection() {
     } catch (error: any) {
       toast.error(error?.message || "No se pudo eliminar la inscripción")
     }
+  }
+
+  const refreshAttendees = async () => {
+    if (!event?.organizationId) return
+    setRefreshing(true)
+    try {
+      await loadData(event.organizationId)
+      toast.success("Lista de participantes actualizada")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo actualizar la lista")
+    } finally {
+      setRefreshing(false)
+    }
+  }
+
+  const changeParticipantRole = async (attendee: any, roleId: string) => {
+    try {
+      await api.participants.changeRole(attendee.id, roleId)
+      if (event?.organizationId) await loadData(event.organizationId)
+      toast.success("Rol actualizado")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo cambiar el rol")
+    }
+  }
+
+  const exportAttendees = async () => {
+    if (!id) return
+    const exportRows = await api.events.attendeeExport(id)
+    const workbook = new ExcelJS.Workbook()
+    const sheet = workbook.addWorksheet("Participantes")
+    const attributeKeys = [...new Set(exportRows.flatMap((attendee) => Object.keys(attendee.attributes || {})))].filter((key) => !["first_name", "firstName", "last_name", "lastName", "nombres", "apellidos", "surname", "full_name", "name", "email"].includes(key))
+    sheet.columns = [
+      { header: "Participante", key: "name", width: 32 }, { header: "Correo", key: "email", width: 36 },
+      { header: "Edición", key: "edition", width: 24 }, { header: "Origen", key: "source", width: 26 },
+      { header: "Tipo", key: "type", width: 18 }, { header: "Registro", key: "registeredAt", width: 16 },
+      ...attributeKeys.map((key) => ({ header: exportRows.find((attendee) => attendee.attributeLabels?.[key])?.attributeLabels?.[key] || key, key: `attribute:${key}`, width: 24 })),
+    ]
+    exportRows.forEach((attendee) => sheet.addRow({ ...attendee, registeredAt: attendee.registeredAt ? new Date(attendee.registeredAt).toLocaleDateString("es-PE") : "", ...Object.fromEntries(attributeKeys.map((key) => [`attribute:${key}`, Array.isArray(attendee.attributes?.[key]) ? attendee.attributes[key].join(", ") : String(attendee.attributes?.[key] ?? "")])) }))
+    const headerRow = sheet.getRow(1)
+    headerRow.font = { bold: true, size: 12, color: { argb: "FFFFFFFF" } }
+    headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A5F" } }
+    headerRow.alignment = { vertical: "middle" }
+    headerRow.height = 24
+    const file = new Blob([await workbook.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" })
+    const url = URL.createObjectURL(file)
+    const anchor = document.createElement("a")
+    anchor.href = url; anchor.download = `participantes-${event?.name?.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "evento"}.xlsx`; anchor.click()
+    URL.revokeObjectURL(url)
   }
 
 
@@ -110,16 +203,6 @@ export function EventAttendeesSection() {
       )
     },
     {
-      header: "Ticket",
-      className: "p-3",
-      headerClassName: "p-3",
-      cell: (at) => (
-        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${at.ticketType === "VIP" ? "bg-amber-500/10 text-amber-600" : at.ticketType === "Speaker" ? "bg-indigo-500/10 text-indigo-600" : "bg-muted text-muted-foreground"}`}>
-          {at.ticketType}
-        </span>
-      )
-    },
-    {
       header: "Edición",
       className: "p-3 text-xs",
       headerClassName: "p-3",
@@ -135,17 +218,32 @@ export function EventAttendeesSection() {
       }
     },
     {
-      header: "Check-In",
-      className: "p-3 text-center",
-      headerClassName: "p-3 text-center",
-      cell: (at) => (
-        at.source === "FORM" ? <span className="text-xs text-muted-foreground">—</span> : <button
-          onClick={() => toggleAttendeeCheckIn(at.id)}
-          className={`p-1.5 rounded-full border transition-colors inline-flex ${at.checkedIn ? "bg-primary/10 border-primary/30 text-primary" : "bg-muted/40 border-border/80 text-muted-foreground/60 hover:text-foreground"}`}
-        >
-          {at.checkedIn ? <UserCheck className="size-4" /> : <Check className="size-4" />}
-        </button>
-      )
+      header: "Registrado",
+      className: "p-3 whitespace-nowrap",
+      headerClassName: "p-3",
+      cell: (at) => {
+        const registeredAt = at.registrationDate ? new Date(at.registrationDate) : null
+        if (!registeredAt || Number.isNaN(registeredAt.getTime())) {
+          return <span className="text-xs text-muted-foreground">—</span>
+        }
+
+        return (
+          <div className="text-xs leading-5">
+            <div className="font-medium text-foreground">
+              {registeredAt.toLocaleDateString("es-PE", { day: "2-digit", month: "short", year: "numeric", timeZone: "America/Lima" })}
+            </div>
+            <div className="text-muted-foreground">
+              {registeredAt.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Lima" })}
+            </div>
+          </div>
+        )
+      }
+    },
+    {
+      header: "Rol",
+      className: "p-3",
+      headerClassName: "p-3",
+      cell: (at) => canManageAttendees ? <select value={at.roleId || ""} onChange={(event) => void changeParticipantRole(at, event.target.value)} className="h-8 max-w-36 rounded-md border border-border bg-background px-2 text-xs" aria-label={`Cambiar rol de ${at.fullName}`}><option value="" disabled>Sin rol</option>{eventRoles.map((role) => <option key={role.id} value={role.id}>{role.name?.es || role.name?.en || role.slug}</option>)}</select> : <span className="text-xs text-muted-foreground">{eventRoles.find((role) => role.id === at.roleId)?.name?.es || eventRoles.find((role) => role.id === at.roleId)?.name?.en || "Sin rol"}</span>,
     },
     {
       header: "Acciones",
@@ -153,6 +251,7 @@ export function EventAttendeesSection() {
       className: "text-right p-3",
       cell: (at) => (
         <div className="flex items-center justify-end gap-1.5">
+          <Button variant="ghost" className="size-7 p-0 text-muted-foreground hover:text-foreground" title="Ver detalle" onClick={() => setDetailAttendee(at)}><Eye className="size-3.5" /></Button>
           {at.profileId && (
             <Button
               asChild
@@ -164,13 +263,13 @@ export function EventAttendeesSection() {
                 href={`/dashboard/profiles/${at.profileId}/info`}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center justify-center w-full h-full"
+                className="inline-flex size-7 shrink-0 items-center justify-center"
               >
                 <ExternalLink className="size-3.5" />
               </a>
             </Button>
           )}
-          <AlertDialog>
+          {canManageAttendees && <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="ghost" className="size-7 p-0 text-destructive hover:bg-destructive/10">
                 <Trash2 className="size-3.5" />
@@ -190,7 +289,7 @@ export function EventAttendeesSection() {
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
-          </AlertDialog>
+          </AlertDialog>}
         </div>
       )
     }
@@ -209,13 +308,19 @@ export function EventAttendeesSection() {
         }
       />
 
-      <div className="flex items-center gap-3">
-        <label className="text-xs font-medium text-muted-foreground">Mostrar inscripciones:</label>
-        <select value={formFilter} onChange={(event) => setFormFilter(event.target.value)} className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
+      <div className="rounded-xl border border-border bg-card p-3 space-y-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+          <div className="relative min-w-0 flex-1"><Search className="absolute left-3 top-2.5 size-4 text-muted-foreground" /><Input value={search} onChange={(input) => setSearch(input.target.value)} placeholder="Buscar por participante, correo o tipo..." className="h-9 pl-9" /></div>
+          <select value={formFilter} onChange={(event) => setFormFilter(event.target.value)} aria-label="Filtrar por origen" className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground">
           <option value="ALL">Todos los orígenes</option>
           <option value="MANUAL">Participantes manuales</option>
           {forms.map((form) => <option key={form.id} value={form.id}>{form.purpose === "MAIN" ? "Registro principal" : "Formulario"}: {form.title}</option>)}
-        </select>
+          </select>
+          <select value={editionFilter} onChange={(event) => setEditionFilter(event.target.value)} aria-label="Filtrar por edición" className="h-9 rounded-lg border border-border bg-background px-3 text-xs text-foreground"><option value="ALL">Todas las ediciones</option>{eventEditions.map((edition) => <option key={edition.id} value={edition.id}>{edition.name}</option>)}</select>
+          <Button type="button" variant="outline" onClick={() => void exportAttendees()} disabled={!filteredAttendees.length} className="h-9 gap-2 text-xs"><Download className="size-4" />Exportar Excel</Button>
+          <Button type="button" variant="outline" size="icon" onClick={() => void refreshAttendees()} disabled={refreshing} title="Actualizar lista" aria-label="Actualizar lista de participantes" className="size-9"><RefreshCw className={`size-4 ${refreshing ? "animate-spin" : ""}`} /></Button>
+        </div>
+        {(search || formFilter !== "ALL" || editionFilter !== "ALL") && <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"><span>Filtros activos:</span>{search && <button type="button" onClick={() => setSearch("")} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">Búsqueda: {search}<X className="size-3" /></button>}{formFilter !== "ALL" && <button type="button" onClick={() => setFormFilter("ALL")} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">Origen seleccionado<X className="size-3" /></button>}{editionFilter !== "ALL" && <button type="button" onClick={() => setEditionFilter("ALL")} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-1">Edición: {eventEditions.find((edition) => edition.id === editionFilter)?.name}<X className="size-3" /></button>}<button type="button" onClick={() => { setSearch(""); setFormFilter("ALL"); setEditionFilter("ALL") }} className="ml-1 font-medium text-primary hover:underline">Limpiar todo</button></div>}
       </div>
 
       {filteredAttendees.length === 0 ? (
@@ -223,8 +328,9 @@ export function EventAttendeesSection() {
           No hay participantes inscritos.
         </div>
       ) : (
-        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl" />
+        <DataTable columns={columns} data={filteredAttendees} containerClassName="border border-border rounded-xl bg-card" pagination={{ itemLabel: "participantes" }} />
       )}
+      <AlertDialog open={!!detailAttendee} onOpenChange={(open) => !open && setDetailAttendee(null)}><AlertDialogContent className="max-w-lg"><AlertDialogHeader><AlertDialogTitle>Detalle de {detailAttendee?.fullName}</AlertDialogTitle><AlertDialogDescription>{detailAttendee?.sourceFormTitle || "Registro de participante"}</AlertDialogDescription></AlertDialogHeader><div className="max-h-80 space-y-2 overflow-y-auto rounded-lg border p-3 text-sm"><div className="grid grid-cols-2 gap-3 border-b pb-2"><span className="font-medium text-muted-foreground">Correo</span><span className="break-words">{detailAttendee?.email || "—"}</span></div><div className="grid grid-cols-2 gap-3 border-b pb-2"><span className="font-medium text-muted-foreground">Edición</span><span>{eventEditions.find((edition) => edition.id === detailAttendee?.editionId)?.name || "Global"}</span></div>{Object.entries(detailAttendee?.answers || {}).map(([key, value]) => <div key={key} className="grid grid-cols-2 gap-3 border-b pb-2 last:border-0"><span className="font-medium text-muted-foreground">{detailAttendee?.formFields?.find((field: any) => field.key === key)?.label || key}</span><span className="break-words">{Array.isArray(value) ? value.join(", ") : String(value || "—")}</span></div>)}</div><AlertDialogFooter><AlertDialogCancel>Cerrar</AlertDialogCancel></AlertDialogFooter></AlertDialogContent></AlertDialog>
     </div>
   )
 }

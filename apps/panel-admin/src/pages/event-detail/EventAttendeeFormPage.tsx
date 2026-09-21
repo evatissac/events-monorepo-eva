@@ -11,12 +11,11 @@ import { useSEO } from "@/hooks/use-seo"
 export function EventAttendeeFormPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const { events, editions, tickets, addAttendee } = useEventStore()
+  const { events, editions, addAttendee } = useEventStore()
 
   const event = events.find((e) => e.id === id)
   const eventEditions = editions.filter((ed) => ed.mainEventId === id)
   const currentEdition = eventEditions.find((ed) => ed.isCurrent)
-  const eventTickets = tickets.filter((tk) => tk.mainEventId === id && tk.isActive)
 
   useSEO({
     title: "Inscribir Participante",
@@ -29,7 +28,6 @@ export function EventAttendeeFormPage() {
   const [email, setEmail] = useState("")
   const [identityDocumentType, setIdentityDocumentType] = useState("")
   const [identityDocumentNumber, setIdentityDocumentNumber] = useState("")
-  const [ticket, setTicket] = useState("General")
   const [selectedEditionId, setSelectedEditionId] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -41,15 +39,6 @@ export function EventAttendeeFormPage() {
       setSelectedEditionId(null)
     }
   }, [currentEdition])
-
-  // Initialize ticket type selection defaulting to the first ticket name if available
-  useEffect(() => {
-    if (eventTickets.length > 0) {
-      setTicket(eventTickets[0].name)
-    } else {
-      setTicket("General")
-    }
-  }, [id, tickets])
 
   const attendeeSchema = z.object({
     firstName: z.string().trim().min(1, "El nombre es obligatorio."),
@@ -87,8 +76,8 @@ export function EventAttendeeFormPage() {
         identityDocumentNumber: identityDocumentNumber.trim() || null,
         fullName: `${firstName} ${lastName}`.trim(),
         email,
-        ticketType: ticket,
-        registrationDate: new Date().toISOString().split("T")[0],
+        ticketType: "Participante",
+        registrationDate: new Date().toISOString(),
         checkedIn: false,
       })
 
@@ -204,39 +193,6 @@ export function EventAttendeeFormPage() {
                   onChange={(e) => setIdentityDocumentNumber(e.target.value)}
                   disabled={isSubmitting}
                 />
-              </div>
-            </div>
-
-            {/* Ticket Type */}
-            <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 border-b border-border/50 pb-6">
-              <div className="md:w-1/3 space-y-1">
-                <label htmlFor="atTicket" className="text-sm font-normal text-foreground block">
-                  Tipo de Entrada *
-                </label>
-                <p className="text-xs text-muted-foreground">Selecciona el tipo de ticket asociado a este participante.</p>
-              </div>
-              <div className="md:w-2/3 w-full">
-                <select
-                  id="atTicket"
-                  value={ticket}
-                  onChange={(e) => setTicket(e.target.value)}
-                  className="w-full h-9 rounded-md border border-input bg-background px-3 py-1.5 text-sm text-foreground shadow-xs outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                  disabled={isSubmitting}
-                >
-                  {eventTickets.length > 0 ? (
-                    eventTickets.map((tk) => (
-                      <option key={tk.id} value={tk.name}>
-                        {tk.name} — {tk.price === 0 ? "Gratis" : `${tk.currency} ${tk.price}`}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="General">General</option>
-                      <option value="VIP">VIP</option>
-                      <option value="Speaker">Ponente</option>
-                    </>
-                  )}
-                </select>
               </div>
             </div>
 

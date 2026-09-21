@@ -1846,6 +1846,9 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable =
 function TextFormattingToolbar({ block, onUpdate }: { block: EmailBlock; onUpdate: (options: Record<string, unknown>) => void }) {
   const options = block.options || {}
   const alignments = [{ value: "left", icon: AlignLeft }, { value: "center", icon: AlignCenter }, { value: "right", icon: AlignRight }]
+  const applyInlineFormat = (command: "bold" | "italic") => {
+    window.dispatchEvent(new CustomEvent("email-template-inline-format", { detail: command }))
+  }
   return (
     <div onClick={(event) => event.stopPropagation()} className="absolute -top-12 left-1/2 z-20 flex h-9 -translate-x-1/2 items-center gap-1 rounded-md border border-border bg-background px-1.5 text-muted-foreground">
       <select value={options.level || 2} onChange={(event) => onUpdate({ level: Number(event.target.value) })} className="h-7 max-w-16 border-0 bg-transparent px-1 text-[11px] outline-none">
@@ -1859,19 +1862,66 @@ function TextFormattingToolbar({ block, onUpdate }: { block: EmailBlock; onUpdat
       <label title="Color" className="flex size-7 cursor-pointer items-center justify-center rounded hover:bg-muted"><span className="text-sm" style={{ color: String(options.color || "#0f172a") }}>A</span><input type="color" value={String(options.color || "#0f172a")} onChange={(event) => onUpdate({ color: event.target.value })} className="sr-only" /></label>
       {alignments.map(({ value, icon: Icon }) => <button key={value} type="button" title={`Alinear ${value}`} onClick={() => onUpdate({ align: value })} className={`flex size-7 items-center justify-center rounded ${options.align === value ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Icon className="size-3.5" /></button>)}
       <span className="h-4 w-px bg-border" />
-      <button type="button" title="Negrita" onClick={() => onUpdate({ fontWeight: Number(options.fontWeight || 400) >= 600 ? 400 : 600 })} className={`flex size-7 items-center justify-center rounded ${Number(options.fontWeight || 400) >= 600 ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Bold className="size-3.5" /></button>
-      <button type="button" title="Cursiva" onClick={() => onUpdate({ fontStyle: options.fontStyle === "italic" ? "normal" : "italic" })} className={`flex size-7 items-center justify-center rounded ${options.fontStyle === "italic" ? "bg-muted text-foreground" : "hover:bg-muted"}`}><Italic className="size-3.5" /></button>
+      <button type="button" title="Negrita para el texto seleccionado" onMouseDown={(event) => event.preventDefault()} onClick={() => applyInlineFormat("bold")} className="flex size-7 items-center justify-center rounded hover:bg-muted"><Bold className="size-3.5" /></button>
+      <button type="button" title="Cursiva para el texto seleccionado" onMouseDown={(event) => event.preventDefault()} onClick={() => applyInlineFormat("italic")} className="flex size-7 items-center justify-center rounded hover:bg-muted"><Italic className="size-3.5" /></button>
       <button type="button" title="Emoji" className="flex size-7 items-center justify-center rounded hover:bg-muted"><Smile className="size-3.5" /></button>
     </div>
   )
 }
 
+function normalizeRichText(value: string): string {
+  if (typeof document === "undefined") return value.replace(/\r?\n/g, "<br>")
+
+  const source = document.createElement("div")
+  source.innerHTML = value.replace(/\r?\n/g, "<br>")
+  const output = document.createElement("div")
+  const allowed = new Set(["STRONG", "B", "EM", "I", "BR", "A"])
+
+  const append = (node: Node, target: HTMLElement) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      target.appendChild(document.createTextNode(node.textContent || ""))
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+
+    const element = node as HTMLElement
+    if (allowed.has(element.tagName)) {
+      const tag = element.tagName === "B" ? "strong" : element.tagName === "I" ? "em" : element.tagName.toLowerCase()
+      const clean = document.createElement(tag)
+      if (tag === "a") {
+        const href = element.getAttribute("href") || ""
+        if (/^(https?:|mailto:|tel:)/i.test(href)) clean.setAttribute("href", href)
+      }
+      if (tag !== "br") Array.from(element.childNodes).forEach((child) => append(child, clean))
+      target.appendChild(clean)
+      return
+    }
+
+    Array.from(element.childNodes).forEach((child) => append(child, target))
+    if (["DIV", "P"].includes(element.tagName) && node.nextSibling) target.appendChild(document.createElement("br"))
+  }
+
+  Array.from(source.childNodes).forEach((node) => append(node, output))
+  return output.innerHTML
+}
+
 function InlineCanvasText({ as: Tag, editable, value, onCommit, onSelect, style, className }: { as: "h2" | "div"; editable: boolean; value: string; onCommit?: (value: string) => void; onSelect?: () => void; style: CSSProperties; className?: string }) {
   const ref = useRef<HTMLElement>(null)
   useEffect(() => {
-    if (ref.current && document.activeElement !== ref.current && ref.current.textContent !== value) ref.current.textContent = value
+    const next = normalizeRichText(value)
+    if (ref.current && document.activeElement !== ref.current && ref.current.innerHTML !== next) ref.current.innerHTML = next
   }, [value])
-  return <Tag ref={ref as any} contentEditable={editable} suppressContentEditableWarning spellCheck={false} onMouseDown={onSelect} onBlur={(event) => { const next = event.currentTarget.textContent || ""; if (next !== value) onCommit?.(next) }} style={style} className={`outline-none ${editable ? "cursor-text" : "cursor-pointer"} ${className || ""}`} aria-label="Editar contenido">{value}</Tag>
+  useEffect(() => {
+    const applyInlineFormat = (event: Event) => {
+      if (!editable || !ref.current || document.activeElement !== ref.current) return
+      const command = (event as CustomEvent<"bold" | "italic">).detail
+      document.execCommand(command)
+      onCommit?.(normalizeRichText(ref.current.innerHTML))
+    }
+    window.addEventListener("email-template-inline-format", applyInlineFormat)
+    return () => window.removeEventListener("email-template-inline-format", applyInlineFormat)
+  }, [editable, onCommit])
+  return <Tag ref={ref as any} contentEditable={editable} suppressContentEditableWarning spellCheck={false} onMouseDown={onSelect} onBlur={(event) => { const next = normalizeRichText(event.currentTarget.innerHTML); if (next !== normalizeRichText(value)) onCommit?.(next) }} style={style} className={`outline-none ${editable ? "cursor-text" : "cursor-pointer"} ${className || ""}`} aria-label="Editar contenido" dangerouslySetInnerHTML={{ __html: normalizeRichText(value) }} />
 }
 
 function InspectorInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (value: string) => void; placeholder?: string }) {

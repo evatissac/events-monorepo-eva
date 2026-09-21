@@ -59,21 +59,21 @@ const SUGGESTIONS = [
   {
     nameEs: "Participante",
     nameEn: "Attendee",
-    slug: "attendee",
+    slug: "participant",
     badgeColor: "#10b981",
     description: "Para asistentes generales del evento."
   },
   {
-    nameEs: "Organizador",
-    nameEn: "Organizer",
-    slug: "organizer",
+    nameEs: "Coordinador",
+    nameEn: "Coordinator",
+    slug: "coordinator",
     badgeColor: "#ef4444",
     description: "Para el personal de coordinación."
   },
   {
     nameEs: "Ponente Magistral",
     nameEn: "Keynote Speaker",
-    slug: "keynote-speaker",
+    slug: "speaker_mg",
     badgeColor: "#8b5cf6",
     description: "Para conferencistas principales del evento."
   }
@@ -205,7 +205,7 @@ export function EventRolesSection() {
   const roleFormSchema = z.object({
     nameEs: z.string().trim().min(1, "El nombre en español es obligatorio."),
     nameEn: z.string().trim().optional(),
-    slug: z.string().trim().min(1, "El slug es obligatorio.").regex(/^[a-z0-9-]+$/, "El slug solo debe contener letras minúsculas, números y guiones."),
+    slug: z.string().trim().min(1, "El código del rol es obligatorio.").regex(/^[a-z0-9_-]+$/, "El código solo debe contener letras minúsculas, números, guiones o guiones bajos."),
   })
 
   const handleSave = async (e: React.FormEvent) => {
@@ -235,6 +235,7 @@ export function EventRolesSection() {
     try {
       if (editingId) {
         await updateRole(editingId, payload)
+        toast.success("Rol actualizado correctamente")
       } else {
         // Validate if slug already exists in state before sending
         const duplicate = eventRoles.some(
@@ -249,13 +250,14 @@ export function EventRolesSection() {
           return
         }
         await addRole(payload)
+        toast.success("Rol creado correctamente")
       }
       closeSheet()
     } catch (err: any) {
       console.error(err)
-      setFormError(
-        err?.message || "Ocurrió un error al guardar el rol. Verifica que el slug sea único."
-      )
+      const message = err?.message || "Ocurrió un error al guardar el rol. Verifica que el slug sea único."
+      setFormError(message)
+      toast.error(message)
     }
   }
 
@@ -499,16 +501,16 @@ export function EventRolesSection() {
 
               {/* Slug */}
               <Field>
-                <FieldLabel htmlFor="roleSlug">Identificador (Slug) *</FieldLabel>
+                <FieldLabel htmlFor="roleSlug">Código del rol *</FieldLabel>
                 <Input
                   id="roleSlug"
                   value={slug}
                   onChange={(e) => handleSlugChange(e.target.value)}
-                  placeholder="ej-ponente-magistral"
+                  placeholder="speaker_mg"
                   required
                 />
                 <p className="text-[10px] text-muted-foreground mt-1">
-                  Se utiliza internamente para la lógica y tickets. Solo letras minúsculas, números y guiones.
+                  Usa uno de estos códigos: participant, coordinator, speaker o speaker_mg.
                 </p>
               </Field>
 

@@ -13,7 +13,159 @@ interface Props {
   apiUrl: string;
 }
 
+<<<<<<< HEAD
 const props = Astro.props;
 ---
 
 <MedmindEventDetailReact client:load {...props} />
+=======
+const { institution, event, edition, speakers, activities, form, heroImage, heroVideo, apiUrl } = Astro.props;
+const startDate = edition?.startDate || event.startDate;
+const date = startDate ? new Date(startDate) : null;
+const dateLabel = date?.toLocaleDateString('es-PE', { day: 'numeric', month: 'long', year: 'numeric' }) || 'Próximamente';
+const timeLabel = date?.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) || 'Hora por confirmar';
+const description = edition?.description || event.details?.content || event.description || 'Una experiencia creada para ayudarte a avanzar con claridad.';
+const modality = (edition?.modality || event.eventMode || 'VIRTUAL').replace('_', ' ');
+const uniqueSpeakers = Array.from(new Map(speakers.map((speaker) => [speaker.id, speaker])).values());
+const titleWords = String(event.eventName || '').trim().split(/\s+/).filter(Boolean);
+const splitAt = Math.ceil(titleWords.length / 2);
+const normalTitle = titleWords.slice(0, splitAt).join(' ');
+const coloredTitle = titleWords.slice(splitAt).join(' ');
+---
+
+<article class="medmind-detail">
+  <header class="medmind-nav">
+    <a class="medmind-brand" href={`/${institution}`} aria-label="Volver al inicio de MedMind">
+      <img src="/medmind/logo_medmind.svg" alt="MedMind" />
+      <span>Webinar</span>
+    </a>
+    <nav aria-label="Navegación del webinar">
+      <a href="#inicio">Inicio</a>
+      {uniqueSpeakers.length > 0 && <a href="#ponentes">Expositores</a>}
+      {activities.length > 0 && <a href="#agenda">Temario</a>}
+      {form && <a href="#registro">Registro</a>}
+    </nav>
+    {form && <a class="nav-cta" href="#registro">Reservar cupo <ChevronRight size={16} aria-hidden="true" /></a>}
+  </header>
+
+  <section id="inicio" class="medmind-hero">
+    <div class="hero-grid"></div>
+    <div class="hero-glow one"></div><div class="hero-glow two"></div>
+    <div class="medmind-wrap hero-content">
+      <div class="hero-copy">
+        <p class="eyebrow"><i></i>{modality} · {form ? 'CUPO GRATUITO' : 'PRÓXIMAMENTE'}</p>
+        <h1>{normalTitle && <>{normalTitle} </>}<span class="hero-title-accent">{coloredTitle}</span></h1>
+        <p class="hero-description">{description}</p>
+        <div class="event-facts">
+          <div><CalendarDays class="fact-icon" size={18} strokeWidth={1.8} aria-hidden="true" /><p><span>Fecha</span><strong>{dateLabel}</strong></p></div>
+          <div><Clock3 class="fact-icon" size={18} strokeWidth={1.8} aria-hidden="true" /><p><span>Inicio</span><strong>{timeLabel}</strong></p></div>
+          <div><Video class="fact-icon" size={18} strokeWidth={1.8} aria-hidden="true" /><p><span>Modalidad</span><strong>{modality}</strong></p></div>
+        </div>
+        <div class="hero-actions">
+          {form ? <a class="primary-action" href="#registro">Quiero mi cupo gratis <ChevronRight size={17} aria-hidden="true" /></a> : <a class="secondary-action" href="#agenda">Conocer más</a>}
+          {activities.length > 0 && <a class="secondary-action" href="#agenda">Explorar temario</a>}
+        </div>
+      </div>
+      <div class="hero-art" aria-hidden="true">
+        {heroVideo ? <video autoplay muted loop playsinline poster={heroImage}><source src={heroVideo} /></video> : <img src={heroImage} alt="" />}
+      </div>
+    </div>
+  </section>
+
+  {date && <section class="countdown-banner" data-countdown-date={date.toISOString()} hidden><div class="medmind-wrap"><span class="countdown-label">FALTA POCO</span><p data-countdown-message>Reserva tu lugar antes de que inicie.</p><div class="countdown-values"><b data-days>00</b><i>d</i><b data-hours>00</b><i>h</i><b data-minutes>00</b><i>m</i><b data-seconds>00</b><i>s</i></div></div></section>}
+
+  {uniqueSpeakers.length > 0 && <section id="ponentes" class="medmind-section speakers-section">
+    <div class="medmind-wrap">
+      <p class="section-kicker">EXPOSITORES</p>
+      <h2>¿QUIÉNES TE ACOMPAÑARÁN?</h2>
+      <p class="section-intro">Personas con experiencia para compartirte ideas claras y resolver tus dudas en vivo.</p>
+      <div class="speakers-list">
+        {uniqueSpeakers.map((speaker) => {
+          const name = [speaker.firstName, speaker.lastName].filter(Boolean).join(' ') || 'Ponente invitado';
+          return <article class="speaker-card">
+            <div class="speaker-copy"><h3>{name}</h3><p class="speaker-role">EXPOSITOR/A · MEDMIND</p>{speaker.bio && <p>{speaker.bio}</p>}</div>
+            <div class="speaker-photo">{speaker.avatarUrl ? <img src={speaker.avatarUrl} alt={name} /> : <span>{name.split(' ').map((word) => word[0]).join('').slice(0, 2)}</span>}</div>
+          </article>
+        })}
+      </div>
+    </div>
+  </section>}
+
+  {activities.length > 0 && <section id="agenda" class="medmind-section agenda-section">
+    <div class="medmind-wrap">
+      <p class="section-kicker">AGENDA</p>
+      <h2>LO QUE VAS A DESCUBRIR</h2>
+      <p class="section-intro">Contenido pensado para que termines con un plan claro.</p>
+      <div class="agenda-grid">
+        {activities.map((activity, index) => <article class="agenda-card"><span>{String(index + 1).padStart(2, '0')}</span><div><h3>{activity.title}</h3>{activity.description && <p>{activity.description}</p>}{activity.startsAt && <small>{new Date(activity.startsAt).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</small>}</div></article>)}
+      </div>
+    </div>
+  </section>}
+
+  {form && <section id="registro" class="registration-section">
+    <div class="medmind-wrap registration-wrap">
+      <div class="registration-heading"><p class="section-kicker">RESERVA TU CUPO</p><h2>INSCRÍBETE AL WEBINAR</h2><p>{form.description || 'Completa tus datos y recibe la información de acceso en tu correo.'}</p></div>
+      <form id="medmind-registration" data-api={apiUrl} data-slug={form.slug} class="medmind-form">
+        {form.fields?.map((field: any) => {
+          const options = Array.isArray(field.options) ? field.options : (field.options?.options || []);
+          const choices = Array.isArray(field.options?.choices) ? field.options.choices : options;
+          if (field.type === 'header') return <h3 class="form-header">{field.options?.text || field.label}</h3>;
+          const helpText = field.options?.helpText;
+          if (field.type === 'textarea') return <label>{field.label}{field.required && <b class="required">*</b>}<textarea name={field.key} required={field.required} />{helpText && <small>{helpText}</small>}</label>;
+          if (field.type === 'select') return <label>{field.label}<select name={field.key} required={field.required}><option value="">Selecciona una opción</option>{options.map((option: any) => <option value={typeof option === 'string' ? option : option.value}>{typeof option === 'string' ? option : option.label}</option>)}</select></label>;
+          if (field.type === 'multiple' || field.type === 'checkbox_group') return <fieldset class="choice-group"><legend>{field.label}{field.required && <b class="required">*</b>}</legend>{choices.map((option: any) => <label><input type="checkbox" name={field.key} value={typeof option === 'string' ? option : option.value} />{typeof option === 'string' ? option : option.label}</label>)}</fieldset>;
+          if (field.type === 'radio') return <fieldset class="choice-group radio-cards"><legend>{field.label}</legend>{choices.map((option: any) => <label><input type="radio" name={field.key} value={typeof option === 'string' ? option : option.value} required={field.required} /><span>{typeof option === 'string' ? option : option.label}</span></label>)}</fieldset>;
+          if (field.type === 'checkbox') return <label class="checkbox-field"><input name={field.key} type="checkbox" required={field.required} />{field.label}</label>;
+          if (field.type === 'phone' || /phone|telefono|teléfono|whatsapp|celular/i.test(`${field.key} ${field.label}`)) return <label>{field.label}{field.required && <b class="required">*</b>}<div class="phone-input"><span>PE&nbsp; +51⌄</span><input name={field.key} type="tel" inputmode="tel" placeholder="987 654 321" required={field.required} autocomplete="tel" /></div>{helpText && <small>{helpText}</small>}</label>;
+          return <label>{field.label}{field.required && <b class="required">*</b>}<input name={field.key} type={field.type === 'email' ? 'email' : field.type === 'number' ? 'number' : 'text'} required={field.required} autocomplete={field.key === 'email' ? 'email' : field.key === 'first_name' ? 'given-name' : field.key === 'last_name' ? 'family-name' : undefined} />{helpText && <small>{helpText}</small>}</label>;
+        })}
+        <button type="submit">Reservar mi cupo gratis <ChevronRight size={18} aria-hidden="true" /></button><p class="form-status" role="status"></p>
+      </form>
+      <div id="medmind-success" hidden><h3>¡Gracias por inscribirte!</h3><p>Revisa tu correo para conocer los siguientes pasos.</p><a href={`/${institution}/events/${event.id}`}>Volver al detalle</a></div>
+    </div>
+  </section>}
+
+  <footer class="medmind-footer"><div class="medmind-wrap"><img src="/medmind/logo_medmind.svg" alt="MedMind" /><p>{event.eventName} · {dateLabel}</p><a href={`/${institution}`}>Ver más actividades</a></div></footer>
+</article>
+
+<script>
+  const form = document.querySelector('#medmind-registration') as HTMLFormElement | null;
+  const status = document.querySelector('.form-status') as HTMLElement | null;
+  form?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const button = form.querySelector('button') as HTMLButtonElement;
+    const data = new FormData(form); const values: Record<string, string | string[]> = {};
+    for (const key of new Set(Array.from(data.keys()))) { const valuesForKey = data.getAll(key).map(String); values[key] = valuesForKey.length > 1 ? valuesForKey : valuesForKey[0] || ''; }
+    button.disabled = true; status!.textContent = 'Registrando tu cupo…';
+    try {
+      const response = await fetch(`${form.dataset.api}/public/registration-forms/${form.dataset.slug}/submissions`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ answers: values }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.message || 'No se pudo completar la inscripción.');
+      if (data.thankYouRedirectUrl) { window.location.assign(data.thankYouRedirectUrl); return; }
+      form.hidden = true; const success = document.querySelector<HTMLElement>('#medmind-success'); if (data.thankYouMessage && success) { const copy = success.querySelector('p'); if (copy) copy.textContent = data.thankYouMessage; } success?.removeAttribute('hidden');
+    } catch (error: any) { status!.textContent = error.message || 'Ocurrió un error. Inténtalo de nuevo.'; } finally { button.disabled = false; }
+  });
+  document.querySelectorAll<HTMLElement>('[data-countdown-date]').forEach((banner) => {
+    const target = new Date(banner.dataset.countdownDate || '').getTime();
+    const message = banner.querySelector<HTMLElement>('[data-countdown-message]');
+    const values = ['days', 'hours', 'minutes', 'seconds'].map((key) => banner.querySelector<HTMLElement>(`[data-${key}]`));
+    const tick = () => {
+      const distance = target - Date.now();
+      const sameDay = new Date(target).toDateString() === new Date().toDateString();
+      if (distance < 0) { if (sameDay) { banner.hidden = false; if (message) message.textContent = 'Este evento está en curso.'; values.forEach((node) => { if (node) node.textContent = '—'; }); } else banner.hidden = true; return; }
+      banner.hidden = false;
+      const total = Math.floor(distance / 1000);
+      const parts = [Math.floor(total / 86400), Math.floor(total % 86400 / 3600), Math.floor(total % 3600 / 60), total % 60];
+      values.forEach((node, index) => { if (node) node.textContent = String(parts[index]).padStart(2, '0'); });
+    };
+    tick(); window.setInterval(tick, 1000);
+  });
+</script>
+
+<style>
+  .medmind-detail { color:#172033; background:#fbfdfd; min-height:100vh; font-family:Inter,system-ui,sans-serif; padding-top:76px; }
+  .event-facts div{display:flex;align-items:center;gap:.55rem}.event-facts p{margin:0}.fact-icon{color:#00a98f;flex:none}.countdown-banner{background:#102a28;color:#fff;padding:1.6rem 0}.countdown-banner .medmind-wrap{display:flex;align-items:center;justify-content:space-between;gap:1.25rem;flex-wrap:wrap}.countdown-label{font-size:.78rem;letter-spacing:.14em;color:#83e4d3;font-weight:600}.countdown-banner p{margin:0;font-size:1.1rem}.countdown-values{display:flex;align-items:baseline;gap:.32rem}.countdown-values b{font-size:2rem;font-variant-numeric:tabular-nums;line-height:1}.countdown-values i{font-size:.78rem;color:#9ac2bb;font-style:normal;margin-right:.5rem}
+  .medmind-detail{color:#172033;background:#fbfdfd;min-height:100vh;font-family:Inter,system-ui,sans-serif;padding-top:76px}.medmind-wrap{width:100%;max-width:1520px;margin:auto;padding:0 clamp(1.25rem,4vw,4.5rem);box-sizing:border-box}.medmind-nav{height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 max(1.25rem,calc((100vw - 1520px)/2));position:fixed;inset:0 0 auto;z-index:30;background:#fbfdfdf5;border-bottom:1px solid #dfe9e8}.medmind-brand,.medmind-nav a,.primary-action{color:#172033;text-decoration:none}.medmind-brand{display:flex;gap:.7rem;align-items:center}.medmind-brand img,.medmind-footer img{width:112px;height:34px}.medmind-nav nav,.event-facts,.hero-actions{display:flex;gap:1.2rem}.nav-cta,.primary-action{background:#00a98f;color:white!important;border-radius:999px;padding:.75rem 1.1rem;text-decoration:none}.medmind-hero,.medmind-section,.registration-section{padding:6rem 0;border-bottom:1px solid #dfe9e8}.hero-content{display:grid;grid-template-columns:1fr 1fr;gap:4rem;align-items:center}.hero-copy h1,.medmind-section h2,.registration-heading h2{font-size:clamp(2.3rem,5vw,4.8rem);line-height:1.05}.hero-title-accent,.section-kicker{color:#00a98f}.hero-description,.section-intro{color:#52615f;line-height:1.7}.event-facts{flex-wrap:wrap}.event-facts div,.speaker-card,.agenda-card{padding:1rem;border:1px solid #d8e5e3;border-radius:14px;background:#fff}.event-facts p{margin:0}.hero-art{min-height:420px}.hero-art img,.hero-art video{width:100%;height:100%;object-fit:contain}.speakers-list,.agenda-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1rem}.agenda-section{background:#f4fbfa}.registration-section{background:#00a98f}.registration-wrap{max-width:1240px}.registration-heading{color:#fff}.medmind-form,#medmind-success{background:#fff;padding:2rem;border-radius:22px}.medmind-form label{display:grid;gap:.45rem;margin-bottom:1rem;font-size:.85rem;font-weight:600}.medmind-form input,.medmind-form textarea,.medmind-form select{min-height:46px;border:1px solid #cbdcd8;border-radius:10px;padding:.7rem .8rem;font:inherit}.medmind-form small{font-weight:400;color:#64748b}.medmind-form textarea{min-height:110px}.medmind-form button{width:100%;border:0;border-radius:999px;background:#172c2a;color:#fff;padding:1rem;font-weight:600}.required{color:#e11d48;margin-left:.18rem}.choice-group{border:1px solid #d6e2df;border-radius:12px;padding:1rem;margin:0 0 1rem}.choice-group legend{font-weight:600}.choice-group label{display:flex;gap:.55rem;margin:.65rem 0;font-weight:500}.choice-group input{width:18px;height:18px}.medmind-footer{background:#102422;color:#d9e7e4;padding:2rem 0}.medmind-footer .medmind-wrap{display:flex;justify-content:space-between}@media(max-width:760px){.medmind-detail{padding-top:64px}.medmind-nav{height:64px}.medmind-nav nav{display:none}.hero-content,.speakers-list,.agenda-grid{grid-template-columns:1fr}.hero-art{min-height:260px}}
+  .radio-cards{border:0;padding:0;display:flex;flex-wrap:wrap;gap:.6rem}.radio-cards legend{width:100%;margin-bottom:0}.radio-cards label{margin:0;align-items:center;border:1px solid #d6e2df;border-radius:999px;padding:.65rem 1rem;cursor:pointer}.radio-cards label:has(input:checked){background:#00a98f;color:#fff;border-color:#00a98f}.radio-cards input,.checkbox-field input{border:0;accent-color:#00a98f}.phone-input{display:flex;border:1px solid #cbdcd8;border-radius:10px;overflow:hidden}.phone-input span{display:flex;align-items:center;padding:0 .9rem;border-right:1px solid #cbdcd8;font-size:.85rem;white-space:nowrap}.phone-input input{border:0!important;border-radius:0!important;min-width:0;flex:1}
+</style>
+>>>>>>> 7af2cdfd2e570e965ac003020dfa18ddd4d13e9f
