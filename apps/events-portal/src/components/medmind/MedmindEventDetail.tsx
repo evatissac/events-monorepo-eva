@@ -3,11 +3,9 @@ import confetti from 'canvas-confetti';
 import {
   ArrowRight,
   CalendarDays,
-  Check,
   CheckCircle2,
   ChevronDown,
   Clock3,
-  User,
   Video,
 } from 'lucide-react';
 
