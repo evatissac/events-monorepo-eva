@@ -1,32 +1,52 @@
 'use client'
 
-import { Calendar, Clock, Video, Award, Users } from 'lucide-react'
+import { Calendar, Clock, Video, Award } from 'lucide-react'
 
-export function WebinarDetailsBar() {
+export interface WebinarDetailsBarProps {
+    dateValue?: string;
+    dateSub?: string;
+    timeValue?: string;
+    timeSub?: string;
+    modalityValue?: string;
+    modalitySub?: string;
+    investmentValue?: string;
+    investmentSub?: string;
+}
+
+export function WebinarDetailsBar({
+    dateValue = 'Lunes 7 de Setiembre',
+    dateSub = '2026',
+    timeValue = '8:00 PM',
+    timeSub = 'Hora Perú / Colombia (GMT-5)',
+    modalityValue = 'En Vivo',
+    modalitySub = 'Zoom Privado + Q&A',
+    investmentValue = 'Gratuito',
+    investmentSub = 'Acceso libre con registro',
+}: WebinarDetailsBarProps) {
     const details = [
         {
             icon: Calendar,
             label: 'Fecha',
-            value: 'Lunes 7 de Setiembre',
-            sub: '2026'
+            value: dateValue,
+            sub: dateSub
         },
         {
             icon: Clock,
             label: 'Hora',
-            value: '8:00 PM',
-            sub: 'Hora Perú / Colombia (GMT-5)'
+            value: timeValue,
+            sub: timeSub
         },
         {
             icon: Video,
             label: 'Modalidad',
-            value: 'En Vivo',
-            sub: 'Zoom Privado + Q&A'
+            value: modalityValue,
+            sub: modalitySub
         },
         {
             icon: Award,
             label: 'Inversión',
-            value: 'Gratuito',
-            sub: 'Acceso libre con registro'
+            value: investmentValue,
+            sub: investmentSub
         }
     ]
 

@@ -5,11 +5,9 @@ import confetti from 'canvas-confetti';
 import {
   ArrowRight,
   CalendarDays,
-  Check,
   CheckCircle2,
   ChevronDown,
   Clock3,
-  User,
   Video,
 } from 'lucide-react';
 
@@ -49,7 +47,7 @@ function getButtonClass(
   };
 
   const sizes: Record<ButtonSize, string> = {
-    default: 'h-10 px-5 py-2 text-sm',
+    default: 'h-10 px-5 text-sm',
     sm: 'h-9 px-4 text-xs',
     lg: 'h-12 px-7 text-base font-semibold',
     icon: 'size-10',
@@ -379,10 +377,10 @@ export function MedmindEventDetail({
   const date = parsedDate && !isNaN(parsedDate.getTime()) ? parsedDate : null;
   const dateText = date
     ? date.toLocaleDateString('es-PE', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
-      })
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    })
     : 'Fecha por confirmar';
   const weekdayText = date
     ? date.toLocaleDateString('es-PE', { weekday: 'long' })
@@ -658,72 +656,72 @@ export function MedmindEventDetail({
         >
           <div className="container mx-auto px-4 sm:px-6 lg:px-8">
             <div className="mx-auto w-full max-w-4xl">
-            <div className="w-full rounded-3xl bg-white p-7 sm:p-12">
-              <div className="mx-auto text-center">
-                <p className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-teal-600">
-                  Acceso 100% gratuito
-                </p>
-                <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-tight text-zinc-900">
-                  Reserva tu cupo <span className="text-teal-600">gratis</span>
-                </h2>
-                <p className="text-sm text-zinc-600 mt-2">
-                  Cupos limitados · {dateText}, {timeText} (Hora Perú)
-                </p>
-              </div>
-
-              {done ? (
-                <div className="mt-8 rounded-2xl border border-teal-200 bg-teal-50/60 p-8 text-center">
-                  <CheckCircle2 className="size-12 text-teal-600 mx-auto" />
-                  <h3 className="text-lg font-bold text-zinc-900 mt-3">
-                    ¡Registro confirmado!
-                  </h3>
-                  <p className="text-sm text-zinc-600 mt-1 max-w-md mx-auto">
-                    {thankYouMessage}
+              <div className="w-full rounded-3xl bg-white p-7 sm:p-12">
+                <div className="mx-auto text-center">
+                  <p className="mb-3 text-sm font-bold uppercase tracking-[0.18em] text-teal-600">
+                    Acceso 100% gratuito
                   </p>
-                  <div className="mt-6">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDone(false)}
-                    >
-                      Registrar a otra persona
-                    </Button>
-                  </div>
+                  <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] tracking-tight text-zinc-900">
+                    Reserva tu cupo <span className="text-teal-600">gratis</span>
+                  </h2>
+                  <p className="text-sm text-zinc-600 mt-2">
+                    Cupos limitados · {dateText}, {timeText} (Hora Perú)
+                  </p>
                 </div>
-              ) : (
-                <form
-                  onSubmit={submit}
-                  className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4"
-                >
-                  {fields.map((field: any) => (
-                    <Field key={field.key} field={field} />
-                  ))}
 
-                  <div className="col-span-full pt-3">
-                    <Button
-                      type="submit"
-                      size="lg"
-                      disabled={isLoading}
-                      className="w-full text-base font-semibold h-12"
-                    >
-                      {isLoading ? 'Enviando registro...' : 'Quiero mi cupo gratis'}
-                      {!isLoading && <ArrowRight className="size-4" />}
-                    </Button>
-
-                    {status && (
-                      <p className="text-center text-sm font-medium text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3 mt-3">
-                        {status}
-                      </p>
-                    )}
-
-                    <p className="text-center text-xs text-zinc-500 mt-3.5">
-                      Al registrarte aceptas recibir comunicaciones de MedMind
-                      sobre este webinar.
+                {done ? (
+                  <div className="mt-8 rounded-2xl border border-teal-200 bg-teal-50/60 p-8 text-center">
+                    <CheckCircle2 className="size-12 text-teal-600 mx-auto" />
+                    <h3 className="text-lg font-bold text-zinc-900 mt-3">
+                      ¡Registro confirmado!
+                    </h3>
+                    <p className="text-sm text-zinc-600 mt-1 max-w-md mx-auto">
+                      {thankYouMessage}
                     </p>
+                    <div className="mt-6">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setDone(false)}
+                      >
+                        Registrar a otra persona
+                      </Button>
+                    </div>
                   </div>
-                </form>
-              )}
-            </div>
+                ) : (
+                  <form
+                    onSubmit={submit}
+                    className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4"
+                  >
+                    {fields.map((field: any) => (
+                      <Field key={field.key} field={field} />
+                    ))}
+
+                    <div className="col-span-full pt-3">
+                      <Button
+                        type="submit"
+                        size="lg"
+                        disabled={isLoading}
+                        className="w-full text-base font-semibold h-12"
+                      >
+                        {isLoading ? 'Enviando registro...' : 'Quiero mi cupo gratis'}
+                        {!isLoading && <ArrowRight className="size-4" />}
+                      </Button>
+
+                      {status && (
+                        <p className="text-center text-sm font-medium text-rose-600 bg-rose-50 border border-rose-200 rounded-lg p-3 mt-3">
+                          {status}
+                        </p>
+                      )}
+
+                      <p className="text-center text-xs text-zinc-500 mt-3.5">
+                        Al registrarte aceptas recibir comunicaciones de MedMind
+                        sobre este webinar.
+                      </p>
+                    </div>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
         </section>

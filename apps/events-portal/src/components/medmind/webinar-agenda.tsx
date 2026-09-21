@@ -1,7 +1,18 @@
 'use client'
 
-export function WebinarAgenda() {
-    const modules = [
+export interface ActivityItem {
+    id?: string;
+    title: string;
+    description?: string;
+    startsAt?: string;
+}
+
+export interface WebinarAgendaProps {
+    activities?: ActivityItem[];
+}
+
+export function WebinarAgenda({ activities }: WebinarAgendaProps) {
+    const defaultModules = [
         {
             num: '1',
             title: 'El punto de partida real',
@@ -22,7 +33,15 @@ export function WebinarAgenda() {
             title: 'Tu plan de acción',
             desc: 'Los siguientes pasos concretos para ordenar tu preparación desde esta semana.'
         }
-    ]
+    ];
+
+    const modules = activities && activities.length > 0
+        ? activities.map((act, index) => ({
+            num: String(index + 1),
+            title: act.title,
+            desc: act.description || 'Sesión temática enfocada en estrategias prácticas y resolución de casos.',
+        }))
+        : defaultModules;
 
     return (
         <section id="temario" className="w-full py-16 md:py-24 bg-muted/20 border-b border-border/60">

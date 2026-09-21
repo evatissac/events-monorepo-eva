@@ -10,6 +10,7 @@ export class EventsController {
   @Get() list(@Query('organizationId') organizationId?: string) { return this.events.list(organizationId); }
   @Get(':id/contacts') contacts(@Param('id') id: string) { return this.events.contacts(id); }
   @Get(':id/attendees/export') attendeeExport(@Param('id') id: string) { return this.events.attendeeExport(id); }
+  @Get(':id/attendees') attendees(@Param('id') id: string, @Query('page') page?: string, @Query('limit') limit?: string, @Query('search') search?: string) { return this.events.attendees(id, Number(page) || 1, Number(limit) || 20, search); }
   @Post(':id/contacts') addContact(@Param('id') id: string, @Body() body: { name: string; email?: string; phone?: string; role?: string }) { return this.events.addContact(id, body); }
   @Patch('contacts/:contactId') updateContact(@Param('contactId') id: string, @Body() body: { name?: string; email?: string; phone?: string; role?: string }) { return this.events.updateContact(id, body); }
   @Delete('contacts/:contactId') removeContact(@Param('contactId') id: string) { return this.events.removeContact(id); }

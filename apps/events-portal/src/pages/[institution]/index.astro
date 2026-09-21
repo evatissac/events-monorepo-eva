@@ -145,10 +145,6 @@ const featuredEvent = (portal?.featuredEventId
                 class="workshop-card-img"
                 style={evt.coverUrl ? `background-image: url(${evt.coverUrl})` : undefined}
               >
-                <span class="workshop-hover-badge">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="6 4 18 12 6 20 6 4"/></svg>
-                  <span>{evt.eventMode || 'Ver evento'}</span>
-                </span>
               </div>
 
               <div class="workshop-card-content">
@@ -600,10 +596,6 @@ const featuredEvent = (portal?.featuredEventId
     color: inherit;
     display: flex;
     flex-direction: column;
-    transition: transform 0.25s ease;
-  }
-  .tdc-workshop-card:hover {
-    transform: translateY(-3px);
   }
   .workshop-card-img {
     height: 250px;
@@ -617,11 +609,6 @@ const featuredEvent = (portal?.featuredEventId
     justify-content: center;
     align-items: flex-end;
     overflow: hidden;
-    transition: transform 0.35s ease, box-shadow 0.35s ease;
-  }
-  .tdc-workshop-card:hover .workshop-card-img {
-    transform: scale(1.02);
-    box-shadow: 0 16px 32px rgba(0, 0, 0, 0.3);
   }
   .workshop-hover-badge {
     display: inline-flex;
@@ -670,19 +657,22 @@ const featuredEvent = (portal?.featuredEventId
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background: #0f172a;
+    background: transparent;
     border: 1px solid rgba(255, 255, 255, 0.18);
-    color: #ffffff;
+    color: #0f172a;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.25s ease;
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
   }
   .tdc-workshop-card:hover .action-circle-btn {
-    background: #ffffff;
-    color: #0f172a;
-    border-color: #ffffff;
-    transform: translateX(4px);
+    background: #0f172a;
+    color: #ffffff;
+    border-color: #0f172a;
+    font-weight: 700;
+  }
+  .tdc-workshop-card:hover .action-circle-btn svg {
+    stroke-width: 3.2;
   }
   .action-text {
     font-family: 'Inter', sans-serif;
@@ -690,6 +680,9 @@ const featuredEvent = (portal?.featuredEventId
     font-weight: 600;
     color: #ffffff;
     transition: color 0.2s ease;
+  }
+  .tdc-workshop-card:hover .action-text {
+    font-weight: 700;
   }
   :global(html:not(.dark)) .action-text {
     color: #0f172a;

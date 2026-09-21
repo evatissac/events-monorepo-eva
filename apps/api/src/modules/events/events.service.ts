@@ -47,14 +47,22 @@ export class EventsService {
         const emails = Array.isArray(participant.profile.additionalEmails) ? participant.profile.additionalEmails : [];
         const email = participant.profile.authUser?.email || emails.find((value: unknown) => typeof value === 'string' && value.trim()) || '';
         const submission = submissionsByParticipant.get(participant.id);
-        return exportRow(submission, { name: [participant.profile.firstName, participant.profile.lastName].filter(Boolean).join(' ') || 'Participante', email, edition: participant.edition.name, source: submission?.form.title || 'Participante', type: participant.role?.name || 'Participante', registeredAt: participant.registeredAt });
+        return exportRow(submission, { id: participant.id, participantId: participant.id, roleId: participant.roleId, submissionId: submission?.id, name: [participant.profile.firstName, participant.profile.lastName].filter(Boolean).join(' ') || 'Participante', email, edition: participant.edition.name, editionId: participant.editionId, source: submission?.form.title || 'Participante', sourceFormTitle: submission?.form.title, sourceFormId: submission?.formId, sourceFormPurpose: submission?.form.purpose, type: participant.role?.name || 'Participante', registeredAt: participant.registeredAt });
       }),
       ...submissions.filter((submission) => !submission.participantId).map((submission) => {
         const answers = submission.answers && typeof submission.answers === 'object' ? submission.answers as Record<string, unknown> : {};
         const name = String(answers.full_name || answers.name || answers.nombres_completos || [answers.first_name || answers.nombres, answers.last_name || answers.apellidos || answers.surname].filter(Boolean).join(' ') || submission.email || 'Participante');
-        return exportRow(submission, { name, email: submission.email || String(answers.email || ''), edition: submission.editionId ? editionNames.get(submission.editionId) || 'Global' : 'Global', source: submission.form.title, type: 'Inscripción', registeredAt: submission.submittedAt });
+        return exportRow(submission, { id: `form:${submission.id}`, submissionId: submission.id, name, email: submission.email || String(answers.email || ''), edition: submission.editionId ? editionNames.get(submission.editionId) || 'Global' : 'Global', editionId: submission.editionId || submission.form.editionId, source: submission.form.title, sourceFormTitle: submission.form.title, sourceFormId: submission.formId, sourceFormPurpose: submission.form.purpose, type: 'Inscripción', registeredAt: submission.submittedAt });
       }),
     ];
+  }
+  async attendees(eventId: string, page = 1, limit = 20, search?: string) {
+    const all = await this.attendeeExport(eventId);
+    const term = String(search || '').trim().toLowerCase();
+    const filtered = term ? all.filter((item: any) => [item.name, item.email, item.edition, item.source, item.type].some((value) => String(value || '').toLowerCase().includes(term))) : all;
+    const requestedPage = Math.max(1, page); const safeLimit = Math.min(100, Math.max(1, limit));
+    const safePage = Math.min(requestedPage, Math.max(1, Math.ceil(filtered.length / safeLimit)));
+    return { items: filtered.slice((safePage - 1) * safeLimit, safePage * safeLimit), total: filtered.length, page: safePage, limit: safeLimit };
   }
   async getSetup(eventId: string) {
     const event = await this.prisma.mainEvent.findUnique({ where: { id: eventId }, select: { id: true, eventName: true, description: true, startDate: true, eventMode: true, contactEmail: true } });
