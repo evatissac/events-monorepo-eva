@@ -44,6 +44,10 @@ function getButtonClass(
       'bg-zinc-100 text-zinc-900 hover:bg-zinc-200 border border-transparent',
     ghost:
       'text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900 border border-transparent',
+  };
+
+  const sizes: Record<ButtonSize, string> = {
+    default: 'h-10 px-5 text-sm',
     sm: 'h-9 px-4 text-xs',
     lg: 'h-12 px-7 text-base font-semibold',
     icon: 'size-10',
