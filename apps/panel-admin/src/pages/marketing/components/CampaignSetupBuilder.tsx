@@ -86,7 +86,7 @@ export function CampaignSetupBuilder({
     const updated = {
       ...current,
       segmentIds,
-      recipientCount: totalCount || (segmentIds.length > 0 ? 88 : 0),
+      recipientCount: totalCount,
     }
     setCurrent(updated)
     onSaveCampaign(updated)
@@ -275,7 +275,7 @@ export function CampaignSetupBuilder({
                 <h3 className="text-base font-bold text-foreground">Destinatarios</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-medium">
                   {isRecipientsDone
-                    ? `${current.recipientCount || 88} contactos en ${current.segmentIds.length} lista(s)`
+                    ? `${current.recipientCount || 0} contactos en ${current.segmentIds.length} lista(s)`
                     : "Las personas que reciben tu campaña"}
                 </p>
               </div>
@@ -451,7 +451,7 @@ export function CampaignSetupBuilder({
       <ScheduleModal
         open={openScheduleModal}
         onOpenChange={setOpenScheduleModal}
-        recipientCount={current.recipientCount || 88}
+        recipientCount={current.recipientCount || 0}
         onSendNow={handleSendNow}
         onSchedule={handleSchedule}
       />

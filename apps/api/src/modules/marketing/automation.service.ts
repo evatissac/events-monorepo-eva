@@ -22,16 +22,18 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     if (data.eventId) await this.assertEvent(organizationId, data.eventId);
     const form = data.registrationFormId ? await this.assertForm(organizationId, data.registrationFormId) : null;
     if (form && data.eventId && form.mainEventId !== data.eventId) throw new BadRequestException('El formulario no pertenece al evento seleccionado');
+    this.assertOperationalDefinition(data);
     await this.assertTemplates(organizationId, data.steps);
     return this.prisma.marketingAutomation.create({ data: { organizationId, eventId: data.eventId || form?.mainEventId || null, registrationFormId: data.registrationFormId || null, trigger: data.trigger || 'REGISTRATION_SUBMITTED', name: data.name, status: data.status || 'DRAFT', settings: data.settings || null, steps: { create: this.steps(data.steps) } }, include: { steps: { orderBy: { position: 'asc' }, include: { template: true } }, event: true, registrationForm: true } });
   }
 
   async update(id: string, data: any) {
-    const current = await this.prisma.marketingAutomation.findUnique({ where: { id } });
+    const current = await this.prisma.marketingAutomation.findUnique({ where: { id }, include: { steps: true } });
     if (!current) throw new NotFoundException('Automatización no encontrada');
     if (data.eventId) await this.assertEvent(current.organizationId, data.eventId);
     const form = data.registrationFormId ? await this.assertForm(current.organizationId, data.registrationFormId) : null;
     if (form && data.eventId && form.mainEventId !== data.eventId) throw new BadRequestException('El formulario no pertenece al evento seleccionado');
+    this.assertOperationalDefinition({ ...current, ...data });
     if (Array.isArray(data.steps)) await this.assertTemplates(current.organizationId, data.steps);
     return this.prisma.$transaction(async (tx) => {
       if (Array.isArray(data.steps)) await tx.marketingAutomationStep.deleteMany({ where: { automationId: id } });
@@ -96,6 +98,25 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     return { queued };
   }
 
+  /** Incorpora inscripciones previas de forma explícita; conserva la regla de no enviar pasos vencidos. */
+  async enrollExisting(id: string) {
+    const automation = await this.prisma.marketingAutomation.findUnique({ where: { id }, include: { event: true } });
+    if (!automation?.eventId || !automation.event) throw new BadRequestException('La campaña requiere un evento');
+    const submissions = await this.prisma.registrationSubmission.findMany({
+      where: { form: { mainEventId: automation.eventId }, ...(automation.registrationFormId ? { formId: automation.registrationFormId } : {}), email: { not: null } },
+      orderBy: { submittedAt: 'asc' },
+    });
+    let enrolled = 0;
+    for (const submission of submissions) {
+      const answers = (submission.answers as Record<string, unknown>) || {};
+      const firstName = [answers.first_name, answers.firstName, answers.name, answers.nombres].find((value) => typeof value === 'string') as string | undefined;
+      const lastName = [answers.last_name, answers.lastName, answers.apellidos].find((value) => typeof value === 'string') as string | undefined;
+      const result = await this.enrollRegistration({ eventId: automation.eventId, registrationFormId: submission.formId, editionId: submission.editionId || undefined, submissionId: submission.id, email: submission.email, firstName, lastName, registeredAt: submission.submittedAt });
+      enrolled += result.enrolled;
+    }
+    return { enrolled, scanned: submissions.length };
+  }
+
   async dispatchDue(limit = 100) {
     const jobs = await this.prisma.emailDelivery.findMany({ where: { status: 'QUEUED', scheduledAt: { lte: new Date() } }, take: limit, orderBy: { scheduledAt: 'asc' } });
     let sent = 0; let failed = 0; let skipped = 0;
@@ -125,8 +146,8 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     for (const step of automation.steps) {
       const date = this.when(step, event.startDate, registeredAt, new Date());
       if (!date) continue;
-      await this.prisma.emailDelivery.upsert({ where: { stepId_recipientEmail: { stepId: step.id, recipientEmail: contact.emailFallback } }, update: { scheduledAt: date, status: 'QUEUED', context: context as any }, create: { organizationId: automation.organizationId, automationId: automation.id, stepId: step.id, contactId: contact.id, recipientEmail: contact.emailFallback, recipientName: firstName, scheduledAt: date, context: context as any } });
-      queued++;
+      const delivery = await this.prisma.emailDelivery.upsert({ where: { stepId_recipientEmail: { stepId: step.id, recipientEmail: contact.emailFallback } }, update: {}, create: { organizationId: automation.organizationId, automationId: automation.id, stepId: step.id, contactId: contact.id, recipientEmail: contact.emailFallback, recipientName: firstName, scheduledAt: date, context: context as any } });
+      if (delivery.status === 'QUEUED') queued++;
     }
     return queued;
   }
@@ -143,6 +164,14 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     return `<!doctype html><html><body style="margin:0;padding:0;background:#f3f5f5;font-family:Arial,Helvetica,sans-serif;color:#4b4b4b"><table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background:#f3f5f5"><tr><td align="center" style="padding:32px 12px"><table role="presentation" width="750" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:750px;background:#ffffff"><tr><td align="center" style="background:#16b8aa;padding:25px">${logo}</td></tr><tr><td style="padding:44px 50px;font-size:18px;line-height:1.7"><h1 style="margin:0 0 24px;color:#303030;font-size:26px;line-height:1.2">¡Hola, ${name} 👋!</h1><p style="margin:0 0 22px">Tu registro para nuestro <strong>${eventName}</strong> está confirmado.</p><p style="margin:0 0 22px">Si tienes <strong>menos de 13 puntos en tu CV</strong>, durante este webinar hablaremos de cómo puedes construir desde ahora una estrategia de ingreso más inteligente, cuándo podría tener sentido volver a rendir el ENAM y cómo hacerlo <strong>sin detener tu preparación para el Residentado</strong>.</p><h2 style="margin:40px 0 16px;color:#303030;font-size:21px;line-height:1.3">Ahora solo falta un paso 👇</h2><p style="margin:0 0 12px">Únete a nuestra <strong>Comunidad Exclusiva RM 2027</strong>. Por ahí compartiremos el link de acceso, recordatorios e información importante de la sesión.</p><p style="margin:28px 0 0">Nos vemos dentro 🧠.</p><p style="margin:8px 0 0"><strong>Equipo MedMind</strong></p></td></tr></table></td></tr></table></body></html>`;
   }
   private steps(steps: any[] = []) { return steps.map((step, index) => ({ position: index + 1, timing: step.timing, offsetHours: Number(step.offsetHours || 0), templateId: step.templateId || null, subject: step.subject || null, htmlContent: step.htmlContent || null, conditions: step.conditions || null })); }
+  private assertOperationalDefinition(data: any) {
+    if (!String(data.name || '').trim()) throw new BadRequestException('La campaña necesita un nombre');
+    if (data.status === 'ACTIVE') {
+      if (!data.eventId) throw new BadRequestException('Selecciona el webinar o evento para activar la campaña');
+      if (!Array.isArray(data.steps) || data.steps.length === 0) throw new BadRequestException('Agrega al menos un correo antes de activar la campaña');
+      if (data.steps.some((step: any) => !step.templateId && !String(step.htmlContent || '').trim())) throw new BadRequestException('Cada paso activo necesita una plantilla o contenido de correo');
+    }
+  }
   private async assertEvent(organizationId: string, eventId: string) { const event = await this.prisma.mainEvent.findFirst({ where: { id: eventId, organizationId } }); if (!event) throw new BadRequestException('El evento no pertenece a la institución'); }
   private async assertForm(organizationId: string, formId: string) { const form = await this.prisma.registrationForm.findFirst({ where: { id: formId, mainEvent: { organizationId } } }); if (!form) throw new BadRequestException('El formulario no pertenece a la institución'); return form; }
   private async assertTemplates(organizationId: string, steps: any[] | undefined) { const ids = [...new Set((steps || []).map((step) => step.templateId).filter(Boolean))]; if (!ids.length) return; const count = await this.prisma.emailTemplate.count({ where: { id: { in: ids }, organizationId } }); if (count !== ids.length) throw new BadRequestException('Una o más plantillas no pertenecen a la institución'); }

@@ -17,6 +17,7 @@ import { CampaignReportView } from "./components/CampaignReportView"
 import { CampaignSetupBuilder } from "./components/CampaignSetupBuilder"
 import { CreateEmailCampaignModal } from "./components/CreateEmailCampaignModal"
 import { AutomationsTab } from "./components/AutomationsTab"
+import { WebinarCampaignsTab } from "./components/WebinarCampaignsTab"
 import { ContactsTab } from "./components/ContactsTab"
 import { SegmentsTab } from "./components/SegmentsTab"
 import { PageHeader } from "@/components/page-header"
@@ -41,7 +42,7 @@ export function MarketingPage() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const routeTab = pathname.split("/").pop()
-  const activeTab: MainTab = (["campaigns", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
+  const activeTab: MainTab = (["campaigns", "automations", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
   const setActiveTab = (tab: MainTab) => navigate(`/dashboard/marketing/${tab}`)
   const [viewMode, setViewMode] = useState<"list" | "report" | "setup">("list")
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
@@ -212,29 +213,9 @@ export function MarketingPage() {
     },
   ])
 
-  const [segments, setSegments] = useState<Segment[]>([
-    {
-      id: "seg-1",
-      name: "Participantes CONIAP 2024",
-      description: "Todos los inscritos y asistentes confirmados",
-      createdAt: "2024-08-01T00:00:00.000Z",
-      _count: { members: 88 },
-    },
-    {
-      id: "seg-2",
-      name: "Ponentes y Expositores",
-      description: "Speakers con ponencias aprobadas",
-      createdAt: "2024-08-05T00:00:00.000Z",
-      _count: { members: 24 },
-    },
-    {
-      id: "seg-3",
-      name: "Estudiantes y Becarios",
-      description: "Alumnos de pregrado y posgrado",
-      createdAt: "2024-08-10T00:00:00.000Z",
-      _count: { members: 142 },
-    },
-  ])
+  const [segments, setSegments] = useState<Segment[]>([])
+  const [marketingEvents, setMarketingEvents] = useState<any[]>([])
+  const [marketingTemplates, setMarketingTemplates] = useState<any[]>([])
 
   // Load from API if available
   const loadData = async () => {
@@ -251,6 +232,12 @@ export function MarketingPage() {
         api.marketing.campaigns(organizationId),
         api.marketing.automations(organizationId),
       ])
+      const [eventsResult, templatesResult] = await Promise.allSettled([
+        api.events.list(organizationId),
+        api.emailTemplates.list(organizationId),
+      ])
+      if (eventsResult.status === "fulfilled") setMarketingEvents(eventsResult.value)
+      if (templatesResult.status === "fulfilled") setMarketingTemplates(templatesResult.value.filter((template: any) => template.channel === "EMAIL" && template.status !== "ARCHIVED"))
 
       if (cRes.status === "fulfilled" && Array.isArray(cRes.value)) {
         setContacts(cRes.value.map(normalizeContact))
@@ -285,25 +272,20 @@ export function MarketingPage() {
         })
       }
       if (aRes.status === "fulfilled" && Array.isArray(aRes.value)) {
-        setAutomations((prev) => {
-          if (aRes.value.length === 0) return []
-          const merged = [...prev]
-          aRes.value.forEach((x: any) => {
-            if (!merged.some((m) => m.id === x.id)) {
-              merged.push({
-                id: x.id,
-                name: x.name,
-                trigger: x.trigger || "REGISTRATION",
-                channel: "EMAIL",
-                active: x.active ?? true,
-                segmentIds: x.segmentIds || [],
-                createdAt: x.createdAt || new Date().toISOString(),
-                sentCount: 0,
-              })
-            }
-          })
-          return merged
-        })
+        setAutomations(aRes.value as any)
+        setCampaigns(aRes.value.map((automation: any, index: number) => ({
+          id: automation.id,
+          campaignNumber: index + 1,
+          name: automation.name,
+          subject: automation.steps?.[0]?.template?.subject || automation.steps?.[0]?.subject || "",
+          senderName: selectedOrganization?.name || "",
+          senderEmail: "",
+          status: automation.status === "ACTIVE" ? "SCHEDULED" : automation.status === "ARCHIVED" ? "ARCHIVED" : "DRAFT",
+          createdAt: automation.createdAt,
+          channel: "EMAIL",
+          segmentIds: [],
+          recipientCount: automation._count?.enrollments || 0,
+        })))
       }
     } catch {
       // Keep existing demo seed
@@ -325,9 +307,12 @@ export function MarketingPage() {
     setViewMode("setup")
   }
 
-  const handleCreateEmailCampaign = (data: { name: string; type: "regular" | "ab"; tags: string[]; folder?: string }) => {
+  const handleCreateEmailCampaign = async (data: { name: string; type: "regular" | "ab"; tags: string[]; folder?: string }) => {
+    if (!organizationId) return
+    try {
+      const created = await api.marketing.createAutomation(organizationId, { name: data.name, trigger: "REGISTRATION_SUBMITTED", status: "DRAFT", steps: [] })
     const newCamp: Campaign = {
-      id: `camp-${Date.now()}`,
+      id: created.id,
       campaignNumber: campaigns.length + 1,
       name: data.name,
       subject: "",
@@ -337,27 +322,16 @@ export function MarketingPage() {
       status: "DRAFT",
       createdAt: new Date().toISOString(),
       channel: "EMAIL",
-      segmentIds: ["seg-1"],
-      segmentNames: ["Participantes CONIAP 2024"],
-      recipientCount: 88,
+      segmentIds: [],
+      recipientCount: 0,
       tags: data.tags,
     }
 
-    setCampaigns([newCamp, ...campaigns])
+    setCampaigns((current) => [newCamp, ...current])
     setSelectedCampaign(newCamp)
     setViewMode("setup")
-    toast.success(`Campaña "${data.name}" creada. Configura los pasos a continuación.`)
-
-    // Save to API if possible
-    if (organizationId) {
-      void api.marketing
-        .createCampaign(organizationId, {
-          name: data.name,
-          subject: "",
-          segmentIds: ["seg-1"],
-        })
-        .catch(() => { })
-    }
+    toast.success(`Campaña "${data.name}" creada como borrador.`)
+    } catch (error: any) { toast.error(error?.message || "No se pudo crear la campaña."); throw error }
   }
 
   const handleSaveCampaign = (updated: Campaign) => {
@@ -439,7 +413,7 @@ export function MarketingPage() {
     }
   }
 
-  const handleCreateSegment = (data: { name: string; description?: string }) => {
+  const handleCreateSegment = async (data: { name: string; description?: string; eventId?: string; audience?: "PARTICIPANTS" | "SPEAKERS" }) => {
     const newSeg: Segment = {
       id: `seg-${Date.now()}`,
       name: data.name,
@@ -447,10 +421,12 @@ export function MarketingPage() {
       createdAt: new Date().toISOString(),
       _count: { members: 0 },
     }
-    setSegments([...segments, newSeg])
-    if (organizationId) {
-      void api.marketing.createSegment(organizationId, data).catch(() => { })
-    }
+    if (!organizationId) return
+    try {
+      const created = data.eventId ? await api.marketing.createSegmentFromEvent(organizationId, data) : await api.marketing.createSegment(organizationId, data)
+      setSegments((current) => [created, ...current])
+      toast.success(data.eventId ? "Segmento creado con los registros reales del evento." : "Segmento creado.")
+    } catch (error: any) { toast.error(error?.message || "No se pudo crear el segmento.") }
   }
 
   const handleDeleteSegment = (id: string) => {
@@ -511,9 +487,7 @@ export function MarketingPage() {
 
             <button
               onClick={() => setActiveTab("automations")}
-              disabled
-              title="Automatizaciones estarán disponibles próximamente"
-              className={`order-last pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 opacity-50 cursor-not-allowed ${activeTab === "automations"
+              className={`order-last pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "automations"
                 ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
                 : "border-transparent text-muted-foreground hover:text-foreground"
                 }`}
@@ -556,22 +530,11 @@ export function MarketingPage() {
 
           {/* Active Tab View */}
           {activeTab === "campaigns" && (
-            <CampaignsTab
-              campaigns={campaigns}
-              onOpenCreateCampaign={() => setOpenCreateEmailModal(true)}
-              onOpenReport={handleOpenReport}
-              onOpenSetupBuilder={handleOpenSetupBuilder}
-              onDuplicateCampaign={handleDuplicateCampaign}
-              onDeleteCampaign={handleDeleteCampaign}
-            />
+            <CampaignsTab campaigns={campaigns} onOpenCreateCampaign={() => setOpenCreateEmailModal(true)} onOpenReport={handleOpenReport} onOpenSetupBuilder={handleOpenSetupBuilder} onDuplicateCampaign={handleDuplicateCampaign} onDeleteCampaign={handleDeleteCampaign} />
           )}
 
           {activeTab === "automations" && (
-            <AutomationsTab
-              automations={automations}
-              segments={segments}
-              onCreateAutomation={handleCreateAutomation}
-            />
+            <WebinarCampaignsTab organizationId={organizationId!} automations={automations as any[]} events={marketingEvents} templates={marketingTemplates} onChanged={() => void loadData()} />
           )}
 
           {activeTab === "contacts" && (
@@ -585,6 +548,7 @@ export function MarketingPage() {
           {activeTab === "segments" && (
             <SegmentsTab
               segments={segments}
+              events={marketingEvents}
               onCreateSegment={handleCreateSegment}
               onDeleteSegment={handleDeleteSegment}
             />
