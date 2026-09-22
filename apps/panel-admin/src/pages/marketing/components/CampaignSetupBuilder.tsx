@@ -22,10 +22,10 @@ import { PreviewModal } from "./PreviewModal"
 interface CampaignSetupBuilderProps {
   campaign: Campaign
   segments: Segment[]
-  templates: Array<{ id: string; name: string }>
+  templates: Array<{ id: string; name: string; sourceTemplateId?: string | null }>
   onBack: () => void
-  onSelectTemplate: (templateId: string) => Promise<void>
-  onEditTemplate: (templateId: string) => void
+  onSelectTemplate: (campaign: Campaign, sourceTemplateId: string) => Promise<Campaign | null>
+  onEditTemplate: (campaign: Campaign, templateId: string, eventContext?: Campaign["eventContext"]) => Promise<void>
   onSaveCampaign: (updatedCampaign: Campaign) => void
   onLaunchCampaign: (campaign: Campaign, scheduledAt?: string) => void
 }
@@ -86,14 +86,20 @@ export function CampaignSetupBuilder({
   }
 
   const handleSaveRecipients = (segmentIds: string[]) => {
-    const totalCount = segments
-      .filter((s) => segmentIds.includes(s.id))
+    const selectedSegments = segments.filter((segment) => segmentIds.includes(segment.id))
+    const totalCount = selectedSegments
       .reduce((acc, curr) => acc + (curr._count?.members || 1), 0)
+    const eventIds = [...new Set(selectedSegments.map((segment) => segment.rules?.eventId).filter(Boolean))] as string[]
+    const editionIds = [...new Set(selectedSegments.map((segment) => segment.rules?.editionId).filter(Boolean))] as string[]
+    const eventContext = eventIds.length === 1
+      ? { eventId: eventIds[0], editionId: editionIds.length === 1 ? editionIds[0] : undefined, label: selectedSegments.filter((segment) => segment.rules?.eventId === eventIds[0]).map((segment) => segment.name.replace(/^Inscritos\s*·\s*/, "")).join(" · ") }
+      : undefined
 
     const updated = {
       ...current,
       segmentIds,
       recipientCount: totalCount,
+      eventContext,
     }
     setCurrent(updated)
     onSaveCampaign(updated)
@@ -109,6 +115,11 @@ export function CampaignSetupBuilder({
     setCurrent(updated)
     onSaveCampaign(updated)
     toast.success("Asunto guardado")
+  }
+
+  const handleSelectTemplate = async (sourceTemplateId: string) => {
+    const updated = await onSelectTemplate(current, sourceTemplateId)
+    if (updated) setCurrent(updated)
   }
 
   const handleSendNow = () => {
@@ -358,19 +369,24 @@ export function CampaignSetupBuilder({
 
             <div className="flex items-center gap-2 shrink-0">
               <select
-                value={current.templateId || ""}
-                onChange={(event) => { if (event.target.value) void onSelectTemplate(event.target.value) }}
+                value={current.sourceTemplateId || ""}
+                onChange={(event) => { if (event.target.value) void handleSelectTemplate(event.target.value) }}
                 className="h-9 max-w-52 rounded-xl border border-border bg-background px-3 text-xs"
               >
                 <option value="">Selecciona una plantilla</option>
                 {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
               </select>
               {current.templateId ? (
-                <Button variant="outline" onClick={() => onEditTemplate(current.templateId!)} className="rounded-xl h-9 px-4 font-semibold text-xs border-border hover:bg-muted">Editar plantilla</Button>
+                <Button variant="outline" onClick={() => void onEditTemplate(current, current.templateId!, current.eventContext)} className="rounded-xl h-9 px-4 font-semibold text-xs border-border hover:bg-muted">Editar plantilla</Button>
               ) : (
                 <Button variant="outline" onClick={() => toast.info("Crea una plantilla en la biblioteca y selecciónala aquí.")} className="rounded-xl h-9 px-4 font-semibold text-xs border-border hover:bg-muted">Seleccionar diseño</Button>
               )}
             </div>
+            {current.templateId && (
+              <p className="w-full pl-11 text-[11px] text-muted-foreground sm:pl-11">
+                Editarás una copia privada de esta campaña; la plantilla original no se modifica.
+              </p>
+            )}
           </div>
 
           {/* STEP 5: CONFIGURACIÓN ADICIONAL */}
