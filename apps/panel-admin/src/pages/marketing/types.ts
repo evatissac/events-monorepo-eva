@@ -34,6 +34,7 @@ export interface Campaign {
   content?: string
   templateId?: string
   sourceTemplateId?: string
+  eventContext?: { eventId: string; editionId?: string; label: string }
   tags?: string[]
 }
 
@@ -67,5 +68,9 @@ export interface Segment {
   createdAt: string
   _count?: {
     members: number
+  }
+  rules?: {
+    eventId?: string
+    editionId?: string | null
   }
 }

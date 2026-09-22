@@ -71,7 +71,7 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     const event = await this.prisma.mainEvent.findUnique({ where: { id: input.eventId }, select: { id: true, organizationId: true, eventName: true, startDate: true, venueAddress: true } });
     if (!event?.organizationId) return { enrolled: 0, reason: 'El evento no tiene institución' };
     const edition = input.editionId
-      ? await this.prisma.edition.findFirst({ where: { id: input.editionId, mainEventId: event.id }, select: { startDate: true } })
+      ? await this.prisma.edition.findFirst({ where: { id: input.editionId, mainEventId: event.id }, select: { name: true, startDate: true } })
       : null;
     const scheduledAt = edition?.startDate || event.startDate;
     const contact = await this.prisma.marketingContact.upsert({ where: { organizationId_emailFallback: { organizationId: event.organizationId, emailFallback: email } }, update: { source: 'EVENT_REGISTRATION' }, create: { organizationId: event.organizationId, emailFallback: email, consentStatus: 'SUBSCRIBED', consentedAt: new Date(), source: 'EVENT_REGISTRATION' } });
@@ -79,7 +79,7 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     let enrolled = 0;
     for (const automation of automations) {
       await this.prisma.marketingEventEnrollment.upsert({ where: { automationId_contactId: { automationId: automation.id, contactId: contact.id } }, update: { submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date(), attendanceStatus: 'REGISTERED' }, create: { organizationId: event.organizationId, eventId: event.id, automationId: automation.id, contactId: contact.id, submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date() } });
-      await this.queueContact(automation, contact, event, input.firstName || null, input.registeredAt || new Date(), { last_name: input.lastName || '', registration_code: input.submissionId, event_start_date: scheduledAt.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Lima' }) });
+      await this.queueContact(automation, contact, event, input.firstName || null, input.registeredAt || new Date(), { last_name: input.lastName || '', registration_code: input.submissionId, event_start_date: scheduledAt.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Lima' }), edition_name: edition?.name || '', edition_start_date: edition?.startDate ? edition.startDate.toLocaleString('es-PE', { dateStyle: 'long', timeStyle: 'short', timeZone: 'America/Lima' }) : '' });
       enrolled++;
     }
     return { enrolled };
@@ -141,7 +141,15 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
   private async queueContact(automation: any, contact: any, event: any, firstName: string | null, registeredAt: Date, extraContext: Record<string, unknown> = {}) {
     if (contact.consentStatus !== 'SUBSCRIBED' || !contact.emailFallback) return 0;
     const settings = (automation.settings as Record<string, unknown> | null) || {};
-    const context = { first_name: firstName || 'amigo', email: contact.emailFallback, event_name: event.eventName, event_start_date: event.startDate.toISOString(), event_location: event.venueAddress || '', unsubscribe_url: '', ...settings, ...extraContext };
+    const values = { first_name: firstName || 'amigo', last_name: '', email: contact.emailFallback, event_name: event.eventName, event_start_date: event.startDate.toISOString(), event_location: event.venueAddress || '', edition_name: '', edition_start_date: '', registration_code: '', whatsapp_community_url: '', offer_url: '', discount_code: '', unsubscribe_url: '', ...settings, ...extraContext };
+    const context = {
+      ...values,
+      contact: { first_name: values.first_name, last_name: values.last_name, email: values.email },
+      event: { name: values.event_name, start_date: values.event_start_date, location: values.event_location },
+      edition: { name: values.edition_name, start_date: values.edition_start_date },
+      registration: { code: values.registration_code },
+      automation: { whatsapp_community_url: values.whatsapp_community_url, offer_url: values.offer_url, discount_code: values.discount_code, unsubscribe_url: values.unsubscribe_url },
+    };
     let queued = 0;
     for (const step of automation.steps) {
       const date = this.when(step, event.startDate, registeredAt, new Date());
