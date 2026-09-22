@@ -156,6 +156,9 @@ export function ContactsTab({
         </div>
 
         <div className="flex items-center gap-2">
+          <span className="whitespace-nowrap rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+            <span className="text-foreground">{totalItems}</span> contactos
+          </span>
           <Button
             variant="outline"
             size="sm"

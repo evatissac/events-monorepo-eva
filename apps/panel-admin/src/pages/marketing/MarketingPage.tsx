@@ -42,7 +42,7 @@ const normalizeCampaign = (campaign: any, organizationName?: string, index = 0):
     senderEmail: settings.senderEmail || "", replyTo: settings.replyTo, status: campaign.status || "DRAFT",
     createdAt: campaign.createdAt || new Date().toISOString(), scheduledAt: campaign.scheduledAt || undefined,
     channel: "EMAIL", segmentIds: Array.isArray(campaign.segmentIds) ? campaign.segmentIds : [],
-    recipientCount: Number(settings.recipientCount || 0), templateId: settings.templateId, sourceTemplateId: settings.sourceTemplateId, content: settings.content,
+    recipientCount: Number(settings.recipientCount || 0), templateId: settings.templateId, sourceTemplateId: settings.sourceTemplateId, eventContext: settings.eventContext, content: settings.content,
     tags: settings.tags || [],
   }
 }
@@ -139,7 +139,7 @@ export function MarketingPage() {
       recipientCount: 88,
     },
   ])
-  const [templates, setTemplates] = useState<Array<{ id: string; name: string }>>([])
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; sourceTemplateId?: string | null; tags?: string[] }>>([])
   const [totalContacts, setTotalContacts] = useState(0)
 
   const [automations, setAutomations] = useState<Automation[]>([
@@ -314,7 +314,12 @@ export function MarketingPage() {
 
   useEffect(() => {
     if (!organizationId) return
-    api.emailTemplates.list(organizationId).then((items) => setTemplates(items.map((item) => ({ id: item.id, name: item.name })))).catch(() => setTemplates([]))
+    api.emailTemplates.list(organizationId).then((items) => setTemplates(items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      sourceTemplateId: item.sourceTemplateId,
+      tags: item.tags || [],
+    })))).catch(() => setTemplates([]))
   }, [organizationId])
 
   useEffect(() => {
@@ -349,27 +354,30 @@ export function MarketingPage() {
   }
 
   const handleSaveCampaign = (updated: Campaign) => {
-    setCampaigns(campaigns.map((c) => (c.id === updated.id ? updated : c)))
+    setCampaigns((current) => current.map((campaign) => (campaign.id === updated.id ? updated : campaign)))
+    setSelectedCampaign((current) => current?.id === updated.id ? updated : current)
     if (organizationId) {
       void api.marketing.updateCampaign(organizationId, updated.id, {
         name: updated.name, subject: updated.subject, segmentIds: updated.segmentIds,
         status: updated.status, scheduledAt: updated.scheduledAt,
-        settings: { senderName: updated.senderName, senderEmail: updated.senderEmail, replyTo: updated.replyTo, previewText: updated.previewText, templateId: updated.templateId, sourceTemplateId: updated.sourceTemplateId, content: updated.content, recipientCount: updated.recipientCount, tags: updated.tags },
+        settings: { senderName: updated.senderName, senderEmail: updated.senderEmail, replyTo: updated.replyTo, previewText: updated.previewText, templateId: updated.templateId, sourceTemplateId: updated.sourceTemplateId, eventContext: updated.eventContext, content: updated.content, recipientCount: updated.recipientCount, tags: updated.tags },
       }).catch((error: any) => toast.error(error?.message || "No se pudo guardar la campaña."))
     }
   }
 
-  const handleSelectCampaignTemplate = async (sourceTemplateId: string) => {
-    if (!organizationId || !selectedCampaign) return
+  const handleSelectCampaignTemplate = async (campaign: Campaign, sourceTemplateId: string): Promise<Campaign | null> => {
+    if (!organizationId) return null
     try {
-      const copy = await api.emailTemplates.duplicate(sourceTemplateId, { campaignId: selectedCampaign.id, name: `${selectedCampaign.name} · Plantilla de campaña` })
-      const updated = { ...selectedCampaign, templateId: copy.id, sourceTemplateId }
-      setTemplates((current) => current.some((item) => item.id === copy.id) ? current : [...current, { id: copy.id, name: copy.name }])
+      // El endpoint devuelve siempre la misma copia privada para esta campaña y plantilla base.
+      const copy = await api.emailTemplates.duplicate(sourceTemplateId, { campaignId: campaign.id, name: `${campaign.name} · Plantilla de campaña` })
+      const updated = { ...campaign, templateId: copy.id, sourceTemplateId: copy.sourceTemplateId || sourceTemplateId }
+      setTemplates((current) => current.some((item) => item.id === copy.id) ? current : [...current, { id: copy.id, name: copy.name, sourceTemplateId: copy.sourceTemplateId, tags: copy.tags || [] }])
       handleSaveCampaign(updated)
-      setSelectedCampaign(updated)
       toast.success("Se creó una copia privada de la plantilla para esta campaña.")
+      return updated
     } catch (error: any) {
       toast.error(error?.message || "No se pudo preparar la plantilla de la campaña.")
+      return null
     }
   }
 
@@ -392,9 +400,16 @@ export function MarketingPage() {
     toast.success(`Campaña duplicada como "${dup.name}"`)
   }
 
-  const handleDeleteCampaign = (id: string) => {
-    setCampaigns(campaigns.filter((c) => c.id !== id))
-    toast.success("Campaña eliminada")
+  const handleDeleteCampaign = async (id: string) => {
+    if (!organizationId) return
+    try {
+      await api.marketing.removeCampaign(organizationId, id)
+      setCampaigns((current) => current.filter((campaign) => campaign.id !== id))
+      setSelectedCampaign((current) => current?.id === id ? null : current)
+      toast.success("Campaña y su copia privada de plantilla eliminadas.")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo eliminar la campaña.")
+    }
   }
 
   const handleCreateAutomation = (data: any) => {
@@ -488,7 +503,7 @@ export function MarketingPage() {
         <CampaignSetupBuilder
           campaign={selectedCampaign}
           segments={segments}
-          templates={templates}
+          templates={templates.filter((template) => !template.sourceTemplateId && !template.tags?.includes("campaign-copy"))}
           onBack={() => {
             setSelectedCampaign(null)
             setViewMode("list")
@@ -496,7 +511,35 @@ export function MarketingPage() {
           onSaveCampaign={handleSaveCampaign}
           onLaunchCampaign={handleLaunchCampaign}
           onSelectTemplate={handleSelectCampaignTemplate}
-          onEditTemplate={(templateId) => navigate(`/dashboard/templates/${templateId}/builder`)}
+          onEditTemplate={async (campaign, templateId, eventContext) => {
+            let privateTemplateId = templateId
+            const selectedTemplate = templates.find((template) => template.id === templateId)
+            const isPrivateCopy = selectedTemplate?.tags?.includes(`campaign:${campaign.id}`)
+
+            // Compatibilidad con campañas creadas antes de que las copias llevaran
+            // etiqueta: se corrigen antes de abrir el editor, sin tocar la base.
+            if (!isPrivateCopy) {
+              try {
+                const copy = await api.emailTemplates.duplicate(campaign.sourceTemplateId || templateId, {
+                  campaignId: campaign.id,
+                  name: `${campaign.name} · Plantilla de campaña`,
+                })
+                privateTemplateId = copy.id
+                const updated = { ...campaign, templateId: copy.id, sourceTemplateId: copy.sourceTemplateId || campaign.sourceTemplateId || templateId }
+                setTemplates((current) => current.some((template) => template.id === copy.id) ? current : [...current, { id: copy.id, name: copy.name, sourceTemplateId: copy.sourceTemplateId, tags: copy.tags || [] }])
+                handleSaveCampaign(updated)
+              } catch (error: any) {
+                toast.error(error?.message || "No se pudo preparar la copia privada de la campaña.")
+                return
+              }
+            }
+            const query = new URLSearchParams()
+            query.set("campaignId", campaign.id)
+            if (eventContext?.eventId) query.set("eventId", eventContext.eventId)
+            if (eventContext?.editionId) query.set("editionId", eventContext.editionId)
+            if (eventContext?.label) query.set("eventLabel", eventContext.label)
+            navigate(`/dashboard/templates/${privateTemplateId}/builder${query.size ? `?${query}` : ""}`)
+          }}
         />
       )}
 
