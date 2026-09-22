@@ -39,6 +39,10 @@ export async function apiFetch<T>(path: string, init: RequestInit = {}): Promise
 }
 
 export const api = {
+  publicEvents: {
+    list: (organizationSlug: string) => apiFetch<any>(`/public/organizations/${encodeURIComponent(organizationSlug)}/events`),
+    get: (organizationSlug: string, eventId: string) => apiFetch<any>(`/public/organizations/${encodeURIComponent(organizationSlug)}/events/${encodeURIComponent(eventId)}`),
+  },
   auth: {
     login: (email: string, password: string) => apiFetch<{ accessToken: string; refreshToken: string; user: any }>("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) }),
     refresh: (refreshToken: string) => apiFetch<{ accessToken: string; refreshToken: string }>("/auth/refresh", { method: "POST", body: JSON.stringify({ refreshToken }) }),
@@ -94,6 +98,7 @@ export const api = {
     update: (id: string, data: any) => apiFetch<any>(`/events/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: string) => apiFetch<any>(`/events/${id}`, { method: "DELETE" }),
     attendeeExport: (id: string) => apiFetch<any[]>(`/events/${id}/attendees/export`),
+    attendees: (id: string, search = "", page = 1, limit = 20) => apiFetch<{ items: any[]; total: number; page: number; limit: number }>(`/events/${id}/attendees?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ""}`),
     setup: (id: string) => apiFetch<any>(`/events/${id}/setup`),
     updateSetup: (id: string, data: any) => apiFetch<any>(`/events/${id}/setup`, { method: "PATCH", body: JSON.stringify(data) }),
     completeSetup: (id: string) => apiFetch<any>(`/events/${id}/setup/complete`, { method: "POST" }),
@@ -210,8 +215,8 @@ export const api = {
       apiFetch<any>(`/email-templates/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     remove: (id: string) =>
       apiFetch<any>(`/email-templates/${id}`, { method: "DELETE" }),
-    duplicate: (id: string) =>
-      apiFetch<any>(`/email-templates/${id}/duplicate`, { method: "POST" }),
+    duplicate: (id: string, data?: { campaignId?: string; name?: string }) =>
+      apiFetch<any>(`/email-templates/${id}/duplicate`, { method: "POST", body: JSON.stringify(data || {}) }),
     sendTest: (id: string, email: string) =>
       apiFetch<any>(`/email-templates/${id}/test`, { method: "POST", body: JSON.stringify({ email }) }),
   },
@@ -225,7 +230,7 @@ export const api = {
   },
   marketing: {
     variables: () => apiFetch<Array<{ key: string; label: string; category: string; description: string }>>("/marketing/variables"),
-    contacts: (organizationId: string, search?: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/contacts${search ? `?search=${encodeURIComponent(search)}` : ""}`),
+    contacts: (organizationId: string, search = "", page = 1, limit = 20) => apiFetch<any>(`/organizations/${organizationId}/marketing/contacts?page=${page}&limit=${limit}${search ? `&search=${encodeURIComponent(search)}` : ""}`),
     createContact: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/contacts`, { method: "POST", body: JSON.stringify(data) }),
     removeContact: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/contacts/${id}`, { method: "DELETE" }),
     segments: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/segments`),
@@ -234,6 +239,8 @@ export const api = {
     removeSegment: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/segments/${id}`, { method: "DELETE" }),
     campaigns: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/campaigns`),
     createCampaign: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns`, { method: "POST", body: JSON.stringify(data) }),
+    getCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}`),
+    updateCampaign: (organizationId: string, id: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     sendCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}/send`, { method: "POST" }),
     automations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),
     createAutomation: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/automations`, { method: "POST", body: JSON.stringify(data) }),

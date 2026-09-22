@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeft,
   Crown,
@@ -22,7 +22,10 @@ import { PreviewModal } from "./PreviewModal"
 interface CampaignSetupBuilderProps {
   campaign: Campaign
   segments: Segment[]
+  templates: Array<{ id: string; name: string }>
   onBack: () => void
+  onSelectTemplate: (templateId: string) => Promise<void>
+  onEditTemplate: (templateId: string) => void
   onSaveCampaign: (updatedCampaign: Campaign) => void
   onLaunchCampaign: (campaign: Campaign, scheduledAt?: string) => void
 }
@@ -30,11 +33,15 @@ interface CampaignSetupBuilderProps {
 export function CampaignSetupBuilder({
   campaign,
   segments,
+  templates,
   onBack,
+  onSelectTemplate,
+  onEditTemplate,
   onSaveCampaign,
   onLaunchCampaign,
 }: CampaignSetupBuilderProps) {
   const [current, setCurrent] = useState<Campaign>(campaign)
+  useEffect(() => setCurrent(campaign), [campaign])
   const [isEditingTitle, setIsEditingTitle] = useState(false)
   const [tempTitle, setTempTitle] = useState(campaign.name)
 
@@ -275,7 +282,7 @@ export function CampaignSetupBuilder({
                 <h3 className="text-base font-bold text-foreground">Destinatarios</h3>
                 <p className="text-xs text-muted-foreground mt-0.5 font-medium">
                   {isRecipientsDone
-                    ? `${current.recipientCount || 0} contactos en ${current.segmentIds.length} lista(s)`
+                    ? `${current.recipientCount} contactos en ${current.segmentIds.length} lista(s)`
                     : "Las personas que reciben tu campaña"}
                 </p>
               </div>
@@ -349,13 +356,21 @@ export function CampaignSetupBuilder({
               </div>
             </div>
 
-            <Button
-              variant="outline"
-              onClick={() => setOpenPreviewModal(true)}
-              className="rounded-xl h-9 px-4 font-semibold text-xs border-border shrink-0 hover:bg-muted"
-            >
-              Empezar a diseñar
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              <select
+                value={current.templateId || ""}
+                onChange={(event) => { if (event.target.value) void onSelectTemplate(event.target.value) }}
+                className="h-9 max-w-52 rounded-xl border border-border bg-background px-3 text-xs"
+              >
+                <option value="">Selecciona una plantilla</option>
+                {templates.map((template) => <option key={template.id} value={template.id}>{template.name}</option>)}
+              </select>
+              {current.templateId ? (
+                <Button variant="outline" onClick={() => onEditTemplate(current.templateId!)} className="rounded-xl h-9 px-4 font-semibold text-xs border-border hover:bg-muted">Editar plantilla</Button>
+              ) : (
+                <Button variant="outline" onClick={() => toast.info("Crea una plantilla en la biblioteca y selecciónala aquí.")} className="rounded-xl h-9 px-4 font-semibold text-xs border-border hover:bg-muted">Seleccionar diseño</Button>
+              )}
+            </div>
           </div>
 
           {/* STEP 5: CONFIGURACIÓN ADICIONAL */}

@@ -7,7 +7,7 @@ import { blocksToHtml, interpolate } from './email-renderer.js';
 export class AutomationService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AutomationService.name);
   private dispatcher?: NodeJS.Timeout;
-  constructor(private readonly prisma: PrismaService, private readonly mail: MailService) {}
+  constructor(private readonly prisma: PrismaService, private readonly mail: MailService) { }
 
   onModuleInit() {
     this.dispatcher = setInterval(() => void this.dispatchDue().catch((error) => this.logger.error('No se pudo procesar la cola de marketing', error)), 60_000);

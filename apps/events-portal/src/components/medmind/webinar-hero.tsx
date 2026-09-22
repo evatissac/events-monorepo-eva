@@ -4,7 +4,27 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import { ArrowRight, Calendar, Clock, Video } from 'lucide-react'
 
-export function WebinarHero() {
+export interface WebinarHeroProps {
+    title?: string;
+    description?: string;
+    dateLabel?: string;
+    timeLabel?: string;
+    dayLabel?: string;
+    modality?: string;
+    heroImage?: string;
+    heroVideo?: string;
+}
+
+export function WebinarHero({
+    title,
+    description,
+    dateLabel = '7 de setiembre, 2026',
+    timeLabel = '8:00 PM (Perú)',
+    dayLabel = 'Lunes',
+    modality = '100% Online',
+    heroImage,
+    heroVideo,
+}: WebinarHeroProps) {
     const scrollToRegistration = () => {
         const el = document.getElementById('registro')
         if (el) {
@@ -18,6 +38,11 @@ export function WebinarHero() {
             el.scrollIntoView({ behavior: 'smooth' })
         }
     }
+
+    const titleWords = title ? title.trim().split(/\s+/).filter(Boolean) : [];
+    const normalTitle = titleWords.length > 5 ? titleWords.slice(0, -5).join(' ') : (title ? '' : '¿CÓMO PREPARARME PARA EL ');
+    const accentTitle = titleWords.length > 5 ? titleWords.slice(-5).join(' ') : (title || 'ENAM Y EL RESIDENTADO 2027');
+    const defaultSubtitle = 'Una sesión en vivo y gratuita para que sepas exactamente en qué enfocar tu preparación desde hoy y llegues con estrategia—no con improvisación—a tu postulación al Residentado Médico 2027.';
 
     return (
         <section className="relative w-full min-h-screen lg:h-screen pt-24 pb-12 lg:py-0 overflow-hidden bg-background text-foreground flex flex-col justify-center border-b border-border/60">
@@ -51,11 +76,13 @@ export function WebinarHero() {
                             transition={{ duration: 0.6, delay: 0.1, ease: 'easeOut' }}
                             className="text-3xl sm:text-5xl md:text-6xl uppercase leading-[1.08] tracking-tight mb-5"
                         >
-                            <span className="font-extrabold text-foreground">¿CÓMO PREPARARME PARA EL </span>
-                            <span className="font-extrabold text-[#00b49d]">ENAM Y EL RESIDENTADO 2027</span>
-                            <span className="block font-normal text-foreground/85 dark:text-slate-200 tracking-wide text-xl sm:text-3xl md:text-4xl mt-2 sm:mt-3">
-                                CON UNA SOLA ESTRATEGIA?
-                            </span>
+                            {normalTitle && <span className="font-extrabold text-foreground">{normalTitle} </span>}
+                            <span className="font-extrabold text-[#00b49d]">{accentTitle}</span>
+                            {!title && (
+                                <span className="block font-normal text-foreground/85 dark:text-slate-200 tracking-wide text-xl sm:text-3xl md:text-4xl mt-2 sm:mt-3">
+                                    CON UNA SOLA ESTRATEGIA?
+                                </span>
+                            )}
                         </motion.h1>
 
                         {/* Subtitle */}
@@ -65,7 +92,7 @@ export function WebinarHero() {
                             transition={{ duration: 0.6, delay: 0.2, ease: 'easeOut' }}
                             className="text-sm sm:text-base md:text-lg text-muted-foreground font-light max-w-2xl leading-relaxed mb-6"
                         >
-                            Una sesión en vivo y gratuita para que sepas exactamente en qué enfocar tu preparación desde hoy y llegues con estrategia—no con improvisación—a tu postulación al Residentado Médico 2027.
+                            {description || defaultSubtitle}
                         </motion.p>
 
                         {/* Facts Bar */}
@@ -78,15 +105,15 @@ export function WebinarHero() {
                             <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-card border border-border text-xs sm:text-sm text-foreground">
                                 <Calendar className="w-4 h-4 text-[#00b49d]" />
                                 <div>
-                                    <span className="font-medium text-foreground block">7 de setiembre, 2026</span>
-                                    <span className="text-[10px] text-muted-foreground font-light">Lunes</span>
+                                    <span className="font-medium text-foreground block">{dateLabel}</span>
+                                    <span className="text-[10px] text-muted-foreground font-light">{dayLabel}</span>
                                 </div>
                             </div>
 
                             <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-card border border-border text-xs sm:text-sm text-foreground">
                                 <Clock className="w-4 h-4 text-[#00b49d]" />
                                 <div>
-                                    <span className="font-medium text-foreground block">8:00 PM (Perú)</span>
+                                    <span className="font-medium text-foreground block">{timeLabel}</span>
                                     <span className="text-[10px] text-muted-foreground font-light">Hora exacta de inicio</span>
                                 </div>
                             </div>
@@ -94,7 +121,7 @@ export function WebinarHero() {
                             <div className="flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-card border border-border text-xs sm:text-sm text-foreground">
                                 <Video className="w-4 h-4 text-[#00b49d]" />
                                 <div>
-                                    <span className="font-medium text-foreground block">100% Online</span>
+                                    <span className="font-medium text-foreground block">{modality}</span>
                                     <span className="text-[10px] text-muted-foreground font-light">Vía transmisión en vivo</span>
                                 </div>
                             </div>
@@ -125,25 +152,44 @@ export function WebinarHero() {
 
                     </div>
 
-                    {/* Right Column: Mascot Image */}
+                    {/* Right Column: Mascot or Hero Media */}
                     <div className="lg:col-span-5 flex items-center justify-center relative">
                         <motion.div
                             animate={{ y: [0, -10, 0] }}
                             transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-                            className="relative w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl 2xl:max-w-2xl aspect-square flex items-center justify-center"
+                            className="relative w-full max-w-sm sm:max-w-md lg:max-w-lg xl:max-w-xl aspect-square flex items-center justify-center"
                         >
                             {/* Ambient circle glow */}
                             <div className="absolute inset-4 rounded-full bg-gradient-to-tr from-[#00b49d]/20 to-transparent blur-2xl pointer-events-none" />
 
-                            <div className="relative w-full h-full flex items-center justify-center">
-                                <Image
-                                    src="/assets/images/webinar_pet_hero.webp"
-                                    alt="Mascota MedMind Webinar"
-                                    fill
-                                    className="object-contain"
-                                    sizes="(max-width: 1024px) 100vw, 45vw"
-                                    priority
-                                />
+                            <div className="relative w-full h-full flex items-center justify-center overflow-hidden rounded-3xl">
+                                {heroVideo ? (
+                                    <video
+                                        autoPlay
+                                        muted
+                                        loop
+                                        playsInline
+                                        poster={heroImage}
+                                        className="w-full h-full object-cover rounded-3xl"
+                                    >
+                                        <source src={heroVideo} />
+                                    </video>
+                                ) : heroImage ? (
+                                    <img
+                                        src={heroImage}
+                                        alt={title || 'Webinar MedMind'}
+                                        className="w-full h-full object-contain rounded-3xl"
+                                    />
+                                ) : (
+                                    <Image
+                                        src="/assets/images/webinar_pet_hero.webp"
+                                        alt="Mascota MedMind Webinar"
+                                        fill
+                                        className="object-contain"
+                                        sizes="(max-width: 1024px) 100vw, 45vw"
+                                        priority
+                                    />
+                                )}
                             </div>
                         </motion.div>
                     </div>

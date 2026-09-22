@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom"
 import { useAuthStore } from "@/store/auth.store"
 import { api } from "@/api/client"
 import { toast } from "sonner"
@@ -35,9 +35,26 @@ const normalizeContact = (contact: any): Contact => ({
   createdAt: contact.createdAt || new Date().toISOString(),
 })
 
+const normalizeCampaign = (campaign: any, organizationName?: string, index = 0): Campaign => {
+  const settings = campaign.settings || {}
+  return {
+    id: campaign.id, campaignNumber: index + 1, name: campaign.name, subject: campaign.subject || "",
+    previewText: settings.previewText, senderName: settings.senderName || organizationName || "Institución",
+    senderEmail: settings.senderEmail || "", replyTo: settings.replyTo, status: campaign.status || "DRAFT",
+    createdAt: campaign.createdAt || new Date().toISOString(), scheduledAt: campaign.scheduledAt || undefined,
+    channel: "EMAIL", segmentIds: Array.isArray(campaign.segmentIds) ? campaign.segmentIds : [],
+    recipientCount: Number(settings.recipientCount || 0), templateId: settings.templateId, sourceTemplateId: settings.sourceTemplateId, content: settings.content,
+    tags: settings.tags || [],
+  }
+}
+
 export function MarketingPage() {
   const { selectedOrganization } = useAuthStore()
   const organizationId = selectedOrganization?.id
+  const { campaignId } = useParams()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const contactsSearch = searchParams.get("q") || ""
+  const contactsPage = Math.max(Number(searchParams.get("page")) || 1, 1)
 
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -123,6 +140,8 @@ export function MarketingPage() {
       recipientCount: 88,
     },
   ])
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string }>>([])
+  const [totalContacts, setTotalContacts] = useState(0)
 
   const [automations, setAutomations] = useState<Automation[]>([
     {
@@ -227,7 +246,7 @@ export function MarketingPage() {
     setSegments([])
     try {
       const [cRes, sRes, caRes, aRes] = await Promise.allSettled([
-        api.marketing.contacts(organizationId),
+        api.marketing.contacts(organizationId, contactsSearch, contactsPage),
         api.marketing.segments(organizationId),
         api.marketing.campaigns(organizationId),
         api.marketing.automations(organizationId),
@@ -239,37 +258,16 @@ export function MarketingPage() {
       if (eventsResult.status === "fulfilled") setMarketingEvents(eventsResult.value)
       if (templatesResult.status === "fulfilled") setMarketingTemplates(templatesResult.value.filter((template: any) => template.channel === "EMAIL" && template.status !== "ARCHIVED"))
 
-      if (cRes.status === "fulfilled" && Array.isArray(cRes.value)) {
-        setContacts(cRes.value.map(normalizeContact))
+      if (cRes.status === "fulfilled") {
+        const contactItems = Array.isArray(cRes.value) ? cRes.value : cRes.value.items || []
+        setContacts(contactItems.map(normalizeContact))
+        setTotalContacts(Array.isArray(cRes.value) ? contactItems.length : Number(cRes.value.total || 0))
       }
       if (sRes.status === "fulfilled" && Array.isArray(sRes.value)) {
         setSegments(sRes.value)
       }
       if (caRes.status === "fulfilled" && Array.isArray(caRes.value)) {
-        // Merge API campaigns with rich stats
-        setCampaigns((prev) => {
-          if (caRes.value.length === 0) return []
-          const apiMap = new Map(caRes.value.map((x: any) => [x.id, x]))
-          const merged = prev.map((p) => (apiMap.has(p.id) ? { ...p, ...apiMap.get(p.id) } : p))
-          caRes.value.forEach((x: any) => {
-            if (!merged.some((m) => m.id === x.id)) {
-              merged.push({
-                id: x.id,
-                campaignNumber: merged.length + 1,
-                name: x.name,
-                subject: x.subject || "",
-                senderName: selectedOrganization?.name || "IIAP",
-                senderEmail: "daylersan@gmail.com",
-                status: x.status || "DRAFT",
-                createdAt: x.createdAt || new Date().toISOString(),
-                channel: "EMAIL",
-                segmentIds: x.segmentIds || [],
-                recipientCount: 88,
-              })
-            }
-          })
-          return merged
-        })
+        setCampaigns(caRes.value.map((campaign: any, index: number) => normalizeCampaign(campaign, selectedOrganization?.name, index)))
       }
       if (aRes.status === "fulfilled" && Array.isArray(aRes.value)) {
         setAutomations(aRes.value as any)
@@ -294,7 +292,18 @@ export function MarketingPage() {
 
   useEffect(() => {
     void loadData()
+  }, [organizationId, contactsSearch, contactsPage])
+
+  useEffect(() => {
+    if (!organizationId) return
+    api.emailTemplates.list(organizationId).then((items) => setTemplates(items.map((item) => ({ id: item.id, name: item.name })))).catch(() => setTemplates([]))
   }, [organizationId])
+
+  useEffect(() => {
+    if (!campaignId) return
+    const campaign = campaigns.find((item) => item.id === campaignId)
+    if (campaign) { setSelectedCampaign(campaign); setViewMode("setup") }
+  }, [campaignId, campaigns])
 
   // Handlers
   const handleOpenReport = (campaign: Campaign) => {
@@ -308,34 +317,42 @@ export function MarketingPage() {
   }
 
   const handleCreateEmailCampaign = async (data: { name: string; type: "regular" | "ab"; tags: string[]; folder?: string }) => {
-    if (!organizationId) return
+    if (!organizationId) { toast.error("Selecciona una institución antes de crear la campaña."); return }
     try {
-      const created = await api.marketing.createAutomation(organizationId, { name: data.name, trigger: "REGISTRATION_SUBMITTED", status: "DRAFT", steps: [] })
-    const newCamp: Campaign = {
-      id: created.id,
-      campaignNumber: campaigns.length + 1,
-      name: data.name,
-      subject: "",
-      senderName: selectedOrganization?.name || "IIAP",
-      senderEmail: "daylersan@gmail.com",
-      replyTo: "daylersan@gmail.com",
-      status: "DRAFT",
-      createdAt: new Date().toISOString(),
-      channel: "EMAIL",
-      segmentIds: [],
-      recipientCount: 0,
-      tags: data.tags,
+      const created = await api.marketing.createCampaign(organizationId, { name: data.name, subject: "", segmentIds: [], settings: { tags: data.tags } })
+      const newCamp = normalizeCampaign(created, selectedOrganization?.name, campaigns.length)
+      setCampaigns((current) => [newCamp, ...current])
+      setOpenCreateEmailModal(false)
+      toast.success(`Campaña "${data.name}" creada.`)
+      navigate(`/dashboard/marketing/campaigns/${created.id}/settings`)
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo crear la campaña.")
     }
-
-    setCampaigns((current) => [newCamp, ...current])
-    setSelectedCampaign(newCamp)
-    setViewMode("setup")
-    toast.success(`Campaña "${data.name}" creada como borrador.`)
-    } catch (error: any) { toast.error(error?.message || "No se pudo crear la campaña."); throw error }
   }
 
   const handleSaveCampaign = (updated: Campaign) => {
     setCampaigns(campaigns.map((c) => (c.id === updated.id ? updated : c)))
+    if (organizationId) {
+      void api.marketing.updateCampaign(organizationId, updated.id, {
+        name: updated.name, subject: updated.subject, segmentIds: updated.segmentIds,
+        status: updated.status, scheduledAt: updated.scheduledAt,
+        settings: { senderName: updated.senderName, senderEmail: updated.senderEmail, replyTo: updated.replyTo, previewText: updated.previewText, templateId: updated.templateId, sourceTemplateId: updated.sourceTemplateId, content: updated.content, recipientCount: updated.recipientCount, tags: updated.tags },
+      }).catch((error: any) => toast.error(error?.message || "No se pudo guardar la campaña."))
+    }
+  }
+
+  const handleSelectCampaignTemplate = async (sourceTemplateId: string) => {
+    if (!organizationId || !selectedCampaign) return
+    try {
+      const copy = await api.emailTemplates.duplicate(sourceTemplateId, { campaignId: selectedCampaign.id, name: `${selectedCampaign.name} · Plantilla de campaña` })
+      const updated = { ...selectedCampaign, templateId: copy.id, sourceTemplateId }
+      setTemplates((current) => current.some((item) => item.id === copy.id) ? current : [...current, { id: copy.id, name: copy.name }])
+      handleSaveCampaign(updated)
+      setSelectedCampaign(updated)
+      toast.success("Se creó una copia privada de la plantilla para esta campaña.")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo preparar la plantilla de la campaña.")
+    }
   }
 
   const handleLaunchCampaign = (launched: Campaign, _scheduledAt?: string) => {
@@ -455,12 +472,15 @@ export function MarketingPage() {
         <CampaignSetupBuilder
           campaign={selectedCampaign}
           segments={segments}
+          templates={templates}
           onBack={() => {
             setSelectedCampaign(null)
             setViewMode("list")
           }}
           onSaveCampaign={handleSaveCampaign}
           onLaunchCampaign={handleLaunchCampaign}
+          onSelectTemplate={handleSelectCampaignTemplate}
+          onEditTemplate={(templateId) => navigate(`/dashboard/templates/${templateId}/builder`)}
         />
       )}
 
@@ -540,6 +560,9 @@ export function MarketingPage() {
           {activeTab === "contacts" && (
             <ContactsTab
               contacts={contacts}
+              page={contactsPage}
+              totalItems={totalContacts}
+              onPageChange={(page) => { const next = new URLSearchParams(searchParams); next.set("page", String(page)); setSearchParams(next) }}
               onAddContact={handleAddContact}
               onDeleteContact={handleDeleteContact}
             />

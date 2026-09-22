@@ -65,9 +65,11 @@ export function TemplateConfigPage() {
     try {
       const data = await api.emailSettings.get(orgId)
       setOrgSettings(data)
-      if (isNew && data.resendFromEmail) {
-        setSenderEmail(data.resendFromEmail)
-        if (data.resendFromName) setSenderName(data.resendFromName)
+      const defaultSender = data.defaultSender || data.resendFromEmail || data.smtpFromEmail || data.smtpUser
+      const defaultSenderName = data.defaultProvider === "RESEND" ? data.resendFromName : data.smtpFromName
+      if (isNew && defaultSender) {
+        setSenderEmail(defaultSender)
+        if (defaultSenderName) setSenderName(defaultSenderName)
       }
     } catch {
       // ignore
@@ -98,8 +100,12 @@ export function TemplateConfigPage() {
     if (!name.trim()) {
       return toast.error("El nombre de la plantilla es obligatorio.")
     }
+    if (status === "ACTIVE" && !orgSettings?.deliveryReady) {
+      setOpenSettingsModal(true)
+      return toast.error("Configura y prueba las credenciales institucionales antes de activar una plantilla.")
+    }
     if (!senderEmail.trim()) {
-      return toast.error("El email del remitente es obligatorio.")
+      return toast.error("Selecciona un email remitente autorizado.")
     }
 
     try {
@@ -301,9 +307,16 @@ export function TemplateConfigPage() {
         {/* RIGHT COLUMN: Sender, Subject, Preview Text Fields (Image 2)             */}
         {/* ========================================================================= */}
         <div className="lg:col-span-7 space-y-6">
-          <div className="p-4 rounded-2xl border border-border bg-muted/30">
-            <p className="text-xs font-semibold text-foreground">Envío de marketing de la organización</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Esta plantilla utilizará la configuración de correo de la organización. Las notificaciones propias del sistema usan la configuración global de la plataforma.</p>
+          <div className={`p-4 rounded-2xl border ${orgSettings?.deliveryReady ? "border-emerald-500/30 bg-emerald-500/5" : "border-amber-500/30 bg-amber-500/5"}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold text-foreground">Envío institucional</p>
+                <p className="text-[11px] text-muted-foreground mt-1">{orgSettings?.deliveryReady ? `Credenciales ${orgSettings.defaultProvider} activas. Esta plantilla y las campañas usarán esta configuración.` : "Aún no hay credenciales listas para enviar. Puedes diseñar la plantilla, pero no activarla ni enviarla."}</p>
+              </div>
+              <Button type="button" variant="outline" size="sm" onClick={() => setOpenSettingsModal(true)} className="h-8 shrink-0 rounded-lg text-xs">
+                {orgSettings?.deliveryReady ? "Ver configuración" : "Configurar"}
+              </Button>
+            </div>
           </div>
 
           {/* Email de remitente * */}
@@ -323,7 +336,7 @@ export function TemplateConfigPage() {
             />
 
             {/* Quick Senders Chips */}
-            {false && orgSettings?.verifiedSenders && orgSettings.verifiedSenders.length > 0 && (
+            {orgSettings?.verifiedSenders && orgSettings.verifiedSenders.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 pt-1">
                 <span className="text-[10px] text-muted-foreground font-medium mr-1">Sugeridos:</span>
                 {orgSettings.verifiedSenders.map((s: any, idx: number) => (
@@ -344,6 +357,9 @@ export function TemplateConfigPage() {
                   </button>
                 ))}
               </div>
+            )}
+            {(!orgSettings?.verifiedSenders || orgSettings.verifiedSenders.length === 0) && senderEmail && (
+              <p className="text-[11px] text-muted-foreground pt-1">Remitente predeterminado de la institución.</p>
             )}
           </div>
 

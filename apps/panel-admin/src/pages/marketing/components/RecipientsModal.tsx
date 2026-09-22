@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Check, Users } from "lucide-react"
 import {
   Dialog,
@@ -25,6 +25,8 @@ export function RecipientsModal({
   onSave,
 }: RecipientsModalProps) {
   const [selected, setSelected] = useState<string[]>(selectedSegmentIds)
+
+  useEffect(() => setSelected(selectedSegmentIds), [selectedSegmentIds, open])
 
   const toggleSegment = (id: string) => {
     if (selected.includes(id)) {
@@ -59,11 +61,7 @@ export function RecipientsModal({
 
         <div className="space-y-4 pt-1">
           <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
-            {activeSegments.length === 0 && (
-              <p className="rounded-xl border border-dashed p-5 text-center text-xs text-muted-foreground">
-                No hay segmentos reales todavía. Crea uno desde la pestaña Segmentos o usa una secuencia de webinar para trabajar directamente con sus inscritos.
-              </p>
-            )}
+            {activeSegments.length === 0 && <p className="py-8 text-center text-xs text-muted-foreground">No hay segmentos reales todavía. Crea uno desde “Segmentos” y añade contactos.</p>}
             {activeSegments.map((segment) => {
               const isChecked = selected.includes(segment.id)
               return (
