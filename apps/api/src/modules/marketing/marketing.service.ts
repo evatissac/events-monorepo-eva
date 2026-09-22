@@ -90,6 +90,17 @@ export class MarketingService {
     return this.prisma.marketingCampaign.update({ where: { id }, data: { name: data.name === undefined ? undefined : String(data.name).trim(), subject: data.subject, segmentIds: Array.isArray(data.segmentIds) ? data.segmentIds : undefined, status: data.status, scheduledAt: data.scheduledAt === undefined ? undefined : (data.scheduledAt ? new Date(data.scheduledAt) : null), settings: data.settings } });
   }
 
+  async removeCampaign(organizationId: string, id: string) {
+    await this.getCampaign(organizationId, id);
+    // Las copias son privadas de la campaña: al eliminarla no deben quedar
+    // huérfanas ni aparecer como plantillas generales.
+    await this.prisma.$transaction([
+      this.prisma.emailTemplate.deleteMany({ where: { organizationId, tags: { has: `campaign:${id}` } } }),
+      this.prisma.marketingCampaign.delete({ where: { id } }),
+    ]);
+    return { id, deleted: true };
+  }
+
   /** Convierte inscripciones y participantes existentes en audiencias reutilizables por evento y edición. */
   private async syncEventAudiences(organizationId: string) {
     const audiences = new Map<string, { name: string; description: string; eventId: string; editionId?: string; emails: Set<string> }>();
