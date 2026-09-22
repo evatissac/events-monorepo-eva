@@ -379,6 +379,27 @@ export class EmailTemplatesService {
 
   async duplicate(id: string, data: { campaignId?: string; name?: string } = {}) {
     const original = await this.get(id);
+    const sourceTemplateId = (original as any).sourceTemplateId || original.id;
+    const campaignTag = data.campaignId ? `campaign:${data.campaignId}` : null;
+
+    if (data.campaignId) {
+      const campaign = await this.prisma.marketingCampaign.findFirst({
+        where: { id: data.campaignId, organizationId: (original as any).organizationId },
+        select: { id: true },
+      });
+      if (!campaign) {
+        throw new BadRequestException('La campaña no pertenece a la institución de esta plantilla.');
+      }
+    }
+
+    // Una campaña siempre trabaja sobre una única copia privada. Reutilizarla
+    // evita que al volver a seleccionar la base se creen copias adicionales.
+    if (campaignTag) {
+      const existing = await this.prisma.emailTemplate.findFirst({
+        where: { organizationId: (original as any).organizationId, sourceTemplateId, tags: { has: campaignTag } },
+      });
+      if (existing) return existing;
+    }
 
     return this.prisma.emailTemplate.create({
       data: {
@@ -394,8 +415,8 @@ export class EmailTemplatesService {
         content: original.content as any,
         htmlContent: (original as any).htmlContent,
         thumbnailUrl: (original as any).thumbnailUrl,
-        tags: (original as any).tags || [],
-        sourceTemplateId: (original as any).sourceTemplateId || original.id,
+        tags: [...new Set([...((original as any).tags || []), ...(campaignTag ? ['campaign-copy', campaignTag] : [])])],
+        sourceTemplateId,
       },
     });
   }
@@ -406,7 +427,16 @@ export class EmailTemplatesService {
     }
 
     const template = await this.get(id);
-    const context = { first_name: 'María', last_name: 'Torres', email: recipientEmail, event_name: 'Evento de prueba', event_start_date: new Date().toLocaleString('es-PE'), event_location: 'Por confirmar', registration_code: 'PRUEBA-001', unsubscribe_url: '#' };
+    const context = {
+      first_name: 'María', last_name: 'Torres', email: recipientEmail,
+      event_name: 'Evento de prueba', event_start_date: new Date().toLocaleString('es-PE'), event_location: 'Por confirmar',
+      edition_name: 'Edición de prueba', edition_start_date: new Date().toLocaleString('es-PE'), registration_code: 'PRUEBA-001', whatsapp_community_url: 'https://example.com/comunidad', offer_url: 'https://example.com/oferta', discount_code: 'PRUEBA-10', unsubscribe_url: '#',
+      contact: { first_name: 'María', last_name: 'Torres', email: recipientEmail },
+      event: { name: 'Evento de prueba', start_date: new Date().toLocaleString('es-PE'), location: 'Por confirmar' },
+      edition: { name: 'Edición de prueba', start_date: new Date().toLocaleString('es-PE') },
+      registration: { code: 'PRUEBA-001' },
+      automation: { whatsapp_community_url: 'https://example.com/comunidad', offer_url: 'https://example.com/oferta', discount_code: 'PRUEBA-10', unsubscribe_url: '#' },
+    };
     let htmlContent = (template as any).htmlContent ? interpolate((template as any).htmlContent, context) : blocksToHtml((template as any).content, context);
 
     if (!htmlContent) {

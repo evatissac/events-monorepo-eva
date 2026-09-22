@@ -240,6 +240,7 @@ export const api = {
     createCampaign: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns`, { method: "POST", body: JSON.stringify(data) }),
     getCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}`),
     updateCampaign: (organizationId: string, id: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    removeCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}`, { method: "DELETE" }),
     sendCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}/send`, { method: "POST" }),
     automations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),
     createAutomation: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/automations`, { method: "POST", body: JSON.stringify(data) }),

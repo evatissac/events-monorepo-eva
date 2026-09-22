@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, type CSSProperties, type ElementType } from "react"
 import { createPortal } from "react-dom"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   ArrowLeft,
   Undo2,
@@ -29,6 +29,7 @@ import {
   Search,
   Plus,
   Braces,
+  Info,
   UserRound,
   CalendarDays,
   Ticket,
@@ -99,17 +100,19 @@ const DEFAULT_THEME: EmailTheme = {
 }
 
 export const AVAILABLE_VARIABLES = [
-  { key: "first_name", label: "Nombre", category: "Datos de contacto", description: "Nombre con el que se registró la persona" },
-  { key: "last_name", label: "Apellidos", category: "Datos de contacto", description: "Apellidos de la persona registrada" },
-  { key: "email", label: "Correo electrónico", category: "Datos de contacto", description: "Correo de contacto" },
-  { key: "event_name", label: "Nombre del evento", category: "Datos del evento", description: "Evento que activa la automatización" },
-  { key: "event_start_date", label: "Fecha del evento", category: "Datos del evento", description: "Fecha y hora configurada para el evento" },
-  { key: "event_location", label: "Ubicación", category: "Datos del evento", description: "Lugar o enlace del evento" },
-  { key: "registration_code", label: "Código de registro", category: "Registro", description: "Código único de la inscripción" },
-  { key: "whatsapp_community_url", label: "Enlace de WhatsApp", category: "Automatización", description: "URL configurada para la comunidad" },
-  { key: "offer_url", label: "URL de oferta", category: "Automatización", description: "Enlace de conversión de la automatización" },
-  { key: "discount_code", label: "Código de beneficio", category: "Automatización", description: "Código promocional vigente" },
-  { key: "unsubscribe_url", label: "Enlace de baja", category: "Automatización", description: "Enlace para cancelar suscripción" },
+  { key: "contact.first_name", label: "Nombre", category: "Datos de contacto", description: "Nombre con el que se registró la persona" },
+  { key: "contact.last_name", label: "Apellidos", category: "Datos de contacto", description: "Apellidos de la persona registrada" },
+  { key: "contact.email", label: "Correo electrónico", category: "Datos de contacto", description: "Correo de contacto" },
+  { key: "event.name", label: "Nombre del evento", category: "Datos del evento", description: "Evento que activa la automatización" },
+  { key: "event.start_date", label: "Fecha del evento", category: "Datos del evento", description: "Fecha y hora configurada para el evento" },
+  { key: "event.location", label: "Ubicación", category: "Datos del evento", description: "Lugar o enlace del evento" },
+  { key: "edition.name", label: "Nombre de la edición", category: "Datos de la edición", description: "Edición asociada al registro o campaña" },
+  { key: "edition.start_date", label: "Fecha de la edición", category: "Datos de la edición", description: "Fecha y hora de inicio de la edición" },
+  { key: "registration.code", label: "Código de registro", category: "Registro", description: "Código único de la inscripción" },
+  { key: "automation.whatsapp_community_url", label: "Enlace de WhatsApp", category: "Automatización", description: "URL configurada para la comunidad" },
+  { key: "automation.offer_url", label: "URL de oferta", category: "Automatización", description: "Enlace de conversión de la automatización" },
+  { key: "automation.discount_code", label: "Código de beneficio", category: "Automatización", description: "Código promocional vigente" },
+  { key: "automation.unsubscribe_url", label: "Enlace de baja", category: "Automatización", description: "Enlace para cancelar suscripción" },
 ]
 type AvailableVariable = (typeof AVAILABLE_VARIABLES)[number]
 
@@ -150,7 +153,7 @@ function VariablePicker({ onInsert, detectedVariables, variables }: { onInsert: 
   const filtered = variables.filter((item) => (!category || item.category === category) && `${item.label} ${item.key} ${item.description}`.toLowerCase().includes(query.toLowerCase()))
   const choose = (key: string) => { onInsert(key); setOpen(false); setQuery(""); setCategory(null) }
   const toggle = () => { const rect = triggerRef.current?.getBoundingClientRect(); if (rect) setMenuPosition({ top: rect.bottom + 8, left: rect.left }); setOpen((value) => !value) }
-  const icons: Record<string, ElementType> = { "Datos de contacto": UserRound, "Datos del evento": CalendarDays, Registro: Ticket, Automatización: Settings2 }
+  const icons: Record<string, ElementType> = { "Datos de contacto": UserRound, "Datos del evento": CalendarDays, "Datos de la edición": CalendarDays, Registro: Ticket, Automatización: Settings2 }
 
   return (
     <div className="relative pt-2">
@@ -169,7 +172,7 @@ function VariablePicker({ onInsert, detectedVariables, variables }: { onInsert: 
             </div>
           </div>
           {!category ? <div className="py-1">
-            {groups.map((group) => { const Icon = icons[group] || Braces; const count = variables.filter((item) => item.category === group && `${item.label} ${item.key}`.toLowerCase().includes(query.toLowerCase())).length; if (query && count === 0) return null; return <button key={group} type="button" onClick={() => setCategory(group)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"><Icon className="size-4 text-muted-foreground" /><span className="flex-1"><span className="block text-sm font-medium">{group}</span><span className="block pt-0.5 text-xs text-muted-foreground">{group === "Datos de contacto" ? "Información de la persona registrada" : group === "Datos del evento" ? "Información del evento asociado" : group === "Registro" ? "Datos únicos de la inscripción" : "Enlaces y código configurados"}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button> })}
+            {groups.map((group) => { const Icon = icons[group] || Braces; const count = variables.filter((item) => item.category === group && `${item.label} ${item.key}`.toLowerCase().includes(query.toLowerCase())).length; if (query && count === 0) return null; return <button key={group} type="button" onClick={() => setCategory(group)} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-muted/50"><Icon className="size-4 text-muted-foreground" /><span className="flex-1"><span className="block text-sm font-medium">{group}</span><span className="block pt-0.5 text-xs text-muted-foreground">{group === "Datos de contacto" ? "Información de la persona registrada" : group === "Datos del evento" ? "Información del evento asociado" : group === "Datos de la edición" ? "Información de la edición asociada" : group === "Registro" ? "Datos únicos de la inscripción" : "Enlaces y código configurados"}</span></span><ChevronRight className="size-4 text-muted-foreground" /></button> })}
             <div className="mx-3 my-2 border-t border-border" />
             <div className="px-4 pb-3"><p className="mb-2 text-xs text-muted-foreground">Variable personalizada</p><div className="flex gap-2"><Input value={customKey} onChange={(event) => setCustomKey(event.target.value.replace(/[^a-z0-9_]/gi, "").toLowerCase())} placeholder="ej. sede_evento" className="h-8 text-xs" /><Button type="button" size="sm" variant="outline" className="h-8 text-xs font-medium" disabled={!customKey} onClick={() => choose(`custom.${customKey}`)}>Insertar</Button></div><p className="mt-1.5 text-[11px] text-muted-foreground">Configúrala después en la automatización.</p></div>
           </div> : <div className="py-1">
@@ -187,6 +190,11 @@ function VariablePicker({ onInsert, detectedVariables, variables }: { onInsert: 
 export function EmailTemplateBuilderPage() {
   const { templateId } = useParams<{ templateId: string }>()
   const navigate = useNavigate()
+  const [builderSearchParams] = useSearchParams()
+  const associatedEventId = builderSearchParams.get("eventId")
+  const associatedEditionId = builderSearchParams.get("editionId")
+  const associatedEventLabel = builderSearchParams.get("eventLabel")
+  const campaignId = builderSearchParams.get("campaignId")
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -215,6 +223,11 @@ export function EmailTemplateBuilderPage() {
   const [blocks, setBlocks] = useState<EmailBlock[]>([])
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(null)
   const [draggedBlockId, setDraggedBlockId] = useState<string | null>(null)
+  const [dropIndicatorIndex, setDropIndicatorIndex] = useState<number | null>(null)
+  const [showCanvasDropHint, setShowCanvasDropHint] = useState(false)
+  const paletteDropSucceeded = useRef(false)
+  const paletteDragCancelled = useRef(false)
+  const emailCanvasRef = useRef<HTMLDivElement | null>(null)
   const [theme, setTheme] = useState<EmailTheme>(DEFAULT_THEME)
   const [availableVariables, setAvailableVariables] = useState<AvailableVariable[]>(AVAILABLE_VARIABLES)
 
@@ -225,6 +238,19 @@ export function EmailTemplateBuilderPage() {
   // Preview & Test Modal
   const [openPreviewModal, setOpenPreviewModal] = useState(false)
   const [testEmail, setTestEmail] = useState("")
+
+  useEffect(() => {
+    const cancelDrag = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return
+      setDropIndicatorIndex(null)
+      setDraggedBlockId(null)
+      setShowCanvasDropHint(false)
+      paletteDropSucceeded.current = false
+      paletteDragCancelled.current = true
+    }
+    window.addEventListener("keydown", cancelDrag)
+    return () => window.removeEventListener("keydown", cancelDrag)
+  }, [])
 
   // Push history on block changes
   const recordHistory = (newBlocks: EmailBlock[]) => {
@@ -277,6 +303,18 @@ export function EmailTemplateBuilderPage() {
     try {
       setLoading(true)
       const data = await api.emailTemplates.get(templateId!)
+      if (campaignId && !Array.isArray(data.tags)) {
+        // Las plantillas antiguas no tenían etiquetas; el control siguiente también
+        // evita abrir por accidente una base desde el flujo de campañas.
+        toast.error("No se pudo verificar la copia privada de la campaña.")
+        navigate(`/dashboard/marketing/campaigns/${campaignId}/settings`)
+        return
+      }
+      if (campaignId && !data.tags.includes(`campaign:${campaignId}`)) {
+        toast.error("Esta es una plantilla base. Abre la copia privada desde la campaña.")
+        navigate(`/dashboard/marketing/campaigns/${campaignId}/settings`)
+        return
+      }
       setTemplateName(data.name || "Plantilla")
       setSubject(data.subject || "")
       setPreviewText(data.previewText || "")
@@ -355,7 +393,7 @@ export function EmailTemplateBuilderPage() {
   }
 
   // Add block from palette
-  const addBlock = (type: EmailBlock["type"], label: string) => {
+  const addBlock = (type: EmailBlock["type"], label: string, insertAt = blocks.length) => {
     let defaultOptions: Record<string, any> = {}
 
     switch (type) {
@@ -395,10 +433,10 @@ export function EmailTemplateBuilderPage() {
         }
         break
       case "dynamic":
-        defaultOptions = { text: "Hola, {{ first_name }}.", variable: "first_name", fallback: "Estimado/a asistente" }
+        defaultOptions = { text: "Hola, {{ contact.first_name }}.", variable: "contact.first_name", fallback: "Estimado/a asistente" }
         break
       case "logo":
-        defaultOptions = { text: "Logo", align: "center", width: 140 }
+        defaultOptions = { logoMode: "text", text: "Logo", alt: "Logotipo", align: "center", width: 140 }
         break
       case "social":
         defaultOptions = {
@@ -446,7 +484,8 @@ export function EmailTemplateBuilderPage() {
       options: defaultOptions,
     }
 
-    const updated = [...blocks, newBlock]
+    const targetIndex = Math.min(Math.max(insertAt, 0), blocks.length)
+    const updated = [...blocks.slice(0, targetIndex), newBlock, ...blocks.slice(targetIndex)]
     setBlocks(updated)
     setSelectedBlockId(newBlock.id)
     recordHistory(updated)
@@ -454,15 +493,20 @@ export function EmailTemplateBuilderPage() {
   }
 
   // Add full multi-block section
-  const addSection = (section: EmailSectionTemplate) => {
+  const addSection = (section: EmailSectionTemplate, insertAt = blocks.length) => {
     const newBlocks = createBlocksFromSection(section)
-    const updated = [...blocks, ...newBlocks]
+    const targetIndex = Math.min(Math.max(insertAt, 0), blocks.length)
+    const updated = [...blocks.slice(0, targetIndex), ...newBlocks, ...blocks.slice(targetIndex)]
     setBlocks(updated)
     if (newBlocks.length > 0) {
       setSelectedBlockId(newBlocks[0].id)
     }
     recordHistory(updated)
     toast.success(`Sección "${section.name}" añadida (${newBlocks.length} bloques)`)
+  }
+
+  const showDragInstruction = () => {
+    toast.info("Arrastrar y soltar", { description: "Suelta el bloque dentro del correo para agregarlo." })
   }
 
   // Update selected block options
@@ -501,6 +545,19 @@ export function EmailTemplateBuilderPage() {
     recordHistory(updated)
     toast.info("Bloque eliminado.")
   }
+
+  useEffect(() => {
+    const removeSelectedBlock = (event: KeyboardEvent) => {
+      if (event.key !== "Delete" && event.key !== "Backspace") return
+      const target = event.target as HTMLElement | null
+      if (target?.matches("input, textarea, select, [contenteditable='true']")) return
+      if (!selectedBlockId) return
+      event.preventDefault()
+      deleteBlock(selectedBlockId)
+    }
+    window.addEventListener("keydown", removeSelectedBlock)
+    return () => window.removeEventListener("keydown", removeSelectedBlock)
+  }, [deleteBlock, selectedBlockId])
 
   // Save changes
   const handleSave = async (exitAfter = false) => {
@@ -549,7 +606,7 @@ export function EmailTemplateBuilderPage() {
   }
 
   return (
-    <div className="flex flex-col h-screen w-full bg-slate-100 dark:bg-zinc-950 select-none overflow-hidden font-sans">
+    <div className="flex h-dvh w-full flex-col overflow-hidden bg-slate-100 font-sans select-none dark:bg-zinc-950">
       {/* ========================================================================= */}
       {/* TOP NAVBAR: Title, Undo/Redo, Autosave, Responsive Switcher, Actions       */}
       {/* ========================================================================= */}
@@ -567,6 +624,7 @@ export function EmailTemplateBuilderPage() {
           <span className="text-sm font-bold text-foreground truncate max-w-[200px] sm:max-w-xs">
             {templateName}
           </span>
+          {associatedEventId && <span title={associatedEditionId ? "La plantilla puede usar variables del evento y su edición asociada." : "La plantilla puede usar variables del evento asociado."} className="hidden xl:inline-flex items-center gap-1 rounded-md border border-violet-200 bg-violet-50 px-2 py-1 text-[11px] text-violet-700 dark:border-violet-900 dark:bg-violet-950/40 dark:text-violet-300"><CalendarDays className="size-3" />{associatedEventLabel || "Evento asociado"}</span>}
         </div>
 
         {/* Center: Undo/Redo + Autosave Timestamp + Desktop/Mobile Switcher */}
@@ -645,10 +703,18 @@ export function EmailTemplateBuilderPage() {
         </div>
       </header>
 
+      {showCanvasDropHint && (
+        <div className="fixed left-1/2 top-20 z-50 flex w-[min(32rem,calc(100vw-2rem))] -translate-x-1/2 items-center gap-3 rounded-xl border border-violet-100 bg-violet-50 px-4 py-3 text-sm text-slate-700 shadow-lg dark:border-violet-900/60 dark:bg-violet-950/50 dark:text-slate-100">
+          <Info className="size-5 shrink-0 text-violet-600 dark:text-violet-300" />
+          <span className="flex-1">Suelta tu bloque dentro del correo electrónico para agregarlo.</span>
+          <button type="button" onClick={() => setShowCanvasDropHint(false)} className="rounded-md p-1 text-muted-foreground hover:bg-violet-100 hover:text-foreground dark:hover:bg-violet-900/60" aria-label="Cerrar aviso"><X className="size-5" /></button>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* MAIN BUILDER AREA: Left Sidebar + Center Canvas                           */}
       {/* ========================================================================= */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex min-h-0 flex-1 overflow-hidden">
         {/* ======================================================================= */}
         {/* NARROW ICON BAR (Contenido | Estilo)                                    */}
         {/* ======================================================================= */}
@@ -682,7 +748,21 @@ export function EmailTemplateBuilderPage() {
         {/* ======================================================================= */}
         {/* LEFT PALETTE / INSPECTOR SIDEBAR                                        */}
         {/* ======================================================================= */}
-        <aside className="w-84 border-r border-border/80 bg-white dark:bg-zinc-900 flex flex-col shrink-0 overflow-hidden">
+        <aside
+          className="w-84 border-r border-border/80 bg-white dark:bg-zinc-900 flex flex-col shrink-0 overflow-hidden"
+          onDragStartCapture={() => {
+            paletteDropSucceeded.current = false
+            paletteDragCancelled.current = false
+            setShowCanvasDropHint(false)
+          }}
+          onDragEndCapture={(event) => {
+            const cancelledByEscape = paletteDragCancelled.current || (event.clientX === 0 && event.clientY === 0)
+            setShowCanvasDropHint(!paletteDropSucceeded.current && !cancelledByEscape)
+            setDropIndicatorIndex(null)
+            paletteDropSucceeded.current = false
+            paletteDragCancelled.current = false
+          }}
+        >
           {sidebarMode === "style" ? (
             /* Style Settings */
             <div className="p-5 space-y-5 overflow-y-auto flex-1">
@@ -923,8 +1003,17 @@ export function EmailTemplateBuilderPage() {
 
                 {selectedBlock.type === "logo" && (
                   <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-semibold text-foreground">Contenido de la cabecera</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button size="sm" variant={(selectedBlock.options?.logoMode || (selectedBlock.options?.imageUrl ? "image" : "text")) === "text" ? "default" : "outline"} onClick={() => updateSelectedBlock({ options: { ...selectedBlock.options, logoMode: "text" } })} className="h-8 text-xs">Texto</Button>
+                        <Button size="sm" variant={(selectedBlock.options?.logoMode || (selectedBlock.options?.imageUrl ? "image" : "text")) === "image" ? "default" : "outline"} onClick={() => updateSelectedBlock({ options: { ...selectedBlock.options, logoMode: "image" } })} className="h-8 text-xs">Imagen</Button>
+                      </div>
+                    </div>
+
+                    {(selectedBlock.options?.logoMode || (selectedBlock.options?.imageUrl ? "image" : "text")) === "text" ? (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-foreground">Texto del Logotipo</label>
+                      <label className="text-xs font-semibold text-foreground">Texto de la cabecera</label>
                       <Input
                         value={selectedBlock.options?.text || ""}
                         onChange={(e) =>
@@ -933,9 +1022,9 @@ export function EmailTemplateBuilderPage() {
                         className="h-9 text-xs"
                       />
                     </div>
-
+                    ) : <>
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-foreground">URL de Imagen (Opcional)</label>
+                      <label className="text-xs font-semibold text-foreground">URL de la imagen</label>
                       <Input
                         value={selectedBlock.options?.imageUrl || ""}
                         onChange={(e) =>
@@ -945,6 +1034,11 @@ export function EmailTemplateBuilderPage() {
                         className="h-9 text-xs"
                       />
                     </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-foreground">Texto alternativo</label>
+                      <Input value={selectedBlock.options?.alt || ""} onChange={(e) => updateSelectedBlock({ options: { ...selectedBlock.options, alt: e.target.value } })} placeholder="Logotipo de la organización" className="h-9 text-xs" />
+                    </div>
+                    </>}
 
                     <div className="space-y-1">
                       <label className="text-xs font-semibold text-foreground">Modo Banner Completo</label>
@@ -1228,8 +1322,8 @@ export function EmailTemplateBuilderPage() {
 
                           {/* Visual SVG Miniature Preview */}
                           <div
-                            onClick={() => addSection(section)}
-                            title="Haz clic para añadir esta sección"
+                            onClick={showDragInstruction}
+                            title="Arrastrar y soltar"
                             className="rounded-xl overflow-hidden border border-slate-100 dark:border-zinc-800 bg-slate-50 dark:bg-zinc-950 flex items-center justify-center p-1.5 cursor-pointer group-hover:scale-[1.01] transition-transform"
                           >
                             <img
@@ -1248,11 +1342,11 @@ export function EmailTemplateBuilderPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => addSection(section)}
+                            onClick={showDragInstruction}
                             className="h-7 w-full text-[11px] font-semibold rounded-xl border-dashed border-violet-300 dark:border-violet-800 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/40 flex items-center justify-center gap-1.5 cursor-pointer"
                           >
                             <Plus className="size-3" />
-                            <span>Añadir sección</span>
+                            <span>Arrastrar sección</span>
                           </Button>
                         </div>
                       ))
@@ -1265,7 +1359,7 @@ export function EmailTemplateBuilderPage() {
                   <div className="grid grid-cols-3 gap-2.5">
                     {/* 1. Título */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "heading")}
-                      onClick={() => addBlock("heading", "Título")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1276,7 +1370,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 2. Texto */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "text")}
-                      onClick={() => addBlock("text", "Texto")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1287,7 +1381,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 3. Imagen */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "image")}
-                      onClick={() => addBlock("image", "Imagen")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1298,7 +1392,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 4. Vídeo */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "video")}
-                      onClick={() => addBlock("video", "Vídeo")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1309,7 +1403,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 5. Botón */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "button")}
-                      onClick={() => addBlock("button", "Botón")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1320,7 +1414,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 6. Contenido dinámico */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "dynamic")}
-                      onClick={() => addBlock("dynamic", "Variable dinámica")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform font-mono text-sm font-bold">
@@ -1333,7 +1427,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 7. Logotipo */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "logo")}
-                      onClick={() => addBlock("logo", "Logotipo")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform font-bold text-[9px]">
@@ -1344,7 +1438,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 8. Redes sociales */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "social")}
-                      onClick={() => addBlock("social", "Redes sociales")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1357,7 +1451,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 9. HTML */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "html")}
-                      onClick={() => addBlock("html", "HTML")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1368,7 +1462,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 10. Divisor */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "divider")}
-                      onClick={() => addBlock("divider", "Divisor")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1379,7 +1473,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 11. Producto */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "product")}
-                      onClick={() => addBlock("product", "Producto")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1390,7 +1484,7 @@ export function EmailTemplateBuilderPage() {
 
                     {/* 12. Navegación */}
                     <button draggable onDragStart={(event) => event.dataTransfer.setData("application/x-email-block", "navigation")}
-                      onClick={() => addBlock("navigation", "Navegación")}
+                      onClick={showDragInstruction} title="Arrastrar y soltar"
                       className="flex flex-col items-center justify-center p-3 rounded-2xl border border-slate-200 dark:border-zinc-800 hover:border-emerald-500 hover:bg-emerald-50/20 dark:hover:bg-emerald-950/20 transition-all group bg-white dark:bg-zinc-900 shadow-2xs cursor-pointer"
                     >
                       <div className="size-9 rounded-xl border border-emerald-600 text-emerald-600 flex items-center justify-center mb-1.5 group-hover:scale-105 transition-transform">
@@ -1409,49 +1503,16 @@ export function EmailTemplateBuilderPage() {
         {/* CENTER EMAIL CANVAS                                                     */}
         {/* ======================================================================= */}
         <main
-          className="flex-1 overflow-y-auto p-6 md:p-10 flex items-center justify-center transition-all bg-[#f1f5f9] dark:bg-zinc-950"
+          className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto p-6 md:p-10 transition-all bg-[#f1f5f9] dark:bg-zinc-950"
           style={{
             backgroundImage: `radial-gradient(#cbd5e1 1px, transparent 1px)`,
             backgroundSize: "20px 20px",
           }}
           onClick={() => setSelectedBlockId(null)}
-          onDragOver={(event) => event.preventDefault()}
-          onDrop={(event) => {
-            event.preventDefault()
-            const sectionJson = event.dataTransfer.getData("application/x-email-section")
-            if (sectionJson) {
-              try {
-                const sectionData = JSON.parse(sectionJson) as EmailSectionTemplate
-                addSection(sectionData)
-                return
-              } catch (err) {
-                console.error(err)
-              }
-            }
-
-            const type = event.dataTransfer.getData("application/x-email-block") as EmailBlock["type"]
-            if (!type) return
-            const labels: Record<EmailBlock["type"], string> = {
-              heading: "Título",
-              text: "Texto",
-              image: "Imagen",
-              video: "Vídeo",
-              button: "Botón",
-              dynamic: "Contenido dinámico",
-              logo: "Logotipo",
-              social: "Redes sociales",
-              html: "HTML",
-              divider: "Divisor",
-              product: "Producto",
-              navigation: "Navegación",
-            }
-            if (labels[type]) {
-              addBlock(type, labels[type])
-            }
-          }}
         >
           {/* Email Container (600px width on desktop / 360px on mobile) */}
           <div
+            ref={emailCanvasRef}
             className={`transition-all bg-white dark:bg-zinc-900 shadow-xl border border-slate-200/80 dark:border-zinc-800 flex flex-col ${viewMode === "desktop" ? "w-full max-w-[600px] rounded-2xl p-6 sm:p-8 space-y-4" : "w-[360px] rounded-3xl p-5 space-y-3"
               }`}
             style={{
@@ -1459,13 +1520,42 @@ export function EmailTemplateBuilderPage() {
               fontFamily: theme.fontFamily,
             }}
             onClick={(e) => e.stopPropagation()}
+            onDragOver={(event) => {
+              event.preventDefault()
+              if (event.target === event.currentTarget) setDropIndicatorIndex(blocks.length)
+            }}
+            onDragLeave={(event) => {
+              if (event.target === event.currentTarget) setDropIndicatorIndex(null)
+            }}
+            onDrop={(event) => {
+              event.preventDefault()
+              setDropIndicatorIndex(null)
+              const sectionJson = event.dataTransfer.getData("application/x-email-section")
+              if (sectionJson) {
+                try {
+                  paletteDropSucceeded.current = true
+                  setShowCanvasDropHint(false)
+                  addSection(JSON.parse(sectionJson) as EmailSectionTemplate)
+                  return
+                } catch (error) {
+                  console.error(error)
+                }
+              }
+              const type = event.dataTransfer.getData("application/x-email-block") as EmailBlock["type"]
+              const labels: Record<EmailBlock["type"], string> = { heading: "Título", text: "Texto", image: "Imagen", video: "Vídeo", button: "Botón", dynamic: "Contenido dinámico", logo: "Logotipo", social: "Redes sociales", html: "HTML", divider: "Divisor", product: "Producto", navigation: "Navegación" }
+              if (type && labels[type]) {
+                paletteDropSucceeded.current = true
+                setShowCanvasDropHint(false)
+                addBlock(type, labels[type])
+              }
+            }}
           >
             {blocks.length === 0 ? (
               <div className="p-12 text-center border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 text-xs">
                 Haz clic en cualquiera de las secciones o bloques de la izquierda para diseñar tu email.
               </div>
             ) : (
-              blocks.map((block) => {
+              blocks.map((block, index) => {
                 const isSelected = selectedBlockId === block.id
 
                 return (
@@ -1473,8 +1563,41 @@ export function EmailTemplateBuilderPage() {
                     key={block.id}
                     draggable
                     onDragStart={() => setDraggedBlockId(block.id)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={() => {
+                    onDragEnd={() => setDropIndicatorIndex(null)}
+                    onDragOver={(event) => {
+                      event.preventDefault()
+                      const targetRect = event.currentTarget.getBoundingClientRect()
+                      setDropIndicatorIndex(event.clientY < targetRect.top + targetRect.height / 2 ? index : index + 1)
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault()
+                      event.stopPropagation()
+                      setDropIndicatorIndex(null)
+                      const targetRect = event.currentTarget.getBoundingClientRect()
+                      const insertAt = event.clientY < targetRect.top + targetRect.height / 2 ? index : index + 1
+                      const sectionJson = event.dataTransfer.getData("application/x-email-section")
+                      if (sectionJson) {
+                        try {
+                          paletteDropSucceeded.current = true
+                          setShowCanvasDropHint(false)
+                          addSection(JSON.parse(sectionJson) as EmailSectionTemplate, insertAt)
+                        } catch (error) {
+                          console.error(error)
+                        }
+                        return
+                      }
+                      const type = event.dataTransfer.getData("application/x-email-block") as EmailBlock["type"]
+                      const labels: Record<EmailBlock["type"], string> = {
+                        heading: "Título", text: "Texto", image: "Imagen", video: "Vídeo", button: "Botón",
+                        dynamic: "Contenido dinámico", logo: "Logotipo", social: "Redes sociales", html: "HTML",
+                        divider: "Divisor", product: "Producto", navigation: "Navegación",
+                      }
+                      if (type && labels[type]) {
+                        paletteDropSucceeded.current = true
+                        setShowCanvasDropHint(false)
+                        addBlock(type, labels[type], insertAt)
+                        return
+                      }
                       if (!draggedBlockId || draggedBlockId === block.id) return
                       setBlocks((items) => { const next = [...items]; const from = next.findIndex((item) => item.id === draggedBlockId); const to = next.findIndex((item) => item.id === block.id); const [moved] = next.splice(from, 1); next.splice(to, 0, moved); return next })
                       setDraggedBlockId(null)
@@ -1488,6 +1611,8 @@ export function EmailTemplateBuilderPage() {
                       : "border-2 border-transparent hover:border-slate-200 dark:hover:border-zinc-800"
                       }`}
                   >
+                    {dropIndicatorIndex === index && <div className="pointer-events-none absolute -top-2 left-1 right-1 z-20 h-0.5 rounded-full bg-violet-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]" />}
+                    {index === blocks.length - 1 && dropIndicatorIndex === blocks.length && <div className="pointer-events-none absolute -bottom-2 left-1 right-1 z-20 h-0.5 rounded-full bg-violet-500 shadow-[0_0_0_1px_rgba(255,255,255,0.9)]" />}
                     {/* Active Block Top Left Tag Badge */}
                     {isSelected && (
                       <div className="absolute -top-3.5 left-2 px-2 py-0.5 rounded-md bg-violet-600 text-white text-[9px] font-bold uppercase tracking-wider shadow-xs z-10">
@@ -1615,10 +1740,10 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable =
               padding: `${opt.paddingY || 16}px 24px`,
               textAlign: opt.align || "center",
             }}
-            className="rounded-xl flex items-center justify-center font-black text-xl tracking-wider shadow-xs my-1"
+            className="my-1 flex items-center justify-center rounded-md font-semibold text-xl tracking-wider shadow-xs"
           >
-            {opt.imageUrl ? (
-              <img src={opt.imageUrl} alt={opt.text || "Logo"} className="h-6 max-h-8 object-contain mx-auto" />
+            {opt.logoMode === "image" || opt.imageUrl ? (
+              opt.imageUrl ? <img src={opt.imageUrl} alt={opt.alt || opt.text || "Logotipo"} className="mx-auto h-7 max-h-9 object-contain" /> : <span className="text-sm font-medium opacity-80">Agrega una URL de imagen</span>
             ) : (
               <span>{opt.text || "HubSpot"}</span>
             )}
@@ -1644,15 +1769,17 @@ function renderEmailCanvasBlock(block: EmailBlock, theme: EmailTheme, editable =
       }
       return (
         <div style={{ textAlign: opt.align || "center" }} className="py-2">
-          {opt.imageUrl ? (
+          {opt.logoMode === "image" || opt.imageUrl ? (
+            opt.imageUrl ? (
             <img
               src={opt.imageUrl}
-              alt={opt.text || "Logo"}
+              alt={opt.alt || opt.text || "Logotipo"}
               style={{ maxWidth: opt.width ? `${opt.width}px` : "140px" }}
               className="inline-block object-contain"
             />
+            ) : <span className="inline-block border border-dashed border-slate-300 px-3 py-2 text-xs text-slate-400 dark:border-zinc-700">Agrega una URL de imagen</span>
           ) : (
-            <div className="inline-flex items-center justify-center px-6 py-2 rounded-xl bg-slate-700 text-white font-extrabold text-lg tracking-wider shadow-xs">
+            <div className="inline-flex items-center justify-center rounded-md bg-slate-700 px-6 py-2 text-lg font-semibold tracking-wider text-white shadow-xs">
               {opt.text || "Logo"}
             </div>
           )}

@@ -49,6 +49,7 @@ export function TemplatesListPage() {
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
+  const [templateScope, setTemplateScope] = useState<"library" | "campaigns">("library")
   const [openEmailSettings, setOpenEmailSettings] = useState(false)
   const [emailConfigSummary, setEmailConfigSummary] = useState<{ configured: boolean; provider?: string; domain?: string } | null>(null)
 
@@ -109,9 +110,11 @@ export function TemplatesListPage() {
     }
   }
 
-  const filteredTemplates = templates.filter((t) =>
-    t.name?.toLowerCase().includes(search.toLowerCase()) ||
-    t.subject?.toLowerCase().includes(search.toLowerCase())
+  const libraryTemplates = templates.filter((template) => !template.sourceTemplateId && !template.tags?.includes("campaign-copy"))
+  const campaignTemplates = templates.filter((template) => Boolean(template.sourceTemplateId) || template.tags?.includes("campaign-copy"))
+  const filteredTemplates = (templateScope === "library" ? libraryTemplates : campaignTemplates).filter((template) =>
+    template.name?.toLowerCase().includes(search.toLowerCase()) ||
+    template.subject?.toLowerCase().includes(search.toLowerCase())
   )
 
   return (
@@ -146,11 +149,27 @@ export function TemplatesListPage() {
       />
 
       {/* Filter / Search Bar */}
+      <div className="flex items-center gap-1 border-b border-border">
+        <button
+          type="button"
+          onClick={() => setTemplateScope("library")}
+          className={`border-b-2 px-3 py-2 text-sm transition-colors ${templateScope === "library" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Plantillas base <span className="ml-1 text-xs text-muted-foreground">{libraryTemplates.length}</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTemplateScope("campaigns")}
+          className={`border-b-2 px-3 py-2 text-sm transition-colors ${templateScope === "campaigns" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+        >
+          Copias de campañas <span className="ml-1 text-xs text-muted-foreground">{campaignTemplates.length}</span>
+        </button>
+      </div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="relative flex-1 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
           <Input
-            placeholder="Buscar una plantilla..."
+            placeholder={templateScope === "library" ? "Buscar una plantilla..." : "Buscar una copia de campaña..."}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9 bg-background rounded-xl h-10 border-border text-xs"
@@ -179,16 +198,16 @@ export function TemplatesListPage() {
           <div>
             <h3 className="text-lg font-bold text-foreground">No tienes plantillas de email guardadas</h3>
             <p className="text-sm text-muted-foreground mt-1 max-w-sm mx-auto">
-              Crea tu primera plantilla de correo electrónico profesional o elige una de nuestras plantillas básicas.
+              {templateScope === "library" ? "Crea tu primera plantilla de correo electrónico profesional o elige una de nuestras plantillas básicas." : "Las copias se crean al elegir una plantilla para una campaña. Cada una conserva sus cambios de forma independiente."}
             </p>
           </div>
-          <Button
+          {templateScope === "library" && <Button
             onClick={() => navigate("/dashboard/templates/new")}
             className="flex items-center gap-2 mx-auto"
           >
             <Plus className="size-4" />
             <span>Crear primera plantilla</span>
-          </Button>
+          </Button>}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -267,6 +286,10 @@ export function TemplatesListPage() {
                   >
                     {template.name}
                   </h3>
+
+                  {templateScope === "campaigns" && (
+                    <p className="mt-1 text-[11px] text-muted-foreground">Copia privada de una campaña</p>
+                  )}
 
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-2 leading-relaxed">
                     {template.subject || "Sin asunto definido"}
