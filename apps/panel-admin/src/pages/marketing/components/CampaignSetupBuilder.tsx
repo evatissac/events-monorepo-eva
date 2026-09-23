@@ -482,7 +482,7 @@ export function CampaignSetupBuilder({
       <ScheduleModal
         open={openScheduleModal}
         onOpenChange={setOpenScheduleModal}
-        recipientCount={current.recipientCount || 88}
+        recipientCount={current.recipientCount || 0}
         onSendNow={handleSendNow}
         onSchedule={handleSchedule}
       />
