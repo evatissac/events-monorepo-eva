@@ -13,7 +13,7 @@ import { toast } from "sonner"
 interface CreateEmailCampaignModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onCreate: (data: { name: string; type: "regular" | "ab"; tags: string[]; folder?: string }) => void
+  onCreate: (data: { name: string; type: "regular" | "ab"; tags: string[]; folder?: string }) => Promise<void>
 }
 
 export function CreateEmailCampaignModal({
@@ -26,25 +26,20 @@ export function CreateEmailCampaignModal({
   const [selectedTag, setSelectedTag] = useState("")
   const [tags, setTags] = useState<string[]>([])
   const [folder, setFolder] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) {
       toast.error("Por favor ingresa un nombre para la campaña")
       return
     }
 
-    onCreate({
-      name: name.trim(),
-      type: campaignType,
-      tags: tags.length ? tags : selectedTag ? [selectedTag] : ["General"],
-      folder: folder || undefined,
-    })
-
-    setName("")
-    setTags([])
-    setSelectedTag("")
-    onOpenChange(false)
+    setSaving(true)
+    try {
+      await onCreate({ name: name.trim(), type: campaignType, tags: tags.length ? tags : selectedTag ? [selectedTag] : ["General"], folder: folder || undefined })
+      setName(""); setTags([]); setSelectedTag(""); onOpenChange(false)
+    } finally { setSaving(false) }
   }
 
   return (
@@ -186,10 +181,10 @@ export function CreateEmailCampaignModal({
 
             <Button
               type="submit"
-              disabled={!name.trim()}
+              disabled={!name.trim() || saving}
               className="rounded-full px-7 h-10 font-semibold bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground text-xs shadow-sm transition-all"
             >
-              Crear campaña
+              {saving ? "Creando..." : "Crear campaña"}
             </Button>
           </div>
         </form>
