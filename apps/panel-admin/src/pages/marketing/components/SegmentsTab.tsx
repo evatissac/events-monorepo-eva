@@ -13,30 +13,37 @@ import type { Segment } from "../types"
 
 interface SegmentsTabProps {
   segments: Segment[]
-  onCreateSegment: (segment: { name: string; description?: string }) => void
+  events: any[]
+  onCreateSegment: (segment: { name: string; description?: string; eventId?: string; audience?: "PARTICIPANTS" | "SPEAKERS" }) => void | Promise<void>
   onDeleteSegment: (id: string) => void
 }
 
 export function SegmentsTab({
   segments,
+  events,
   onCreateSegment,
   onDeleteSegment,
 }: SegmentsTabProps) {
   const [openModal, setOpenModal] = useState(false)
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [eventId, setEventId] = useState("")
+  const [audience, setAudience] = useState<"PARTICIPANTS" | "SPEAKERS">("PARTICIPANTS")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim()) return
 
-    onCreateSegment({
+    void onCreateSegment({
       name: name.trim(),
       description: description.trim() || undefined,
+      eventId: eventId || undefined,
+      audience,
     })
 
     setName("")
     setDescription("")
+    setEventId("")
     setOpenModal(false)
     toast.success("Segmento de audiencia creado")
   }
@@ -125,6 +132,10 @@ export function SegmentsTab({
                 onChange={(e) => setName(e.target.value)}
                 className="rounded-xl h-10 text-xs"
               />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1"><label className="text-xs font-semibold text-foreground">Evento (opcional)</label><select value={eventId} onChange={(event) => setEventId(event.target.value)} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">Segmento manual</option>{events.map((event) => <option key={event.id} value={event.id}>{event.eventName || event.name}</option>)}</select></div>
+              <div className="space-y-1"><label className="text-xs font-semibold text-foreground">Audiencia</label><select value={audience} onChange={(event) => setAudience(event.target.value as "PARTICIPANTS" | "SPEAKERS")} disabled={!eventId} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs disabled:opacity-50"><option value="PARTICIPANTS">Participantes</option><option value="SPEAKERS">Ponentes</option></select></div>
             </div>
 
             <div className="space-y-1">
