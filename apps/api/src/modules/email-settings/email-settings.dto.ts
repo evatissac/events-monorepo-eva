@@ -12,6 +12,10 @@ export class UpdateEmailSettingsDto {
 
   @IsOptional()
   @IsString()
+  resendWebhookSecret?: string;
+
+  @IsOptional()
+  @IsString()
   resendDomain?: string;
 
   @IsOptional()

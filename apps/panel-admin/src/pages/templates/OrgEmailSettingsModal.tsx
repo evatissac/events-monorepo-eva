@@ -51,6 +51,8 @@ export function OrgEmailSettingsModal({
   // Resend
   const [resendApiKey, setResendApiKey] = useState("")
   const [showApiKey, setShowApiKey] = useState(false)
+  const [resendWebhookSecret, setResendWebhookSecret] = useState("")
+  const [showWebhookSecret, setShowWebhookSecret] = useState(false)
   const [resendDomain, setResendDomain] = useState("")
   const [resendFromEmail, setResendFromEmail] = useState("")
   const [resendFromName, setResendFromName] = useState("")
@@ -90,6 +92,7 @@ export function OrgEmailSettingsModal({
       setProvider(data.defaultProvider || "RESEND")
       setCredentialNeedsRotation(Boolean(data.credentialNeedsRotation))
       setResendApiKey(data.resendApiKeyMasked || "")
+      setResendWebhookSecret(data.resendWebhookSecretMasked || "")
       setResendDomain(data.resendDomain || "")
       setResendFromEmail(data.resendFromEmail || "")
       setResendFromName(data.resendFromName || selectedOrganization?.name || "Eventos")
@@ -149,6 +152,7 @@ export function OrgEmailSettingsModal({
       const payload: any = {
         defaultProvider: provider,
         resendApiKey: resendApiKey.trim() || undefined,
+        resendWebhookSecret: resendWebhookSecret.trim() || undefined,
         resendDomain: resendDomain.trim() || undefined,
         resendFromEmail: resendFromEmail.trim() || undefined,
         resendFromName: resendFromName.trim() || undefined,
@@ -346,6 +350,28 @@ export function OrgEmailSettingsModal({
                 </div>
 
                 {/* Domain & Senders */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                    <span>Secreto del webhook de Resend (whsec_...)</span>
+                    <span className="text-[10px] text-muted-foreground">Opcional hasta activar seguimiento</span>
+                  </label>
+                  <div className="relative">
+                    <Input
+                      type={showWebhookSecret ? "text" : "password"}
+                      value={resendWebhookSecret}
+                      onChange={(e) => setResendWebhookSecret(e.target.value)}
+                      placeholder="whsec_..."
+                      className="h-10 pr-10 rounded-xl font-mono text-xs bg-muted/20 border-border"
+                    />
+                    <button type="button" onClick={() => setShowWebhookSecret(!showWebhookSecret)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                      {showWebhookSecret ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[10px] leading-4 text-muted-foreground">
+                    En Resend: Webhooks → Add webhook. Usa <span className="font-mono">https://api-eventos.nuiti.org/api/email-tracking/provider-events</span> y pega aquí el secreto que genera Resend.
+                  </p>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="space-y-1.5">
                     <label className="text-xs font-semibold text-foreground">Dominio Verificado</label>

@@ -36,6 +36,7 @@ export class EmailSettingsService {
         configured: false,
         defaultProvider: 'RESEND',
         resendApiKeyMasked: '',
+        resendWebhookSecretMasked: '',
         resendDomain: '',
         resendFromEmail: '',
         resendFromName: org.name || '',
@@ -56,9 +57,11 @@ export class EmailSettingsService {
 
     const provider = settings.defaultProvider || 'RESEND';
     const resendSecret = decryptCredential(settings.resendApiKeyEncrypted || '');
+    const resendWebhookSecret = decryptCredential(settings.resendWebhookSecretEncrypted || '');
     const smtpSecret = decryptCredential(settings.smtpPassEncrypted || '');
     const credentialNeedsRotation = Boolean(
       (settings.resendApiKeyEncrypted && !resendSecret) ||
+      (settings.resendWebhookSecretEncrypted && !resendWebhookSecret) ||
       (settings.smtpPassEncrypted && !smtpSecret),
     );
     const hasCredentials = provider === 'RESEND'
@@ -72,6 +75,7 @@ export class EmailSettingsService {
       configured: true,
       defaultProvider: provider,
       resendApiKeyMasked: resendSecret ? maskSecret(resendSecret) : '',
+      resendWebhookSecretMasked: resendWebhookSecret ? maskSecret(resendWebhookSecret) : '',
       resendDomain: settings.resendDomain || (settings.resendFromEmail?.includes('@') ? settings.resendFromEmail.split('@')[1] : ''),
       resendFromEmail: settings.resendFromEmail || '',
       resendFromName: settings.resendFromName || '',
@@ -112,6 +116,11 @@ export class EmailSettingsService {
       resendApiKeyEncrypted = encryptCredential(dto.resendApiKey);
     }
 
+    let resendWebhookSecretEncrypted = current?.resendWebhookSecretEncrypted;
+    if (dto.resendWebhookSecret && !dto.resendWebhookSecret.includes('••••')) {
+      resendWebhookSecretEncrypted = encryptCredential(dto.resendWebhookSecret);
+    }
+
     // Encrypt smtpPass if a new one is provided (not masked)
     let smtpPassEncrypted = current?.smtpPassEncrypted;
     if (dto.smtpPass && !dto.smtpPass.includes('••••')) {
@@ -129,6 +138,7 @@ export class EmailSettingsService {
       update: {
         defaultProvider: dto.defaultProvider ?? current?.defaultProvider ?? 'RESEND',
         resendApiKeyEncrypted,
+        resendWebhookSecretEncrypted,
         resendDomain: resendDomain ?? current?.resendDomain,
         resendFromEmail: dto.resendFromEmail ?? current?.resendFromEmail,
         resendFromName: dto.resendFromName ?? current?.resendFromName,
@@ -146,6 +156,7 @@ export class EmailSettingsService {
         organizationId,
         defaultProvider: dto.defaultProvider ?? 'RESEND',
         resendApiKeyEncrypted,
+        resendWebhookSecretEncrypted,
         resendDomain,
         resendFromEmail: dto.resendFromEmail,
         resendFromName: dto.resendFromName,
