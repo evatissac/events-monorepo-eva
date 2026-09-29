@@ -23,4 +23,7 @@ WORKDIR /app/apps/api
 COPY --from=builder /app /app
 
 EXPOSE 3000
-CMD ["npm", "run", "start"]
+# El proyecto existente fue inicializado con db push y no tiene tabla de historial
+# de migraciones en instalaciones anteriores. Sincronizar antes de iniciar evita
+# que una versión nueva consulte columnas aún inexistentes en producción.
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --schema prisma/schema.prisma --accept-data-loss --skip-generate && node dist/main.js"]
