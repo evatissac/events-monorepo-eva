@@ -1,10 +1,17 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../database/prisma.service.js';
+import { MailService } from '../mail/mail.service.js';
+import { EmailTrackingService } from './email-tracking.service.js';
+import { blocksToHtml, interpolate } from './email-renderer.js';
 
 @Injectable()
 export class MarketingService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mail: MailService,
+    private readonly tracking: EmailTrackingService,
+  ) {}
 
   async contacts(organizationId: string, page = 1, limit = 20, search?: string) {
     const safeLimit = Math.min(Math.max(limit, 1), 100);
@@ -145,6 +152,64 @@ export class MarketingService {
       this.prisma.marketingCampaign.delete({ where: { id } }),
     ]);
     return { id, deleted: true };
+  }
+
+  async sendCampaign(organizationId: string, id: string) {
+    const campaign = await this.getCampaign(organizationId, id);
+    const settings = (campaign.settings as Record<string, any> | null) || {};
+    const segmentIds = Array.isArray(campaign.segmentIds) ? campaign.segmentIds as string[] : [];
+    if (!segmentIds.length) throw new BadRequestException('Selecciona al menos un segmento con destinatarios.');
+    const template = settings.templateId ? await this.prisma.emailTemplate.findFirst({ where: { id: settings.templateId, organizationId } }) : null;
+    const subjectTemplate = String(campaign.subject || template?.subject || '').trim();
+    const rawHtml = String(settings.content || template?.htmlContent || blocksToHtml(template?.content, {}) || '').trim();
+    if (!subjectTemplate || !rawHtml) throw new BadRequestException('La campaña necesita asunto y una plantilla o contenido de correo.');
+
+    const segments = await this.prisma.marketingSegment.findMany({
+      where: { organizationId, id: { in: segmentIds } },
+      include: { members: { include: { contact: { include: { profile: { select: { firstName: true, lastName: true } } } } } } },
+    });
+    const recipients = new Map<string, { id: string; email: string; firstName?: string | null; lastName?: string | null }>();
+    for (const segment of segments) for (const member of segment.members) {
+      const contact = member.contact;
+      const email = String(contact.emailFallback || '').trim().toLowerCase();
+      if (email && contact.consentStatus === 'SUBSCRIBED') recipients.set(email, { id: contact.id, email, firstName: contact.profile?.firstName, lastName: contact.profile?.lastName });
+    }
+    if (!recipients.size) throw new BadRequestException('Los segmentos seleccionados no tienen contactos suscritos.');
+
+    let sent = 0; let failed = 0;
+    for (const recipient of recipients.values()) {
+      const delivery = await this.prisma.emailDelivery.create({ data: {
+        organizationId, campaignId: campaign.id, contactId: recipient.id, recipientEmail: recipient.email,
+        recipientName: [recipient.firstName, recipient.lastName].filter(Boolean).join(' ') || null, scheduledAt: new Date(),
+        context: { first_name: recipient.firstName || '', last_name: recipient.lastName || '', email: recipient.email, campaign: { id: campaign.id, name: campaign.name } },
+      } });
+      const context = { first_name: recipient.firstName || '', last_name: recipient.lastName || '', email: recipient.email, unsubscribe_url: this.tracking.unsubscribeUrl(delivery.trackingToken) };
+      const html = this.tracking.decorateHtml(interpolate(rawHtml, context), delivery.trackingToken);
+      const result = await this.mail.send({ organizationId, to: recipient.email, subject: interpolate(subjectTemplate, context), html, fromEmail: settings.senderEmail || undefined, fromName: settings.senderName || undefined });
+      await this.prisma.emailDelivery.update({ where: { id: delivery.id }, data: result.sent ? { status: 'SENT', sentAt: new Date(), providerMessageId: result.messageId } : { status: 'FAILED', error: result.reason || 'No se pudo enviar el correo' } });
+      result.sent ? sent++ : failed++;
+    }
+    await this.prisma.marketingCampaign.update({ where: { id: campaign.id }, data: { status: sent ? 'SENT' : 'DRAFT', settings: { ...settings, recipientCount: recipients.size, sentAt: new Date().toISOString() } } });
+    return { campaignId: campaign.id, recipients: recipients.size, sent, failed };
+  }
+
+  async campaignReport(organizationId: string, id: string) {
+    await this.getCampaign(organizationId, id);
+    const where = { organizationId, campaignId: id };
+    const [total, sent, delivered, opened, clicked, bounced, complained, failed, unsubscribed, deliveries] = await Promise.all([
+      this.prisma.emailDelivery.count({ where }),
+      this.prisma.emailDelivery.count({ where: { ...where, status: { in: ['SENT', 'DELIVERED'] } } }),
+      this.prisma.emailDelivery.count({ where: { ...where, deliveredAt: { not: null } } }),
+      this.prisma.emailDelivery.count({ where: { ...where, openedAt: { not: null } } }),
+      this.prisma.emailDelivery.count({ where: { ...where, clickedAt: { not: null } } }),
+      this.prisma.emailDelivery.count({ where: { ...where, bouncedAt: { not: null } } }),
+      this.prisma.emailDelivery.count({ where: { ...where, complainedAt: { not: null } } }),
+      this.prisma.emailDelivery.count({ where: { ...where, status: 'FAILED' } }),
+      this.prisma.emailTrackingEvent.count({ where: { type: 'UNSUBSCRIBE', delivery: where } }),
+      this.prisma.emailDelivery.findMany({ where, orderBy: { scheduledAt: 'desc' }, take: 100, select: { recipientEmail: true, recipientName: true, status: true, sentAt: true, deliveredAt: true, openedAt: true, clickedAt: true, openCount: true, clickCount: true, bouncedAt: true, complainedAt: true } }),
+    ]);
+    const rate = (value: number) => total ? Number((value * 100 / total).toFixed(2)) : 0;
+    return { stats: { total, sent, delivered, deliveredRate: rate(delivered), opens: opened, openRate: rate(opened), clicks: clicked, clickRate: rate(clicked), unsubscribes: unsubscribed, unsubscribeRate: rate(unsubscribed), bounces: bounced, complaints: complained, failed }, recipients: deliveries };
   }
 
   /** Convierte inscripciones y participantes existentes en audiencias reutilizables por evento y edición. */

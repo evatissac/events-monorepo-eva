@@ -25,6 +25,8 @@ import {
   ExternalLink,
   Plus,
   Trash2,
+  RotateCw,
+  RefreshCw,
 } from "lucide-react"
 
 interface OrgEmailSettingsModalProps {
@@ -76,6 +78,11 @@ export function OrgEmailSettingsModal({
   const [testEmail, setTestEmail] = useState(user?.email || "")
   const [testResult, setTestResult] = useState<{ success: boolean; message: string } | null>(null)
   const [credentialNeedsRotation, setCredentialNeedsRotation] = useState(false)
+  const [webhooks, setWebhooks] = useState<any[]>([])
+  const [managedWebhookId, setManagedWebhookId] = useState<string | null>(null)
+  const [webhookEvents, setWebhookEvents] = useState<any[]>([])
+  const [webhooksLoading, setWebhooksLoading] = useState(false)
+  const [webhookAction, setWebhookAction] = useState<string | null>(null)
 
   useEffect(() => {
     if (open && orgId) {
@@ -113,11 +120,67 @@ export function OrgEmailSettingsModal({
         ])
       }
       setTestResult(null)
+      if ((data.defaultProvider || "RESEND") === "RESEND") loadWebhooks()
     } catch (err: any) {
       toast.error(err?.message || "Error al cargar la configuración de correo.")
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadWebhooks = async () => {
+    if (!orgId) return
+    try {
+      setWebhooksLoading(true)
+      const result = await api.emailSettings.webhooks(orgId)
+      const items = Array.isArray(result?.data) ? result.data : []
+      const currentId = result?.managedWebhookId || null
+      setWebhooks(items)
+      setManagedWebhookId(currentId)
+      const activeId = currentId || items[0]?.id
+      if (activeId) {
+        const events = await api.emailSettings.webhookEvents(orgId, activeId)
+        setWebhookEvents(Array.isArray(events?.data) ? events.data : [])
+      } else setWebhookEvents([])
+    } catch (err: any) {
+      setWebhooks([])
+      setWebhookEvents([])
+      // No bloquea la edición de credenciales cuando aún no hay una API key válida.
+    } finally {
+      setWebhooksLoading(false)
+    }
+  }
+
+  const handleCreateWebhook = async () => {
+    if (!orgId) return
+    try {
+      setWebhookAction("create")
+      await api.emailSettings.createWebhook(orgId)
+      toast.success("Webhook creado. Su secreto quedó guardado cifrado para esta institución.")
+      await loadWebhooks()
+    } catch (err: any) { toast.error(err?.message || "No se pudo crear el webhook en Resend.") }
+    finally { setWebhookAction(null) }
+  }
+
+  const handleRotateWebhook = async (id: string) => {
+    if (!orgId) return
+    try {
+      setWebhookAction(`rotate:${id}`)
+      await api.emailSettings.rotateWebhookSecret(orgId, id)
+      toast.success("Secreto rotado y actualizado de forma segura.")
+    } catch (err: any) { toast.error(err?.message || "No se pudo rotar el secreto.") }
+    finally { setWebhookAction(null) }
+  }
+
+  const handleDeleteWebhook = async (id: string) => {
+    if (!orgId || !window.confirm("¿Eliminar este webhook de Resend? Se dejarán de recibir sus eventos.")) return
+    try {
+      setWebhookAction(`delete:${id}`)
+      await api.emailSettings.removeWebhook(orgId, id)
+      toast.success("Webhook eliminado.")
+      await loadWebhooks()
+    } catch (err: any) { toast.error(err?.message || "No se pudo eliminar el webhook.") }
+    finally { setWebhookAction(null) }
   }
 
   const handleAddSender = () => {
@@ -368,8 +431,46 @@ export function OrgEmailSettingsModal({
                     </button>
                   </div>
                   <p className="text-[10px] leading-4 text-muted-foreground">
-                    En Resend: Webhooks → Add webhook. Usa <span className="font-mono">https://api-eventos.nuiti.org/api/email-tracking/provider-events</span> y pega aquí el secreto que genera Resend.
+                    Si lo creas desde este panel, el secreto se guarda automáticamente cifrado. También puedes pegar aquí uno ya existente.
                   </p>
+                </div>
+
+                <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">Webhook de seguimiento</p>
+                      <p className="mt-0.5 text-[10px] leading-4 text-muted-foreground">Recibe entregas, rebotes, quejas y fallos de esta cuenta de Resend. Aperturas y clics se miden directamente por la plataforma.</p>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" onClick={loadWebhooks} disabled={webhooksLoading} className="h-8 rounded-lg px-2 text-[11px]">
+                      <RefreshCw className={`mr-1 size-3 ${webhooksLoading ? "animate-spin" : ""}`} />Actualizar
+                    </Button>
+                  </div>
+                  {webhooks.length === 0 && !webhooksLoading ? (
+                    <Button type="button" size="sm" onClick={handleCreateWebhook} disabled={webhookAction === "create"} className="h-8 rounded-lg text-[11px]">
+                      {webhookAction === "create" ? "Creando…" : "Crear webhook en Resend"}
+                    </Button>
+                  ) : (
+                    <div className="space-y-2">
+                      {webhooks.map((webhook) => (
+                        <div key={webhook.id} className="rounded-lg border border-border bg-background px-3 py-2 text-[11px]">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-mono text-muted-foreground">{webhook.id}</span>
+                            <span className={webhook.status === "enabled" ? "text-emerald-600" : "text-muted-foreground"}>{webhook.status || "enabled"}{webhook.id === managedWebhookId ? " · gestionado" : ""}</span>
+                          </div>
+                          <p className="mt-1 truncate text-muted-foreground">{webhook.endpoint}</p>
+                          <div className="mt-2 flex gap-2">
+                            <Button type="button" variant="ghost" size="sm" onClick={() => handleRotateWebhook(webhook.id)} disabled={webhookAction === `rotate:${webhook.id}`} className="h-7 px-1.5 text-[10px]">
+                              <RotateCw className="mr-1 size-3" />Rotar secreto
+                            </Button>
+                            <Button type="button" variant="ghost" size="sm" onClick={() => handleDeleteWebhook(webhook.id)} disabled={webhookAction === `delete:${webhook.id}`} className="h-7 px-1.5 text-[10px] text-destructive">
+                              <Trash2 className="mr-1 size-3" />Eliminar
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {webhookEvents.length > 0 && <p className="text-[10px] text-muted-foreground">Últimos eventos: {webhookEvents.slice(0, 3).map((event) => `${event.type} (${event.status})`).join(" · ")}</p>}
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

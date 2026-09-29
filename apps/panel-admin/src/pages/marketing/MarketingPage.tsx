@@ -68,7 +68,8 @@ export function MarketingPage() {
   const [openCreateEmailModal, setOpenCreateEmailModal] = useState(false)
 
   // Seed Initial State (Matching reference images with real-looking demo data)
-  const [campaigns, setCampaigns] = useState<Campaign[]>([
+  const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  /*[
     {
       id: "camp-1",
       campaignNumber: 15,
@@ -139,7 +140,7 @@ export function MarketingPage() {
       segmentNames: ["Participantes CONIAP 2024"],
       recipientCount: 88,
     },
-  ])
+  ]*/
   const [templates, setTemplates] = useState<Array<{ id: string; name: string; sourceTemplateId?: string | null; tags?: string[] }>>([])
   const [totalContacts, setTotalContacts] = useState(0)
 
@@ -363,9 +364,22 @@ export function MarketingPage() {
     }
   }
 
-  const handleLaunchCampaign = (launched: Campaign, _scheduledAt?: string) => {
-    setCampaigns(campaigns.map((c) => (c.id === launched.id ? launched : c)))
-    setViewMode("list")
+  const handleLaunchCampaign = async (launched: Campaign, scheduledAt?: string) => {
+    if (!organizationId) return
+    try {
+      if (scheduledAt) {
+        await api.marketing.updateCampaign(organizationId, launched.id, { status: "SCHEDULED", scheduledAt, settings: { ...launched } })
+        toast.success(`Campaña programada para ${new Date(scheduledAt).toLocaleString()}`)
+      } else {
+        const result = await api.marketing.sendCampaign(organizationId, launched.id)
+        const updated = { ...launched, status: "SENT" as const, sentAt: new Date().toISOString(), recipientCount: result.recipients }
+        setCampaigns((current) => current.map((campaign) => campaign.id === updated.id ? updated : campaign))
+        toast.success(`Campaña enviada a ${result.sent} destinatarios${result.failed ? `; ${result.failed} fallaron` : ""}.`)
+      }
+      setViewMode("list")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo enviar la campaña.")
+    }
   }
 
   const handleDuplicateCampaign = (campaign: Campaign) => {
@@ -475,6 +489,7 @@ export function MarketingPage() {
       {viewMode === "report" && selectedCampaign && (
         <CampaignReportView
           campaign={selectedCampaign}
+          organizationId={organizationId}
           onBack={() => {
             setSelectedCampaign(null)
             setViewMode("list")
