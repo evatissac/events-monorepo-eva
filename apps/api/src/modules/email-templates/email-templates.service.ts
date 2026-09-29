@@ -297,6 +297,45 @@ export class EmailTemplatesService {
     return STARTER_TEMPLATES;
   }
 
+  listSections(organizationId: string) {
+    return this.prisma.emailSection.findMany({ where: { organizationId }, orderBy: { updatedAt: 'desc' } });
+  }
+
+  async createSection(organizationId: string, data: any) {
+    const name = String(data.name || '').trim();
+    if (!name) throw new BadRequestException('La sección necesita un nombre');
+    if (!Array.isArray(data.content) || data.content.length === 0) throw new BadRequestException('La sección necesita al menos un bloque');
+    return this.prisma.emailSection.create({ data: { organizationId, name, category: String(data.category || 'CUSTOM'), description: data.description?.trim() || null, thumbnailUrl: data.thumbnailUrl || null, content: data.content } });
+  }
+
+  async updateSection(organizationId: string, id: string, data: any) {
+    const section = await this.prisma.emailSection.findFirst({ where: { id, organizationId }, select: { id: true } });
+    if (!section) throw new NotFoundException('Sección no encontrada');
+
+    const name = data.name === undefined ? undefined : String(data.name).trim();
+    if (name !== undefined && !name) throw new BadRequestException('La sección necesita un nombre');
+    if (data.content !== undefined && (!Array.isArray(data.content) || data.content.length === 0)) {
+      throw new BadRequestException('La sección necesita al menos un bloque');
+    }
+
+    return this.prisma.emailSection.update({
+      where: { id },
+      data: {
+        name,
+        category: data.category === undefined ? undefined : String(data.category || 'CUSTOM'),
+        description: data.description === undefined ? undefined : (data.description?.trim() || null),
+        thumbnailUrl: data.thumbnailUrl === undefined ? undefined : (data.thumbnailUrl || null),
+        content: data.content,
+      },
+    });
+  }
+
+  async removeSection(organizationId: string, id: string) {
+    const section = await this.prisma.emailSection.findFirst({ where: { id, organizationId }, select: { id: true } });
+    if (!section) throw new NotFoundException('Sección no encontrada');
+    return this.prisma.emailSection.delete({ where: { id } });
+  }
+
   async create(organizationId: string, data: any) {
     let initialContent = data.content;
     let initialSubject = data.subject || 'Nuevo correo informativo';

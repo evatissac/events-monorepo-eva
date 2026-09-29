@@ -56,6 +56,18 @@ export class EmailTemplatesController {
     return this.templates.getStarters();
   }
 
+  @Get('organizations/:organizationId/email-sections')
+  listSections(@Param('organizationId') organizationId: string) { return this.templates.listSections(organizationId); }
+
+  @Post('organizations/:organizationId/email-sections')
+  createSection(@Param('organizationId') organizationId: string, @Body() data: any) { return this.templates.createSection(organizationId, data); }
+
+  @Patch('organizations/:organizationId/email-sections/:id')
+  updateSection(@Param('organizationId') organizationId: string, @Param('id') id: string, @Body() data: any) { return this.templates.updateSection(organizationId, id, data); }
+
+  @Delete('organizations/:organizationId/email-sections/:id')
+  removeSection(@Param('organizationId') organizationId: string, @Param('id') id: string) { return this.templates.removeSection(organizationId, id); }
+
   @Get('organizations/:organizationId/email-templates')
   list(
     @Param('organizationId') organizationId: string,
