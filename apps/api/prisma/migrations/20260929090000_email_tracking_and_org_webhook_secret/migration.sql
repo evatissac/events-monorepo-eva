@@ -1,6 +1,10 @@
 -- Seguimiento de correo y secreto firmado de Resend por institución.
 ALTER TABLE "organization_email_settings"
-  ADD COLUMN IF NOT EXISTS "resend_webhook_secret_encrypted" TEXT;
+  ADD COLUMN IF NOT EXISTS "resend_webhook_secret_encrypted" TEXT,
+  ADD COLUMN IF NOT EXISTS "resend_webhook_id" TEXT,
+  ADD COLUMN IF NOT EXISTS "resend_webhook_endpoint" TEXT,
+  ADD COLUMN IF NOT EXISTS "resend_webhook_events" TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+  ADD COLUMN IF NOT EXISTS "resend_webhook_status" TEXT;
 
 ALTER TYPE "DeliveryStatus" ADD VALUE IF NOT EXISTS 'DELIVERED';
 ALTER TYPE "DeliveryStatus" ADD VALUE IF NOT EXISTS 'BOUNCED';
@@ -15,6 +19,15 @@ ALTER TABLE "email_deliveries"
   ADD COLUMN IF NOT EXISTS "open_count" INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS "click_count" INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS "tracking_token" UUID;
+
+ALTER TABLE "email_deliveries"
+  ADD COLUMN IF NOT EXISTS "campaign_id" UUID;
+ALTER TABLE "email_deliveries" ALTER COLUMN "automation_id" DROP NOT NULL;
+ALTER TABLE "email_deliveries" ALTER COLUMN "step_id" DROP NOT NULL;
+CREATE INDEX IF NOT EXISTS "email_deliveries_campaign_id_status_idx" ON "email_deliveries"("campaign_id", "status");
+ALTER TABLE "email_deliveries"
+  ADD CONSTRAINT "email_deliveries_campaign_id_fkey"
+  FOREIGN KEY ("campaign_id") REFERENCES "marketing_campaigns"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 UPDATE "email_deliveries" SET "tracking_token" = gen_random_uuid() WHERE "tracking_token" IS NULL;
 ALTER TABLE "email_deliveries" ALTER COLUMN "tracking_token" SET NOT NULL;
