@@ -27,7 +27,7 @@ interface CampaignSetupBuilderProps {
   onSelectTemplate: (campaign: Campaign, sourceTemplateId: string) => Promise<Campaign | null>
   onEditTemplate: (campaign: Campaign, templateId: string, eventContext?: Campaign["eventContext"]) => Promise<void>
   onSaveCampaign: (updatedCampaign: Campaign) => void
-  onLaunchCampaign: (campaign: Campaign, scheduledAt?: string) => void
+  onLaunchCampaign: (campaign: Campaign, scheduledAt?: string) => Promise<void> | void
 }
 
 export function CampaignSetupBuilder({
@@ -122,15 +122,14 @@ export function CampaignSetupBuilder({
     if (updated) setCurrent(updated)
   }
 
-  const handleSendNow = () => {
+  const handleSendNow = async () => {
     const updated: Campaign = {
       ...current,
       status: "SENT",
       sentAt: new Date().toISOString(),
     }
     setCurrent(updated)
-    onLaunchCampaign(updated)
-    toast.success("¡Campaña enviada con éxito!")
+    await onLaunchCampaign(updated)
   }
 
   const handleSchedule = (datetime: string) => {
