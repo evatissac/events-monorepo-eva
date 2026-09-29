@@ -14,4 +14,7 @@ COPY --from=build /prod ./
 COPY --from=build /app/apps/api/dist ./dist
 COPY --from=build /app/apps/api/prisma ./prisma
 EXPOSE 3000
-CMD ["node", "dist/main.js"]
+# El proyecto existente fue inicializado con db push y no tiene tabla de historial
+# de migraciones en instalaciones anteriores. Sincronizar antes de iniciar evita
+# que una versión nueva consulte columnas aún inexistentes en producción.
+CMD ["sh", "-c", "./node_modules/.bin/prisma db push --schema prisma/schema.prisma --accept-data-loss --skip-generate && node dist/main.js"]

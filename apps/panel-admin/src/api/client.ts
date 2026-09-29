@@ -231,6 +231,20 @@ export const api = {
       apiFetch<any>(`/organizations/${organizationId}/email-settings`, { method: "PUT", body: JSON.stringify(data) }),
     test: (organizationId: string, data: any) =>
       apiFetch<any>(`/organizations/${organizationId}/email-settings/test`, { method: "POST", body: JSON.stringify(data) }),
+    webhooks: (organizationId: string) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/resend-webhooks`),
+    createWebhook: (organizationId: string, data?: { events?: string[] }) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/resend-webhooks`, { method: "POST", body: JSON.stringify(data || {}) }),
+    updateWebhook: (organizationId: string, webhookId: string, data: any) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/resend-webhooks/${webhookId}`, { method: "PATCH", body: JSON.stringify(data) }),
+    removeWebhook: (organizationId: string, webhookId: string) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/resend-webhooks/${webhookId}`, { method: "DELETE" }),
+    rotateWebhookSecret: (organizationId: string, webhookId: string) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/resend-webhooks/${webhookId}/rotate-secret`, { method: "POST" }),
+    webhookEvents: (organizationId: string, webhookId: string, limit = 10) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/resend-webhooks/${webhookId}/events?limit=${limit}`),
+    replayWebhookEvent: (organizationId: string, webhookId: string, eventId: string) =>
+      apiFetch<any>(`/organizations/${organizationId}/email-settings/resend-webhooks/${webhookId}/events/${eventId}/replay`, { method: "POST" }),
   },
   marketing: {
     variables: () => apiFetch<Array<{ key: string; label: string; category: string; description: string }>>("/marketing/variables"),
@@ -247,6 +261,7 @@ export const api = {
     updateCampaign: (organizationId: string, id: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
     removeCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}`, { method: "DELETE" }),
     sendCampaign: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}/send`, { method: "POST" }),
+    campaignReport: (organizationId: string, id: string) => apiFetch<any>(`/organizations/${organizationId}/marketing/campaigns/${id}/report`),
     automations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),
     createAutomation: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/automations`, { method: "POST", body: JSON.stringify(data) }),
     listAutomations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),

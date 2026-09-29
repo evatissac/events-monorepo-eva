@@ -755,6 +755,10 @@ model OrganizationEmailSettings {
   // Resend Settings
   resendApiKeyEncrypted String?      @map("resend_api_key_encrypted")
   resendWebhookSecretEncrypted String? @map("resend_webhook_secret_encrypted")
+  resendWebhookId       String?      @map("resend_webhook_id")
+  resendWebhookEndpoint String?      @map("resend_webhook_endpoint")
+  resendWebhookEvents   String[]     @default([]) @map("resend_webhook_events")
+  resendWebhookStatus   String?      @map("resend_webhook_status")
   resendDomain          String?      @map("resend_domain")
   resendFromEmail       String?      @map("resend_from_email")
   resendFromName        String?      @map("resend_from_name")
@@ -834,6 +838,7 @@ model MarketingCampaign {
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  deliveries EmailDelivery[]
   @@index([organizationId, status])
   @@map("marketing_campaigns")
 }
@@ -881,8 +886,9 @@ model MarketingAutomationStep {
 model EmailDelivery {
   id String @id @default(uuid()) @db.Uuid
   organizationId String @map("organization_id") @db.Uuid
-  automationId String @map("automation_id") @db.Uuid
-  stepId String @map("step_id") @db.Uuid
+  automationId String? @map("automation_id") @db.Uuid
+  stepId String? @map("step_id") @db.Uuid
+  campaignId String? @map("campaign_id") @db.Uuid
   contactId String? @map("contact_id") @db.Uuid
   recipientEmail String @map("recipient_email")
   recipientName String? @map("recipient_name")
@@ -901,9 +907,11 @@ model EmailDelivery {
   error String?
   context Json?
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  campaign MarketingCampaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   trackingEvents EmailTrackingEvent[]
   @@unique([stepId, recipientEmail])
   @@index([status, scheduledAt])
+  @@index([campaignId, status])
   @@map("email_deliveries")
 }
 
