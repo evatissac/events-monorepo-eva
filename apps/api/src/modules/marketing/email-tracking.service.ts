@@ -80,7 +80,7 @@ export class EmailTrackingService {
     const delivery = await this.prisma.emailDelivery.findFirst({ where: { providerMessageId: String(providerMessageId) } });
     if (!delivery) return { ignored: true, reason: 'No existe un envío asociado' };
     const rawType = String(input.type || data.type || '').toLowerCase();
-    const mapped = rawType.includes('deliver') ? 'DELIVERED' : rawType.includes('bounce') ? 'BOUNCE' : rawType.includes('complaint') || rawType.includes('spam') ? 'COMPLAINT' : null;
+    const mapped = rawType.includes('deliver') ? 'DELIVERED' : rawType.includes('bounce') ? 'BOUNCE' : rawType.includes('complaint') || rawType.includes('spam') ? 'COMPLAINT' : rawType.includes('failed') ? 'FAILED' : null;
     if (!mapped) return { ignored: true, reason: `Evento no soportado: ${rawType || 'sin tipo'}` };
     const now = new Date();
     const status = mapped === 'DELIVERED' ? 'DELIVERED' : mapped === 'BOUNCE' ? 'BOUNCED' : 'COMPLAINED';

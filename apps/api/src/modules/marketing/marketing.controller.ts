@@ -69,6 +69,16 @@ export class MarketingController {
     return this.service.updateCampaign(o, id, data);
   }
 
+  @Post('campaigns/:id/send')
+  sendCampaign(@Param('organizationId') o: string, @Param('id') id: string) {
+    return this.service.sendCampaign(o, id);
+  }
+
+  @Get('campaigns/:id/report')
+  reportCampaign(@Param('organizationId') o: string, @Param('id') id: string) {
+    return this.service.campaignReport(o, id);
+  }
+
   @Delete('campaigns/:id')
   removeCampaign(@Param('organizationId') o: string, @Param('id') id: string) {
     return this.service.removeCampaign(o, id);

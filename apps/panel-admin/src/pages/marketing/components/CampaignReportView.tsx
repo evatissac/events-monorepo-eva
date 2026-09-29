@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import {
   ArrowLeft,
   Share2,
@@ -25,42 +25,40 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { toast } from "sonner"
+import { api } from "@/api/client"
 import type { Campaign } from "../types"
 
 interface CampaignReportViewProps {
   campaign: Campaign
+  organizationId?: string
   onBack: () => void
 }
 
 type ReportSubTab = "overview" | "deliverability" | "opens" | "clicks" | "unsubscribes"
 
-export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps) {
+export function CampaignReportView({ campaign, organizationId, onBack }: CampaignReportViewProps) {
   const [activeSubTab, setActiveSubTab] = useState<ReportSubTab>("overview")
   const [inspectModalTitle, setInspectModalTitle] = useState<string | null>(null)
   const [inspectFilter, setInspectFilter] = useState<"delivered" | "opens" | "clicks" | "unsubscribes">("delivered")
 
-  const stats = campaign.stats || {
-    delivered: 88,
-    deliveredRate: 97.78,
-    opens: 55,
-    openRate: 62.5,
-    clicks: 12,
-    clickRate: 13.64,
-    unsubscribes: 0,
-    unsubscribeRate: 0,
-  }
-
-  // Mock recipient event logs
-  const recipientsLog = [
-    { email: "maria.torres@unap.edu.pe", name: "Dra. María Torres", status: "Entregado", opened: "19 sept 20:42", clicked: "19 sept 20:45", device: "Desktop (Chrome)" },
-    { email: "carlos.mendoza@iiap.gob.pe", name: "Ing. Carlos Mendoza", status: "Entregado", opened: "19 sept 20:50", clicked: "19 sept 20:52", device: "Móvil (Safari)" },
-    { email: "lucia.valdez@gmail.com", name: "Lic. Lucía Valdez", status: "Entregado", opened: "19 sept 21:15", clicked: "—", device: "Desktop (Firefox)" },
-    { email: "juan.perez@concytec.gob.pe", name: "Dr. Juan Pérez", status: "Entregado", opened: "19 sept 21:30", clicked: "19 sept 21:34", device: "Desktop (Edge)" },
-    { email: "ana.rios@amazonas.pe", name: "Mg. Ana Ríos", status: "Entregado", opened: "20 sept 08:12", clicked: "—", device: "Móvil (Android)" },
-    { email: "ricardo.solis@uni.edu.pe", name: "Ing. Ricardo Solís", status: "Entregado", opened: "20 sept 09:05", clicked: "20 sept 09:07", device: "Desktop (Chrome)" },
-    { email: "patricia.vega@unmsm.edu.pe", name: "Dra. Patricia Vega", status: "Entregado", opened: "20 sept 10:20", clicked: "—", device: "Móvil (iOS)" },
-    { email: "david.herrera@minam.gob.pe", name: "David Herrera", status: "Entregado", opened: "20 sept 11:45", clicked: "20 sept 11:50", device: "Desktop (Chrome)" },
-  ]
+  const [report, setReport] = useState<any | null>(null)
+  const [reportLoading, setReportLoading] = useState(true)
+  useEffect(() => {
+    if (!organizationId) return
+    setReportLoading(true)
+    api.marketing.campaignReport(organizationId, campaign.id)
+      .then(setReport)
+      .catch((error: any) => toast.error(error?.message || "No se pudo cargar el reporte real."))
+      .finally(() => setReportLoading(false))
+  }, [campaign.id, organizationId])
+  const stats = report?.stats || { total: 0, sent: 0, delivered: 0, deliveredRate: 0, opens: 0, openRate: 0, clicks: 0, clickRate: 0, unsubscribes: 0, unsubscribeRate: 0, bounces: 0, complaints: 0, failed: 0 }
+  const format = (date?: string | null) => date ? new Date(date).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }) : "—"
+  const recipientsLog: Array<{ email: string; name: string; status: string; opened: string; clicked: string; device: string }> = (report?.recipients || []).map((item: any) => ({
+    email: item.recipientEmail,
+    name: item.recipientName || "Sin nombre",
+    status: item.status === "DELIVERED" ? "Entregado" : item.status === "SENT" ? "Enviado" : item.status === "BOUNCED" ? "Rebotado" : item.status === "COMPLAINED" ? "Marcado como spam" : item.status === "FAILED" ? "Fallido" : item.status,
+    opened: format(item.openedAt), clicked: item.clickCount ? `${item.clickCount} · ${format(item.clickedAt)}` : "—", device: "—",
+  }))
 
   const handleExport = (format: "csv" | "excel" | "pdf") => {
     toast.success(`Exportando informe de "${campaign.name}" en formato ${format.toUpperCase()}...`)
@@ -75,7 +73,7 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
     if (inspectFilter === "opens") return item.opened !== "—"
     if (inspectFilter === "clicks") return item.clicked !== "—"
     if (inspectFilter === "unsubscribes") return false
-    return true
+    return inspectFilter === "delivered" ? item.status === "Entregado" : true
   })
 
   return (
@@ -93,13 +91,13 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
 
           {/* Email Thumbnail preview */}
           <div className="size-20 sm:size-24 rounded-2xl bg-gradient-to-br from-violet-600 via-indigo-700 to-slate-900 p-2 flex flex-col justify-between text-white shrink-0 shadow-sm border border-border/40">
-            <div className="text-[9px] font-black tracking-widest uppercase opacity-80">CONIAP</div>
+            <div className="text-[9px] font-black tracking-widest uppercase opacity-80">EMAIL</div>
             <div className="text-center">
-              <span className="text-[10px] font-bold block leading-tight">CONIAP 2024</span>
-              <span className="text-[8px] opacity-70 block">III Congreso Int.</span>
+              <span className="text-[10px] font-bold block leading-tight line-clamp-2">{campaign.name}</span>
+              <span className="text-[8px] opacity-70 block">Campaña</span>
             </div>
             <div className="text-[8px] text-center bg-black/40 py-0.5 rounded text-amber-300 font-semibold">
-              AMPLIACIÓN
+              {campaign.status}
             </div>
           </div>
 
@@ -109,7 +107,7 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
               {campaign.name}
             </h1>
             <p className="text-xs text-muted-foreground font-medium">
-              #{campaign.campaignNumber || 15} • {campaign.sentAt ? `Enviada el ${new Date(campaign.sentAt).toLocaleDateString("es-ES", { day: "numeric", month: "short", year: "numeric" })} a las ${new Date(campaign.sentAt).toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}` : "Enviada el 19 sept 2024 20:38"}
+              #{campaign.campaignNumber} • {campaign.sentAt ? `Enviada el ${format(campaign.sentAt)}` : reportLoading ? "Cargando actividad…" : stats.total ? "Enviada" : "Aún no enviada"}
             </p>
           </div>
         </div>
@@ -161,18 +159,18 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-5 rounded-2xl border border-border/80 bg-card text-xs">
         <div>
           <span className="text-muted-foreground block mb-1">Asunto</span>
-          <span className="font-bold text-foreground text-sm">{campaign.subject || "CONIAP"}</span>
+            <span className="font-bold text-foreground text-sm">{campaign.subject || "Sin asunto"}</span>
         </div>
         <div>
           <span className="text-muted-foreground block mb-1">De</span>
           <span className="font-semibold text-foreground">
-            {campaign.senderName || "IIAP"} &lt;{campaign.senderEmail || "daylersan@gmail.com"}&gt;
+            {campaign.senderName || "Sin remitente"}{campaign.senderEmail ? ` <${campaign.senderEmail}>` : ""}
           </span>
         </div>
         <div>
           <span className="text-muted-foreground block mb-1">Responder a</span>
           <span className="font-semibold text-foreground">
-            {campaign.replyTo || campaign.senderEmail || "daylersan@gmail.com"}
+            {campaign.replyTo || campaign.senderEmail || "No configurado"}
           </span>
         </div>
       </div>
@@ -259,7 +257,7 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
                       {stats.delivered}
                     </span>
                     <button
-                      onClick={() => openRecipientsInspect("delivered", "Contactos Entregados (88)")}
+                      onClick={() => openRecipientsInspect("delivered", `Contactos entregados (${stats.delivered})`)}
                       className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1"
                     >
                       <Users className="size-3" />
@@ -285,7 +283,7 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
                       {stats.opens}
                     </span>
                     <button
-                      onClick={() => openRecipientsInspect("opens", "Contactos que Abrieron el Email (55)")}
+                      onClick={() => openRecipientsInspect("opens", `Contactos que abrieron (${stats.opens})`)}
                       className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1"
                     >
                       <Users className="size-3" />
@@ -311,7 +309,7 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
                       {stats.clicks}
                     </span>
                     <button
-                      onClick={() => openRecipientsInspect("clicks", "Contactos con Clics Registrados (12)")}
+                      onClick={() => openRecipientsInspect("clicks", `Contactos con clics (${stats.clicks})`)}
                       className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1"
                     >
                       <Users className="size-3" />
@@ -367,7 +365,7 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
               <div className="flex items-center justify-between pt-2 border-t border-border/40">
                 <div className="flex items-center gap-2">
                   <Badge variant="outline" className="rounded-full px-3 py-1 font-semibold text-xs border-border bg-muted/40">
-                    #8 {campaign.segmentNames?.[0] || "Participantes CONIAP 2024"}
+                    {campaign.segmentNames?.[0] || "Segmentos seleccionados"}
                   </Badge>
                 </div>
 
@@ -398,7 +396,7 @@ export function CampaignReportView({ campaign, onBack }: CampaignReportViewProps
                     Envío completada
                   </h4>
                   <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-                    [#{campaign.campaignNumber || 15}] {campaign.name} se ha enviado satisfactoriamente a {stats.delivered} destinatarios el 19 sept 2024 20:38.
+                    [#{campaign.campaignNumber}] {campaign.name} tiene {stats.sent} envíos procesados y {stats.delivered} entregas confirmadas{campaign.sentAt ? ` desde ${format(campaign.sentAt)}` : ""}.
                   </p>
                 </div>
               </div>

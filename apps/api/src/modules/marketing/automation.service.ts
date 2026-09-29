@@ -122,6 +122,7 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     const jobs = await this.prisma.emailDelivery.findMany({ where: { status: 'QUEUED', scheduledAt: { lte: new Date() } }, take: limit, orderBy: { scheduledAt: 'asc' } });
     let sent = 0; let failed = 0; let skipped = 0;
     for (const job of jobs) {
+      if (!job.stepId || !job.automationId) { await this.prisma.emailDelivery.update({ where: { id: job.id }, data: { status: 'SKIPPED', error: 'Entrega sin automatización asociada' } }); skipped++; continue; }
       const step = await this.prisma.marketingAutomationStep.findUnique({ where: { id: job.stepId } });
       const enrollment = job.contactId ? await this.prisma.marketingEventEnrollment.findUnique({ where: { automationId_contactId: { automationId: job.automationId, contactId: job.contactId } } }) : null;
       const contact = job.contactId ? await this.prisma.marketingContact.findUnique({ where: { id: job.contactId }, select: { consentStatus: true } }) : null;
