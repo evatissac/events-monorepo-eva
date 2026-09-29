@@ -101,6 +101,9 @@ enum AutomationTiming {
 enum DeliveryStatus {
   QUEUED
   SENT
+  DELIVERED
+  BOUNCED
+  COMPLAINED
   FAILED
   SKIPPED
 }
@@ -751,6 +754,7 @@ model OrganizationEmailSettings {
   
   // Resend Settings
   resendApiKeyEncrypted String?      @map("resend_api_key_encrypted")
+  resendWebhookSecretEncrypted String? @map("resend_webhook_secret_encrypted")
   resendDomain          String?      @map("resend_domain")
   resendFromEmail       String?      @map("resend_from_email")
   resendFromName        String?      @map("resend_from_name")
@@ -884,12 +888,35 @@ model EmailDelivery {
   recipientName String? @map("recipient_name")
   scheduledAt DateTime @map("scheduled_at")
   sentAt DateTime? @map("sent_at")
+  deliveredAt DateTime? @map("delivered_at")
+  openedAt DateTime? @map("opened_at")
+  clickedAt DateTime? @map("clicked_at")
+  bouncedAt DateTime? @map("bounced_at")
+  complainedAt DateTime? @map("complained_at")
+  openCount Int @default(0) @map("open_count")
+  clickCount Int @default(0) @map("click_count")
+  trackingToken String @unique @default(uuid()) @map("tracking_token") @db.Uuid
   status DeliveryStatus @default(QUEUED)
   providerMessageId String? @map("provider_message_id")
   error String?
   context Json?
   organization Organization @relation(fields:[organizationId], references:[id], onDelete:Cascade)
+  trackingEvents EmailTrackingEvent[]
   @@unique([stepId, recipientEmail])
   @@index([status, scheduledAt])
   @@map("email_deliveries")
+}
+
+model EmailTrackingEvent {
+  id String @id @default(uuid()) @db.Uuid
+  deliveryId String @map("delivery_id") @db.Uuid
+  type String
+  url String? @db.Text
+  metadata Json?
+  occurredAt DateTime @default(now()) @map("occurred_at")
+  delivery EmailDelivery @relation(fields:[deliveryId], references:[id], onDelete:Cascade)
+
+  @@index([deliveryId, type])
+  @@index([occurredAt])
+  @@map("email_tracking_events")
 }

@@ -2,12 +2,13 @@ import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDes
 import { PrismaService } from '../../database/prisma.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { blocksToHtml, interpolate } from './email-renderer.js';
+import { EmailTrackingService } from './email-tracking.service.js';
 
 @Injectable()
 export class AutomationService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(AutomationService.name);
   private dispatcher?: NodeJS.Timeout;
-  constructor(private readonly prisma: PrismaService, private readonly mail: MailService) { }
+  constructor(private readonly prisma: PrismaService, private readonly mail: MailService, private readonly tracking: EmailTrackingService) { }
 
   onModuleInit() {
     this.dispatcher = setInterval(() => void this.dispatchDue().catch((error) => this.logger.error('No se pudo procesar la cola de marketing', error)), 60_000);
@@ -123,12 +124,13 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     for (const job of jobs) {
       const step = await this.prisma.marketingAutomationStep.findUnique({ where: { id: job.stepId } });
       const enrollment = job.contactId ? await this.prisma.marketingEventEnrollment.findUnique({ where: { automationId_contactId: { automationId: job.automationId, contactId: job.contactId } } }) : null;
-      if (!step || enrollment?.purchaseStatus === 'PURCHASED' || enrollment?.benefitUsedAt) { await this.prisma.emailDelivery.update({ where: { id: job.id }, data: { status: 'SKIPPED', error: 'No cumple las condiciones de envío' } }); skipped++; continue; }
+      const contact = job.contactId ? await this.prisma.marketingContact.findUnique({ where: { id: job.contactId }, select: { consentStatus: true } }) : null;
+      if (!step || contact?.consentStatus === 'UNSUBSCRIBED' || enrollment?.purchaseStatus === 'PURCHASED' || enrollment?.benefitUsedAt) { await this.prisma.emailDelivery.update({ where: { id: job.id }, data: { status: 'SKIPPED', error: 'No cumple las condiciones de envío' } }); skipped++; continue; }
       const template = step.templateId ? await this.prisma.emailTemplate.findUnique({ where: { id: step.templateId } }) : null;
       const context = (job.context as Record<string, unknown> | null) || {};
       const subject = interpolate(step.subject || template?.subject || 'Información importante', context);
       const configuredHtml = step.htmlContent ? interpolate(step.htmlContent, context) : template?.htmlContent ? interpolate(template.htmlContent, context) : blocksToHtml(template?.content, context);
-      const html = configuredHtml?.trim() ? configuredHtml : this.registrationFallbackHtml(context);
+      const html = this.tracking.decorateHtml(configuredHtml?.trim() ? configuredHtml : this.registrationFallbackHtml(context), job.trackingToken);
       const result = await this.mail.send({ to: job.recipientEmail, subject, html, organizationId: job.organizationId });
       await this.prisma.emailDelivery.update({ where: { id: job.id }, data: result.sent ? { status: 'SENT', sentAt: new Date(), providerMessageId: result.messageId } : { status: 'FAILED', error: result.reason } });
       result.sent ? sent++ : failed++;
@@ -136,7 +138,7 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     return { processed: jobs.length, sent, failed, skipped };
   }
 
-  async analytics(organizationId: string) { const group = await this.prisma.emailDelivery.groupBy({ by: ['status'], where: { organizationId }, _count: { _all: true } }); return Object.fromEntries(group.map((x) => [x.status, x._count._all])); }
+  async analytics(organizationId: string) { return this.tracking.analytics(organizationId); }
 
   private async queueContact(automation: any, contact: any, event: any, firstName: string | null, registeredAt: Date, extraContext: Record<string, unknown> = {}) {
     if (contact.consentStatus !== 'SUBSCRIBED' || !contact.emailFallback) return 0;
@@ -155,6 +157,9 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       const date = this.when(step, event.startDate, registeredAt, new Date());
       if (!date) continue;
       const delivery = await this.prisma.emailDelivery.upsert({ where: { stepId_recipientEmail: { stepId: step.id, recipientEmail: contact.emailFallback } }, update: {}, create: { organizationId: automation.organizationId, automationId: automation.id, stepId: step.id, contactId: contact.id, recipientEmail: contact.emailFallback, recipientName: firstName, scheduledAt: date, context: context as any } });
+      const unsubscribeUrl = this.tracking.unsubscribeUrl(delivery.trackingToken);
+      const enrichedContext = { ...context, unsubscribe_url: unsubscribeUrl, automation: { ...context.automation, unsubscribe_url: unsubscribeUrl } };
+      await this.prisma.emailDelivery.update({ where: { id: delivery.id }, data: { context: enrichedContext as any } });
       if (delivery.status === 'QUEUED') queued++;
     }
     return queued;

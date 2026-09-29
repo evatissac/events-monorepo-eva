@@ -6,7 +6,9 @@ import { AppModule } from './app.module.js';
 import { ApiExceptionFilter } from './common/api-exception.filter.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Conserva el cuerpo exacto para validar la firma criptográfica de webhooks
+  // de proveedores como Resend (Svix).
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   app.setGlobalPrefix('api');
   app.use(cookieParser());
   const defaultFrontendOrigins = [
