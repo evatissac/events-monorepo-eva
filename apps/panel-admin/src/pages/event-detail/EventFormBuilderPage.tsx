@@ -583,9 +583,9 @@ export function EventFormBuilderPage() {
 
       // La publicación sólo se permite cuando la campaña de bienvenida ya quedó enlazada.
       // Se guarda primero para que el backend pueda validar la condición de publicación.
-      if (finalStatus === "PUBLISHED") {
+      if (finalStatus === "PUBLISHED" && publishMode === "campaign") {
         if (!welcomeTemplateId) {
-          toast.error("Antes de publicar selecciona una plantilla para la campaña de bienvenida.")
+          toast.error("Selecciona una plantilla para crear la campaña.")
           return
         }
         await api.registrationForms.setWelcomeTemplate(formId, welcomeTemplateId)
@@ -1546,8 +1546,8 @@ export function EventFormBuilderPage() {
             <button type="button" onClick={() => setPublishMode("default")} className={`rounded-xl border p-4 text-left ${publishMode === "default" ? "border-primary bg-primary/5" : "border-border"}`}><p className="font-semibold">Configuración predeterminada</p><p className="mt-1 text-xs text-muted-foreground">Envía el correo de bienvenida que selecciones y crea su tracking automáticamente.</p></button>
             <button type="button" onClick={() => setPublishMode("campaign")} className={`rounded-xl border p-4 text-left ${publishMode === "campaign" ? "border-primary bg-primary/5" : "border-border"}`}><p className="font-semibold">Crear campaña para este formulario</p><p className="mt-1 text-xs text-muted-foreground">La plantilla elegida quedará vinculada como campaña de registro; luego podrás agregar recordatorios.</p></button>
           </div>
-          <div className="space-y-1.5"><label className="text-xs font-semibold">Plantilla de bienvenida</label><select value={welcomeTemplateId} onChange={(event) => setWelcomeTemplateId(event.target.value)} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">Selecciona una plantilla</option>{emailTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}{template.subject ? ` — ${template.subject}` : ""}</option>)}</select></div>
-          <div className="flex justify-end gap-2 pt-2"><Button variant="outline" onClick={() => setOpenPublishModal(false)}>Cancelar</Button><Button disabled={saving || !welcomeTemplateId} onClick={async () => { const published = await handleSave("PUBLISHED"); if (published) { setOpenPublishModal(false); toast.success(publishMode === "campaign" ? "Formulario publicado y campaña de registro enlazada." : "Formulario publicado con tracking de bienvenida.") } }}>Publicar y enlazar</Button></div>
+          {publishMode === "campaign" && <div className="space-y-1.5"><label className="text-xs font-semibold">Plantilla de la campaña</label><select value={welcomeTemplateId} onChange={(event) => setWelcomeTemplateId(event.target.value)} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">Selecciona una plantilla</option>{emailTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}{template.subject ? ` — ${template.subject}` : ""}</option>)}</select></div>}
+          <div className="flex justify-end gap-2 pt-2"><Button variant="outline" onClick={() => setOpenPublishModal(false)}>Cancelar</Button><Button disabled={saving || (publishMode === "campaign" && !welcomeTemplateId)} onClick={async () => { const published = await handleSave("PUBLISHED"); if (published) { setOpenPublishModal(false); toast.success(publishMode === "campaign" ? "Formulario publicado y campaña de registro enlazada." : "Formulario publicado con el correo predeterminado.") } }}>{publishMode === "campaign" ? "Publicar y crear campaña" : "Publicar formulario"}</Button></div>
         </DialogContent>
       </Dialog>
 
