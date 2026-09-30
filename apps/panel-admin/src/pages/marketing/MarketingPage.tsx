@@ -21,6 +21,7 @@ import { WebinarCampaignsTab } from "./components/WebinarCampaignsTab"
 import { ContactsTab } from "./components/ContactsTab"
 import { SegmentsTab } from "./components/SegmentsTab"
 import { PageHeader } from "@/components/page-header"
+import { Skeleton } from "@/components/ui/skeleton"
 
 type MainTab = "campaigns" | "automations" | "contacts" | "segments"
 
@@ -58,10 +59,11 @@ export function MarketingPage() {
 
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const isCampaignReportRoute = /\/marketing\/campaigns\/[^/]+\/report$/.test(pathname)
+  const isCampaignReportRoute = /\/(marketing\/)?campaigns\/[^/]+\/report$/.test(pathname)
+  const isAutomationRoute = pathname.startsWith("/dashboard/automations")
   const routeTab = pathname.split("/").pop()
-  const activeTab: MainTab = (["campaigns", "automations", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
-  const setActiveTab = (tab: MainTab) => navigate(`/dashboard/marketing/${tab}`)
+  const activeTab: MainTab = (isAutomationRoute ? "automations" : (["campaigns", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns")) as MainTab
+  const setActiveTab = (tab: MainTab) => navigate(tab === "automations" ? "/dashboard/automations" : `/dashboard/campaigns${tab === "campaigns" ? "" : `/${tab}`}`)
   const [viewMode, setViewMode] = useState<"list" | "report" | "setup">("list")
   const [selectedCampaign, setSelectedCampaign] = useState<Campaign | null>(null)
 
@@ -296,14 +298,18 @@ export function MarketingPage() {
   }, [organizationId])
 
   useEffect(() => {
-    if (!campaignId) return
+    if (!campaignId) {
+      setSelectedCampaign(null)
+      setViewMode("list")
+      return
+    }
     const campaign = campaigns.find((item) => item.id === campaignId)
     if (campaign) { setSelectedCampaign(campaign); setViewMode(isCampaignReportRoute ? "report" : "setup") }
   }, [campaignId, campaigns, isCampaignReportRoute])
 
   // Handlers
   const handleOpenReport = (campaign: Campaign) => {
-    navigate(`/dashboard/marketing/campaigns/${campaign.id}/report`)
+    navigate(`/dashboard/campaigns/${campaign.id}/report`)
   }
 
   const handleOpenSetupBuilder = (campaign: Campaign) => {
@@ -319,7 +325,7 @@ export function MarketingPage() {
       setCampaigns((current) => [newCamp, ...current])
       setOpenCreateEmailModal(false)
       toast.success(`Campaña "${data.name}" creada.`)
-      navigate(`/dashboard/marketing/campaigns/${created.id}/settings`)
+      navigate(`/dashboard/campaigns/${created.id}/settings`)
     } catch (error: any) {
       toast.error(error?.message || "No se pudo crear la campaña.")
     }
@@ -487,7 +493,7 @@ export function MarketingPage() {
           organizationId={organizationId}
           onBack={() => {
             setSelectedCampaign(null)
-            navigate("/dashboard/marketing/campaigns")
+            navigate("/dashboard/campaigns")
           }}
         />
       )}
@@ -540,10 +546,10 @@ export function MarketingPage() {
       {/* 3. EMAIL CAMPAIGNS */}
       {viewMode === "list" && (
         <div className="space-y-6">
-          <PageHeader title="Campañas de email" description="Crea, diseña, programa y consulta el rendimiento de tus comunicaciones." actionButton={<Button onClick={() => setOpenCreateEmailModal(true)} className="rounded-xl h-10 px-5 text-xs font-semibold"><Plus className="size-4 mr-2" />Crear campaña</Button>} />
+          <PageHeader title={activeTab === "automations" ? "Automatizaciones" : "Campañas de email"} description={activeTab === "automations" ? "Crea flujos automáticos para registros, recordatorios y seguimiento." : "Crea, diseña, programa y consulta el rendimiento de tus comunicaciones."} actionButton={activeTab === "campaigns" ? <Button onClick={() => setOpenCreateEmailModal(true)} className="rounded-xl h-10 px-5 text-xs font-semibold"><Plus className="size-4 mr-2" />Crear campaña</Button> : undefined} />
 
           {/* Navigation Sub-Tabs */}
-          <div className="flex items-center gap-8 border-b border-border/80 text-sm font-semibold overflow-x-auto">
+          {!isAutomationRoute && <div className="flex items-center gap-8 border-b border-border/80 text-sm font-semibold overflow-x-auto">
             <button
               onClick={() => setActiveTab("campaigns")}
               className={`pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "campaigns"
@@ -555,20 +561,6 @@ export function MarketingPage() {
               <span>Campañas</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-violet-500/10 text-violet-600 dark:text-violet-400">
                 {campaigns.length}
-              </span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("automations")}
-              className={`order-last pb-3 border-b-2 transition-all flex items-center gap-2 shrink-0 ${activeTab === "automations"
-                ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold"
-                : "border-transparent text-muted-foreground hover:text-foreground"
-                }`}
-            >
-              <Zap className="size-4 text-amber-500" />
-              <span>Automatizaciones</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400">
-                {automations.length}
               </span>
             </button>
 
@@ -599,18 +591,18 @@ export function MarketingPage() {
                 {segments.length}
               </span>
             </button>
-          </div>
+          </div>}
 
           {/* Active Tab View */}
           {activeTab === "campaigns" && (
-            <CampaignsTab campaigns={campaigns} onOpenCreateCampaign={() => setOpenCreateEmailModal(true)} onOpenReport={handleOpenReport} onOpenSetupBuilder={handleOpenSetupBuilder} onDuplicateCampaign={handleDuplicateCampaign} onDeleteCampaign={handleDeleteCampaign} />
+            <CampaignsTab loading={marketingLoading} campaigns={campaigns} onOpenCreateCampaign={() => setOpenCreateEmailModal(true)} onOpenReport={handleOpenReport} onOpenSetupBuilder={handleOpenSetupBuilder} onDuplicateCampaign={handleDuplicateCampaign} onDeleteCampaign={handleDeleteCampaign} />
           )}
 
           {activeTab === "automations" && (
             <WebinarCampaignsTab organizationId={organizationId!} automations={automations as any[]} events={marketingEvents} templates={marketingTemplates} loading={marketingLoading} onChanged={() => void loadData()} />
           )}
 
-          {activeTab === "contacts" && (
+          {activeTab === "contacts" && (marketingLoading ? <CampaignTabSkeleton /> : (
             <ContactsTab
               contacts={contacts}
               page={contactsPage}
@@ -619,16 +611,16 @@ export function MarketingPage() {
               onAddContact={handleAddContact}
               onDeleteContact={handleDeleteContact}
             />
-          )}
+          ))}
 
-          {activeTab === "segments" && (
+          {activeTab === "segments" && (marketingLoading ? <CampaignTabSkeleton /> : (
             <SegmentsTab
               segments={segments}
               events={marketingEvents}
               onCreateSegment={handleCreateSegment}
               onDeleteSegment={handleDeleteSegment}
             />
-          )}
+          ))}
         </div>
       )}
 
@@ -640,4 +632,8 @@ export function MarketingPage() {
       />
     </div>
   )
+}
+
+function CampaignTabSkeleton() {
+  return <div className="space-y-4"><Skeleton className="h-10 w-1/3" /><div className="grid gap-4 md:grid-cols-3">{Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-36 rounded-xl" />)}</div></div>
 }
