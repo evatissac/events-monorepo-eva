@@ -361,6 +361,11 @@ export class EmailTemplatesService {
     const organization = await this.prisma.organization.findUnique({ where: { id: organizationId }, select: { name: true, emailSettings: true } });
     if (!organization) throw new NotFoundException('Organización no encontrada');
     const emailSettings = organization.emailSettings;
+    const hasResend = Boolean(emailSettings?.resendApiKeyEncrypted);
+    const hasSmtp = Boolean(emailSettings?.smtpPassEncrypted);
+    if (!emailSettings || (!hasResend && !hasSmtp)) {
+      throw new BadRequestException('Primero debes configurar las credenciales de correo (Resend) de la institución para poder crear plantillas.');
+    }
     const provider = emailSettings?.defaultProvider || 'RESEND';
     const defaultSender = provider === 'RESEND'
       ? emailSettings?.resendFromEmail
@@ -383,7 +388,7 @@ export class EmailTemplatesService {
         htmlContent: data.htmlContent || null,
         thumbnailUrl: data.thumbnailUrl || null,
         tags: data.tags || [],
-        useOrgCredentials: data.useOrgCredentials !== false,
+        useOrgCredentials: true,
       },
     });
   }
@@ -440,22 +445,44 @@ export class EmailTemplatesService {
       if (existing) return existing;
     }
 
+    // Obtener la plantilla raíz principal si el original ya era una copia
+    let rootTemplate = original;
+    if ((original as any).sourceTemplateId && (original as any).sourceTemplateId !== original.id) {
+      try {
+        rootTemplate = await this.get((original as any).sourceTemplateId);
+      } catch {
+        rootTemplate = original;
+      }
+    }
+
+    const org = await this.prisma.organization.findUnique({
+      where: { id: (original as any).organizationId },
+      include: { emailSettings: true },
+    });
+    const defaultSender = org?.emailSettings?.defaultProvider === 'RESEND'
+      ? org?.emailSettings?.resendFromEmail
+      : (org?.emailSettings?.smtpFromEmail || org?.emailSettings?.smtpUser);
+    const defaultSenderName = org?.emailSettings?.defaultProvider === 'RESEND'
+      ? org?.emailSettings?.resendFromName
+      : org?.emailSettings?.smtpFromName;
+
     return this.prisma.emailTemplate.create({
       data: {
         organizationId: (original as any).organizationId,
         name: data.name?.trim() || `${original.name} (Copia)`,
         channel: (original as any).channel || 'EMAIL',
         status: 'DRAFT',
-        subject: original.subject,
-        senderName: original.senderName,
-        senderEmail: original.senderEmail,
-        previewText: original.previewText,
-        category: (original as any).category || 'CUSTOM',
-        content: original.content as any,
-        htmlContent: (original as any).htmlContent,
-        thumbnailUrl: (original as any).thumbnailUrl,
-        tags: [...new Set([...((original as any).tags || []), ...(campaignTag ? ['campaign-copy', campaignTag] : [])])],
+        subject: original.subject || rootTemplate.subject || '',
+        senderName: original.senderName || rootTemplate.senderName || defaultSenderName || org?.name || 'Organización',
+        senderEmail: original.senderEmail || rootTemplate.senderEmail || defaultSender || null,
+        previewText: original.previewText || rootTemplate.previewText || '',
+        category: (original as any).category || (rootTemplate as any).category || 'CUSTOM',
+        content: (original.content || rootTemplate.content) as any,
+        htmlContent: (original as any).htmlContent || (rootTemplate as any).htmlContent || null,
+        thumbnailUrl: (original as any).thumbnailUrl || (rootTemplate as any).thumbnailUrl || null,
+        tags: [...new Set([...((original as any).tags || []), ...(campaignTag ? ['campaign-copy', campaignTag] : ['campaign-copy'])])],
         sourceTemplateId,
+        useOrgCredentials: true,
       },
     });
   }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import {
   Plus,
   Search,
@@ -39,6 +39,7 @@ import { ShieldCheck, Settings } from "lucide-react"
 
 export function TemplatesListPage() {
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
   const { selectedOrganization } = useAuthStore()
 
   useSEO({
@@ -49,7 +50,17 @@ export function TemplatesListPage() {
   const [templates, setTemplates] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState("")
-  const [templateScope, setTemplateScope] = useState<"library" | "campaigns">("library")
+  const currentScope = (searchParams.get("scope") as "library" | "campaigns") || "library"
+  const templateScope = currentScope === "campaigns" ? "campaigns" : "library"
+
+  const setTemplateScope = (scope: "library" | "campaigns") => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      next.set("scope", scope)
+      return next
+    })
+  }
+
   const [openEmailSettings, setOpenEmailSettings] = useState(false)
   const [emailConfigSummary, setEmailConfigSummary] = useState<{ configured: boolean; provider?: string; domain?: string } | null>(null)
 
@@ -138,7 +149,14 @@ export function TemplatesListPage() {
             </Button>
 
             <Button
-              onClick={() => navigate("/dashboard/templates/new")}
+              onClick={() => {
+                if (!emailConfigSummary?.configured) {
+                  toast.error("Primero debes configurar las credenciales de correo (Resend) de tu institución.")
+                  setOpenEmailSettings(true)
+                  return
+                }
+                navigate("/dashboard/templates/new")
+              }}
               className="flex items-center gap-2 rounded-xl h-10"
             >
               <Plus className="size-4" />
@@ -202,8 +220,15 @@ export function TemplatesListPage() {
             </p>
           </div>
           {templateScope === "library" && <Button
-            onClick={() => navigate("/dashboard/templates/new")}
-            className="flex items-center gap-2 mx-auto"
+            onClick={() => {
+              if (!emailConfigSummary?.configured) {
+                toast.error("Primero debes configurar las credenciales de correo (Resend) de tu institución.")
+                setOpenEmailSettings(true)
+                return
+              }
+              navigate("/dashboard/templates/new")
+            }}
+            className="flex items-center gap-2 mx-auto cursor-pointer"
           >
             <Plus className="size-4" />
             <span>Crear primera plantilla</span>
@@ -242,20 +267,20 @@ export function TemplatesListPage() {
 
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <button className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted">
+                        <button className="p-1 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted cursor-pointer">
                           <MoreVertical className="size-4" />
                         </button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="rounded-xl w-40">
                         <DropdownMenuItem
-                          onClick={() => navigate(`/dashboard/templates/${template.id}/edit`)}
+                          onClick={() => navigate(`/dashboard/templates/${template.id}/edit?scope=${templateScope}`)}
                           className="cursor-pointer text-xs flex items-center gap-2"
                         >
                           <Edit className="size-3.5" />
                           <span>Editar datos</span>
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => navigate(`/dashboard/templates/${template.id}/builder`)}
+                          onClick={() => navigate(`/dashboard/templates/${template.id}/builder?scope=${templateScope}`)}
                           className="cursor-pointer text-xs flex items-center gap-2"
                         >
                           <SlidersHorizontal className="size-3.5" />
@@ -281,7 +306,7 @@ export function TemplatesListPage() {
 
                   {/* Title & Subject */}
                   <h3
-                    onClick={() => navigate(`/dashboard/templates/${template.id}/edit`)}
+                    onClick={() => navigate(`/dashboard/templates/${template.id}/edit?scope=${templateScope}`)}
                     className="font-bold text-base text-foreground group-hover:text-primary transition-colors line-clamp-1 cursor-pointer"
                   >
                     {template.name}
@@ -314,8 +339,8 @@ export function TemplatesListPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => navigate(`/dashboard/templates/${template.id}/edit`)}
-                      className="rounded-lg h-8 text-xs font-medium"
+                      onClick={() => navigate(`/dashboard/templates/${template.id}/edit?scope=${templateScope}`)}
+                      className="rounded-lg h-8 text-xs font-medium cursor-pointer"
                     >
                       <Edit className="mr-1 size-3.5" />
                       Configurar
@@ -323,8 +348,8 @@ export function TemplatesListPage() {
 
                     <Button
                       size="sm"
-                      onClick={() => navigate(`/dashboard/templates/${template.id}/builder`)}
-                      className="rounded-lg h-8 text-xs font-semibold"
+                      onClick={() => navigate(`/dashboard/templates/${template.id}/builder?scope=${templateScope}`)}
+                      className="rounded-lg h-8 text-xs font-semibold cursor-pointer"
                     >
                       <SlidersHorizontal className="mr-1.5 size-3.5" />
                       Diseñar
