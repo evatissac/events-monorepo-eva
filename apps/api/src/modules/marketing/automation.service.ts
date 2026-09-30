@@ -91,7 +91,21 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       : null;
     const scheduledAt = edition?.startDate || event.startDate;
     const contact = await this.prisma.marketingContact.upsert({ where: { organizationId_emailFallback: { organizationId: event.organizationId, emailFallback: email } }, update: { source: 'EVENT_REGISTRATION' }, create: { organizationId: event.organizationId, emailFallback: email, consentStatus: 'SUBSCRIBED', consentedAt: new Date(), source: 'EVENT_REGISTRATION' } });
-    const automations = await this.prisma.marketingAutomation.findMany({ where: { organizationId: event.organizationId, eventId: event.id, status: 'ACTIVE', OR: [{ registrationFormId: null }, ...(input.registrationFormId ? [{ registrationFormId: input.registrationFormId }] : [])] }, include: { steps: { orderBy: { position: 'asc' } } } });
+    // Una automatización vinculada explícitamente al formulario tiene prioridad.
+    // Así, una campaña general del evento no puede enviar su correo genérico junto
+    // con la plantilla que el administrador escogió al publicar el formulario.
+    const formAutomations = input.registrationFormId
+      ? await this.prisma.marketingAutomation.findMany({
+        where: { organizationId: event.organizationId, eventId: event.id, registrationFormId: input.registrationFormId, status: 'ACTIVE' },
+        include: { steps: { orderBy: { position: 'asc' } } },
+      })
+      : [];
+    const automations = formAutomations.length
+      ? formAutomations
+      : await this.prisma.marketingAutomation.findMany({
+        where: { organizationId: event.organizationId, eventId: event.id, registrationFormId: null, status: 'ACTIVE' },
+        include: { steps: { orderBy: { position: 'asc' } } },
+      });
     let enrolled = 0;
     for (const automation of automations) {
       await this.prisma.marketingEventEnrollment.upsert({ where: { automationId_contactId: { automationId: automation.id, contactId: contact.id } }, update: { submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date(), attendanceStatus: 'REGISTERED' }, create: { organizationId: event.organizationId, eventId: event.id, automationId: automation.id, contactId: contact.id, submissionId: input.submissionId, firstName: input.firstName || null, registeredAt: input.registeredAt || new Date() } });

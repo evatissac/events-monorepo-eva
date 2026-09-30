@@ -217,7 +217,7 @@ interface EventState {
   updateEvent: (id: string, updates: Partial<Event> & { coverFile?: File | null; logoFile?: File | null }) => Promise<void>
   deleteEvent: (id: string) => Promise<void>
 
-  addEdition: (edition: Omit<Edition, "id" | "slug" | "year"> & { year?: number }) => Promise<void>
+  addEdition: (edition: Omit<Edition, "id" | "slug" | "year"> & { year?: number }) => Promise<string>
   updateEdition: (id: string, updates: Partial<Edition>) => Promise<void>
   deleteEdition: (id: string) => Promise<void>
 
@@ -736,6 +736,7 @@ export const useEventStore = create<EventState>((set, get) => ({
       set((state) => ({
         editions: [...state.editions, newEdition]
       }))
+      return createdEdition.id
     } catch (e) {
       console.error("Error adding edition:", e)
       throw e

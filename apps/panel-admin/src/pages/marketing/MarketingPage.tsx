@@ -464,11 +464,17 @@ export function MarketingPage() {
     } catch (error: any) { toast.error(error?.message || "No se pudo crear el segmento.") }
   }
 
-  const handleDeleteSegment = (id: string) => {
-    setSegments(segments.filter((s) => s.id !== id))
-    toast.success("Segmento eliminado")
-    if (organizationId) {
-      void api.marketing.removeSegment(organizationId, id).catch(() => { })
+  const handleDeleteSegment = async (id: string) => {
+    if (!organizationId) {
+      toast.error("Selecciona una institución antes de eliminar el segmento.")
+      return
+    }
+    try {
+      await api.marketing.removeSegment(organizationId, id)
+      setSegments((current) => current.filter((segment) => segment.id !== id))
+      toast.success("Segmento eliminado correctamente.")
+    } catch (error: any) {
+      toast.error(error?.message || "No se pudo eliminar el segmento. Inténtalo nuevamente.")
     }
   }
 
