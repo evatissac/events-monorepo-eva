@@ -102,6 +102,7 @@ export const api = {
     setup: (id: string) => apiFetch<any>(`/events/${id}/setup`),
     updateSetup: (id: string, data: any) => apiFetch<any>(`/events/${id}/setup`, { method: "PATCH", body: JSON.stringify(data) }),
     completeSetup: (id: string) => apiFetch<any>(`/events/${id}/setup/complete`, { method: "POST" }),
+    inheritSpeakers: (id: string, data: { sourceEventId: string; targetEditionId: string }) => apiFetch<{ inherited: number }>(`/events/${id}/inherit-speakers`, { method: "POST", body: JSON.stringify(data) }),
     contacts: (id: string) => apiFetch<any[]>(`/events/${id}/contacts`),
     addContact: (id: string, data: any) => apiFetch<any>(`/events/${id}/contacts`, { method: "POST", body: JSON.stringify(data) }),
     updateContact: (id: string, data: any) => apiFetch<any>(`/events/contacts/${id}`, { method: "PATCH", body: JSON.stringify(data) }),

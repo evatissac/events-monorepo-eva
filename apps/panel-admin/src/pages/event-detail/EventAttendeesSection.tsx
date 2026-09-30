@@ -42,7 +42,17 @@ export function EventAttendeesSection() {
   const [canManageAttendees, setCanManageAttendees] = useState(false)
 
   const event = events.find((e) => e.id === id)
-  const eventAttendees = serverAttendees !== null ? serverAttendees.map((item) => ({ ...item, fullName: item.name, email: item.email || "", registrationDate: item.registeredAt, source: item.submissionId ? "FORM" : "MANUAL", ticketType: item.type })) : attendees.filter((at) => at.eventId === id)
+  const eventAttendees = serverAttendees !== null ? serverAttendees.map((item) => ({
+    ...item,
+    fullName: item.name,
+    email: item.email || "",
+    registrationDate: item.registeredAt,
+    source: item.submissionId ? "FORM" : "MANUAL",
+    ticketType: item.type,
+    // Compatibilidad con respuestas de API previas y actuales.
+    answers: item.answers || item.attributes || {},
+    formFields: item.formFields || Object.entries(item.attributeLabels || {}).map(([key, label]) => ({ key, label })),
+  })) : attendees.filter((at) => at.eventId === id)
   const filteredAttendees = eventAttendees.filter((attendee) => {
     const matchesOrigin = formFilter === "ALL" || (formFilter === "MANUAL" ? attendee.source !== "FORM" : attendee.sourceFormId === formFilter)
     const matchesEdition = editionFilter === "ALL" || attendee.editionId === editionFilter

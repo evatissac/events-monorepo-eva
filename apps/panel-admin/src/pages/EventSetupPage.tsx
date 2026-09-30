@@ -12,7 +12,7 @@ const steps = [
   { key: "editionCompleted", title: "Primera edición", description: "Crea la edición que recibirán tus asistentes.", icon: CalendarDays },
   { key: "rolesCompleted", title: "Roles", description: "Define los roles que tendrá tu evento.", icon: Users },
   { key: "peopleCompleted", title: "Primer ponente", description: "Asocia una persona registrada al evento.", icon: Users },
-  { key: "contactCompleted", title: "Contactos", description: "Añade uno o varios contactos para el evento.", icon: Mail },
+  { key: "contactCompleted", title: "Contactos", description: "Puedes añadir responsables de consultas y coordinación cuando los tengas.", icon: Mail, optional: true },
 ]
 
 function EventSetupLoading() {
@@ -44,7 +44,8 @@ export function EventSetupPage() {
     return () => window.removeEventListener("focus", load)
   }, [id])
 
-  const completedCount = useMemo(() => progress ? steps.filter((step) => progress[step.key]).length : 0, [progress])
+  const requiredSteps = useMemo(() => steps.filter((step) => !step.optional), [])
+  const completedCount = useMemo(() => progress ? requiredSteps.filter((step) => progress[step.key]).length : 0, [progress, requiredSteps])
 
   const getStepPath = (key: string) => {
     if (key === "contactCompleted") return `/dashboard/events/${id}/info#contacts`
@@ -68,8 +69,8 @@ export function EventSetupPage() {
           <p className="mt-2 max-w-2xl text-muted-foreground">Completa estos pasos mínimos para habilitar la gestión completa del evento. Puedes salir y continuar después.</p>
         </div>
         <div className="mb-8 rounded-md border bg-card p-5">
-          <div className="flex items-center justify-between text-sm"><span>Progreso de configuración</span><span className="text-muted-foreground">{completedCount} de {steps.length}</span></div>
-          <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${(completedCount / steps.length) * 100}%` }} /></div>
+          <div className="flex items-center justify-between text-sm"><span>Progreso de configuración</span><span className="text-muted-foreground">{completedCount} de {requiredSteps.length}</span></div>
+          <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted"><div className="h-full bg-primary transition-all" style={{ width: `${(completedCount / requiredSteps.length) * 100}%` }} /></div>
         </div>
         <div className="space-y-3">
           {steps.map((step, index) => {
@@ -79,7 +80,7 @@ export function EventSetupPage() {
             return <div key={step.key} className="flex items-center gap-4 rounded-md border bg-card p-4">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-muted">{done ? <Check className="h-5 w-5 text-emerald-600" /> : <Icon className="h-5 w-5 text-muted-foreground" />}</div>
               <div className="min-w-0 flex-1"><p className="font-medium">{index + 1}. {step.title}</p><p className="text-sm text-muted-foreground">{step.description}</p></div>
-              {done ? <span className="text-sm text-emerald-600">Completado automáticamente</span> : <Button variant="outline" size="sm" disabled={!previousDone} onClick={() => navigate(getStepPath(step.key))}>{previousDone ? "Configurar" : "Bloqueado"} {previousDone && <ChevronRight className="ml-1 h-4 w-4" />}</Button>}
+              {step.optional ? <Button variant="outline" size="sm" disabled={!previousDone} onClick={() => navigate(getStepPath(step.key))}>{previousDone ? "Opcional" : "Bloqueado"} {previousDone && <ChevronRight className="ml-1 h-4 w-4" />}</Button> : done ? <span className="text-sm text-emerald-600">Completado automáticamente</span> : <Button variant="outline" size="sm" disabled={!previousDone} onClick={() => navigate(getStepPath(step.key))}>{previousDone ? "Configurar" : "Bloqueado"} {previousDone && <ChevronRight className="ml-1 h-4 w-4" />}</Button>}
             </div>
           })}
         </div>

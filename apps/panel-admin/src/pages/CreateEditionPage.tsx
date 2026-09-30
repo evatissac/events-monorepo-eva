@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { PageHeader } from "@/components/page-header"
 import { LocationPickerMap } from "@/components/location-picker-map"
 import { RichTextEditor } from "@/components/ui/rich-text-editor"
+import { MediaUploader } from "@/components/MediaUploader"
 
 import { useSEO } from "@/hooks/use-seo"
 
@@ -174,14 +175,7 @@ export function CreateEditionPage() {
                 <p className="text-xs text-muted-foreground">Enlace de la imagen específica de esta edición.</p>
               </div>
               <div className="md:w-2/3 max-w-md w-full">
-                <Input
-                  id="ed-cover"
-                  type="url"
-                  placeholder="https://ejemplo.com/edicion-cover.jpg"
-                  value={coverUrl}
-                  onChange={(e) => setCoverUrl(e.target.value)}
-                  className="bg-background"
-                />
+                <MediaUploader value={coverUrl} onChange={setCoverUrl} variant="banner" organizationId={event?.organizationId} folder="editions/temp" identifier="cover" />
               </div>
             </div>
 
@@ -191,7 +185,7 @@ export function CreateEditionPage() {
                 <label htmlFor="ed-meta-thumbnail" className="text-sm font-medium text-foreground">Imagen para redes y meta</label>
                 <p className="text-xs text-muted-foreground">Opcional. Recomendado: 1200 × 630 px para la previsualización al compartir.</p>
               </div>
-              <div className="md:w-2/3 max-w-md w-full"><Input id="ed-meta-thumbnail" type="url" placeholder="https://.../meta-thumbnail.jpg" value={metaThumbnailUrl} onChange={(e) => setMetaThumbnailUrl(e.target.value)} className="bg-background" /></div>
+              <div className="md:w-2/3 max-w-md w-full"><MediaUploader value={metaThumbnailUrl} onChange={setMetaThumbnailUrl} variant="banner" organizationId={event?.organizationId} folder="editions/temp" identifier="meta-thumbnail" /></div>
             </div>
 
             {/* Dates Row */}
