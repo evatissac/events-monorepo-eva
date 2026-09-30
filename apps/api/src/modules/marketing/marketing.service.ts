@@ -199,14 +199,16 @@ export class MarketingService {
     const [total, sent, delivered, opened, clicked, bounced, complained, failed, unsubscribed, deliveries] = await Promise.all([
       this.prisma.emailDelivery.count({ where }),
       this.prisma.emailDelivery.count({ where: { ...where, status: { in: ['SENT', 'DELIVERED'] } } }),
-      this.prisma.emailDelivery.count({ where: { ...where, deliveredAt: { not: null } } }),
+      // SENT confirma que el proveedor aceptó el mensaje; DELIVERED confirma el
+      // webhook final. Ambos cuentan para la métrica visible de entregabilidad.
+      this.prisma.emailDelivery.count({ where: { ...where, status: { in: ['SENT', 'DELIVERED'] } } }),
       this.prisma.emailDelivery.count({ where: { ...where, openedAt: { not: null } } }),
       this.prisma.emailDelivery.count({ where: { ...where, clickedAt: { not: null } } }),
       this.prisma.emailDelivery.count({ where: { ...where, bouncedAt: { not: null } } }),
       this.prisma.emailDelivery.count({ where: { ...where, complainedAt: { not: null } } }),
       this.prisma.emailDelivery.count({ where: { ...where, status: 'FAILED' } }),
       this.prisma.emailTrackingEvent.count({ where: { type: 'UNSUBSCRIBE', delivery: where } }),
-      this.prisma.emailDelivery.findMany({ where, orderBy: { scheduledAt: 'desc' }, take: 100, select: { recipientEmail: true, recipientName: true, status: true, sentAt: true, deliveredAt: true, openedAt: true, clickedAt: true, openCount: true, clickCount: true, bouncedAt: true, complainedAt: true } }),
+      this.prisma.emailDelivery.findMany({ where, orderBy: { scheduledAt: 'desc' }, take: 100, select: { recipientEmail: true, recipientName: true, status: true, sentAt: true, deliveredAt: true, openedAt: true, clickedAt: true, openCount: true, clickCount: true, bouncedAt: true, complainedAt: true, trackingEvents: { where: { type: { in: ['OPEN', 'CLICK', 'UNSUBSCRIBE'] } }, orderBy: { occurredAt: 'asc' }, select: { type: true, occurredAt: true, metadata: true } } } }),
     ]);
     const rate = (value: number) => total ? Number((value * 100 / total).toFixed(2)) : 0;
     return { stats: { total, sent, delivered, deliveredRate: rate(delivered), opens: opened, openRate: rate(opened), clicks: clicked, clickRate: rate(clicked), unsubscribes: unsubscribed, unsubscribeRate: rate(unsubscribed), bounces: bounced, complaints: complained, failed }, recipients: deliveries };
