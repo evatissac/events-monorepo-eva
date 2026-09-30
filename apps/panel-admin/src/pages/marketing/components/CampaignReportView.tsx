@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react"
+import ExcelJS from "exceljs"
+import { jsPDF } from "jspdf"
 import {
   ArrowLeft,
-  Share2,
   Download,
   HelpCircle,
   Users,
@@ -53,15 +54,37 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
   }, [campaign.id, organizationId])
   const stats = report?.stats || { total: 0, sent: 0, delivered: 0, deliveredRate: 0, opens: 0, openRate: 0, clicks: 0, clickRate: 0, unsubscribes: 0, unsubscribeRate: 0, bounces: 0, complaints: 0, failed: 0 }
   const format = (date?: string | null) => date ? new Date(date).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }) : "—"
-  const recipientsLog: Array<{ email: string; name: string; status: string; opened: string; clicked: string; device: string }> = (report?.recipients || []).map((item: any) => ({
+  const recipientsLog: Array<{ email: string; name: string; status: string; opened: string; clicked: string; device: string; unsubscribed: boolean }> = (report?.recipients || []).map((item: any) => ({
     email: item.recipientEmail,
     name: item.recipientName || "Sin nombre",
     status: item.status === "DELIVERED" ? "Entregado" : item.status === "SENT" ? "Enviado" : item.status === "BOUNCED" ? "Rebotado" : item.status === "COMPLAINED" ? "Marcado como spam" : item.status === "FAILED" ? "Fallido" : item.status,
-    opened: format(item.openedAt), clicked: item.clickCount ? `${item.clickCount} · ${format(item.clickedAt)}` : "—", device: "—",
+    opened: format(item.openedAt), clicked: item.clickCount ? `${item.clickCount} · ${format(item.clickedAt)}` : "—",
+    device: (() => { const event = item.trackingEvents?.find((entry: any) => entry.type === "OPEN" || entry.type === "CLICK"); return event?.metadata?.userAgent || "—" })(),
+    unsubscribed: Boolean(item.trackingEvents?.some((entry: any) => entry.type === "UNSUBSCRIBE")),
   }))
 
-  const handleExport = (format: "csv" | "excel" | "pdf") => {
-    toast.success(`Exportando informe de "${campaign.name}" en formato ${format.toUpperCase()}...`)
+  const download = (blob: Blob, extension: string) => {
+    const url = URL.createObjectURL(blob); const anchor = document.createElement("a")
+    anchor.href = url; anchor.download = `reporte-${campaign.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "campana"}.${extension}`; anchor.click(); URL.revokeObjectURL(url)
+  }
+  const handleExport = async (format: "csv" | "excel" | "pdf") => {
+    const rows = recipientsLog.map((row) => ({ Destinatario: row.name, Correo: row.email, Estado: row.status, "Primera apertura": row.opened, "Clics registrados": row.clicked, "Dispositivo / Cliente": row.device, "Canceló suscripción": row.unsubscribed ? "Sí" : "No" }))
+    if (format === "csv") {
+      const headers = Object.keys(rows[0] || { Destinatario: "", Correo: "", Estado: "" })
+      const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`
+      download(new Blob([[headers.join(","), ...rows.map((row) => headers.map((header) => escape(row[header as keyof typeof row])).join(","))].join("\n")], { type: "text/csv;charset=utf-8" }), "csv")
+    } else if (format === "excel") {
+      const workbook = new ExcelJS.Workbook(); const sheet = workbook.addWorksheet("Reporte")
+      sheet.columns = Object.keys(rows[0] || { Destinatario: "", Correo: "", Estado: "" }).map((header) => ({ header, key: header, width: 26 }))
+      rows.forEach((row) => sheet.addRow(row)); sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } }; sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } }
+      download(new Blob([await workbook.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "xlsx")
+    } else {
+      const pdf = new jsPDF(); pdf.setFontSize(16); pdf.text(`Reporte: ${campaign.name}`, 14, 18); pdf.setFontSize(10)
+      pdf.text(`Entregados: ${stats.delivered}  Aperturas: ${stats.opens}  Clics: ${stats.clicks}  Bajas: ${stats.unsubscribes}`, 14, 27)
+      let y = 38; rows.forEach((row) => { if (y > 280) { pdf.addPage(); y = 18 }; pdf.text(`${row.Destinatario} · ${row.Correo} · ${row.Estado} · Aperturas: ${row["Primera apertura"]} · Clics: ${row["Clics registrados"]}`, 14, y, { maxWidth: 180 }); y += 9 })
+      download(pdf.output("blob"), "pdf")
+    }
+    toast.success(`Reporte descargado en ${format.toUpperCase()}.`)
   }
 
   const openRecipientsInspect = (type: "delivered" | "opens" | "clicks" | "unsubscribes", title: string) => {
@@ -70,10 +93,11 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
   }
 
   const filteredLogs = recipientsLog.filter((item) => {
-    if (inspectFilter === "opens") return item.opened !== "—"
-    if (inspectFilter === "clicks") return item.clicked !== "—"
-    if (inspectFilter === "unsubscribes") return false
-    return inspectFilter === "delivered" ? item.status === "Entregado" : true
+    const filter = activeSubTab === "overview" ? inspectFilter : activeSubTab
+    if (filter === "opens") return item.opened !== "—"
+    if (filter === "clicks") return item.clicked !== "—"
+    if (filter === "unsubscribes") return item.unsubscribed
+    return filter === "deliverability" || filter === "delivered" ? ["Entregado", "Enviado"].includes(item.status) : true
   })
 
   return (
@@ -112,21 +136,7 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
           </div>
         </div>
 
-        {/* Share & Export Report Dropdown */}
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => {
-              navigator.clipboard?.writeText(window.location.href)
-              toast.success("Enlace del informe copiado al portapapeles")
-            }}
-            className="rounded-xl size-10 border-border text-foreground hover:bg-muted"
-            title="Compartir informe"
-          >
-            <Share2 className="size-4" />
-          </Button>
-
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -334,7 +344,7 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
                       {stats.unsubscribes}
                     </span>
                     <button
-                      onClick={() => openRecipientsInspect("unsubscribes", "Cancelaciones de suscripción (0)")}
+                      onClick={() => openRecipientsInspect("unsubscribes", `Cancelaciones de suscripción (${stats.unsubscribes})`)}
                       className="text-xs font-semibold text-violet-600 dark:text-violet-400 hover:underline flex items-center gap-1"
                     >
                       <Users className="size-3" />
