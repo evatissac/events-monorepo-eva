@@ -28,6 +28,7 @@ export function NavAdmin({
     label?: string
 }) {
     const { pathname } = useLocation()
+    const matchesRoute = (url: string) => pathname === url || pathname.startsWith(`${url}/`)
 
     return (
         <SidebarGroup>
@@ -37,14 +38,13 @@ export function NavAdmin({
             <SidebarMenu>
                 {items.map((item) => {
                     const isDashboard = item.url === '/dashboard'
-                    const isActive = isDashboard
-                        ? pathname === item.url
-                        : (item.url.startsWith('/dashboard/settings')
-                            ? pathname.startsWith('/dashboard/settings')
-                            : (pathname === item.url || pathname.startsWith(item.url + "/")))
+                    const isActive = isDashboard ? pathname === item.url : matchesRoute(item.url)
 
                     if (item.items && item.items.length > 0) {
-                        const isSubActive = item.items.some(sub => pathname === sub.url)
+                        const activeSubUrl = item.items
+                            .filter(sub => matchesRoute(sub.url))
+                            .sort((a, b) => b.url.length - a.url.length)[0]?.url
+                        const isSubActive = Boolean(activeSubUrl)
 
                         return (
                             <Collapsible
@@ -82,14 +82,14 @@ export function NavAdmin({
                                     <CollapsibleContent>
                                         <SidebarMenuSub className="border-l border-border/80 ml-4 pl-2 my-1 space-y-1">
                                             {item.items.map((subItem) => {
-                                                const isChildActive = pathname === subItem.url
+                                                const isChildActive = subItem.url === activeSubUrl
                                                 return (
                                                     <SidebarMenuSubItem key={subItem.title}>
                                                         <SidebarMenuSubButton
-                                                            isActive={false}
+                                                            isActive={isChildActive}
                                                             asChild
                                                             className={cn(
-                                                                "w-full text-left hover:bg-muted/50 rounded-md transition-colors px-3 py-1.5",
+                                                                "w-full text-left !bg-transparent hover:!bg-muted/50 rounded-md transition-colors px-3 py-1.5 data-[active=true]:!bg-sidebar-accent",
                                                                 isChildActive ? "text-primary font-semibold" : "text-sidebar-foreground"
                                                             )}
                                                         >

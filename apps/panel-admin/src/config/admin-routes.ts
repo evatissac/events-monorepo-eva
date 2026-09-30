@@ -1,4 +1,4 @@
-import { LayoutDashboard, Calendar, Settings2, User, Users, Award, Mail, Megaphone } from "lucide-react"
+import { LayoutDashboard, Calendar, Settings2, User, Users, Award, Megaphone, Workflow } from "lucide-react"
 
 export interface AdminRouteItem {
   title: string
@@ -23,11 +23,17 @@ export const getAdminRoutes = (_locale?: string): AdminRouteItem[] => {
       icon: Calendar,
     },
     {
-      title: "Plantillas",
-      url: `/dashboard/templates`,
-      icon: Mail,
+      title: "Marketing",
+      url: `/dashboard/campaigns`,
+      icon: Megaphone,
+      items: [
+        { title: "Campañas", url: `/dashboard/campaigns` },
+        { title: "Contactos", url: `/dashboard/campaigns/contacts` },
+        { title: "Segmentos", url: `/dashboard/campaigns/segments` },
+        { title: "Plantillas", url: `/dashboard/templates` },
+      ],
     },
-    { title: "Marketing", url: `/dashboard/marketing`, icon: Megaphone },
+    { title: "Automatizaciones", url: `/dashboard/automations`, icon: Workflow },
     {
       title: "Perfiles Registrados",
       url: `/dashboard/profiles`,
