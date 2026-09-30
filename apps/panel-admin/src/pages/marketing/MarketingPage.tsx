@@ -41,7 +41,7 @@ const normalizeCampaign = (campaign: any, organizationName?: string, index = 0):
     id: campaign.id, campaignNumber: index + 1, name: campaign.name, subject: campaign.subject || "",
     previewText: settings.previewText, senderName: settings.senderName || organizationName || "Institución",
     senderEmail: settings.senderEmail || "", replyTo: settings.replyTo, status: campaign.status || "DRAFT",
-    createdAt: campaign.createdAt || new Date().toISOString(), scheduledAt: campaign.scheduledAt || undefined,
+    createdAt: campaign.createdAt || new Date().toISOString(), sentAt: settings.sentAt || campaign.sentAt || undefined, scheduledAt: campaign.scheduledAt || undefined,
     channel: "EMAIL", segmentIds: Array.isArray(campaign.segmentIds) ? campaign.segmentIds : [],
     recipientCount: Number(settings.recipientCount || 0), templateId: settings.templateId, sourceTemplateId: settings.sourceTemplateId, eventContext: settings.eventContext, content: settings.content,
     tags: settings.tags || [],
@@ -58,6 +58,7 @@ export function MarketingPage() {
 
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const isCampaignReportRoute = /\/marketing\/campaigns\/[^/]+\/report$/.test(pathname)
   const routeTab = pathname.split("/").pop()
   const activeTab: MainTab = (["campaigns", "automations", "contacts", "segments"].includes(routeTab || "") ? routeTab : "campaigns") as MainTab
   const setActiveTab = (tab: MainTab) => navigate(`/dashboard/marketing/${tab}`)
@@ -297,13 +298,12 @@ export function MarketingPage() {
   useEffect(() => {
     if (!campaignId) return
     const campaign = campaigns.find((item) => item.id === campaignId)
-    if (campaign) { setSelectedCampaign(campaign); setViewMode("setup") }
-  }, [campaignId, campaigns])
+    if (campaign) { setSelectedCampaign(campaign); setViewMode(isCampaignReportRoute ? "report" : "setup") }
+  }, [campaignId, campaigns, isCampaignReportRoute])
 
   // Handlers
   const handleOpenReport = (campaign: Campaign) => {
-    setSelectedCampaign(campaign)
-    setViewMode("report")
+    navigate(`/dashboard/marketing/campaigns/${campaign.id}/report`)
   }
 
   const handleOpenSetupBuilder = (campaign: Campaign) => {
@@ -487,7 +487,7 @@ export function MarketingPage() {
           organizationId={organizationId}
           onBack={() => {
             setSelectedCampaign(null)
-            setViewMode("list")
+            navigate("/dashboard/marketing/campaigns")
           }}
         />
       )}
