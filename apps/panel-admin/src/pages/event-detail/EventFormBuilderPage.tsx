@@ -140,6 +140,8 @@ export function EventFormBuilderPage() {
 
   // Settings Modal (Step 1 Configuration Modal)
   const [openSettingsModal, setOpenSettingsModal] = useState(false)
+  const [openPublishModal, setOpenPublishModal] = useState(false)
+  const [publishMode, setPublishMode] = useState<"default" | "campaign">("default")
   const [formTitle, setFormTitle] = useState("")
   const [formSlug, setFormSlug] = useState("")
   const [formStatus, setFormStatus] = useState("DRAFT")
@@ -579,8 +581,17 @@ export function EventFormBuilderPage() {
         fields,
       }
 
+      // La publicación sólo se permite cuando la campaña de bienvenida ya quedó enlazada.
+      // Se guarda primero para que el backend pueda validar la condición de publicación.
+      if (finalStatus === "PUBLISHED") {
+        if (!welcomeTemplateId) {
+          toast.error("Antes de publicar selecciona una plantilla para la campaña de bienvenida.")
+          return
+        }
+        await api.registrationForms.setWelcomeTemplate(formId, welcomeTemplateId)
+      }
       await api.registrationForms.update(formId, payload)
-      await api.registrationForms.setWelcomeTemplate(formId, welcomeTemplateId || null)
+      if (finalStatus !== "PUBLISHED") await api.registrationForms.setWelcomeTemplate(formId, welcomeTemplateId || null)
       if (targetStatus) setFormStatus(targetStatus)
       if (targetStatus === "PUBLISHED") {
         toast.success("¡Formulario publicado con éxito!")
@@ -589,8 +600,10 @@ export function EventFormBuilderPage() {
       } else {
         toast.success("Diseño guardado correctamente")
       }
+      return true
     } catch (err: any) {
       toast.error(err?.message || "Error al guardar el formulario.")
+      return false
     } finally {
       setSaving(false)
     }
@@ -734,7 +747,7 @@ export function EventFormBuilderPage() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleSave("PUBLISHED")}
+              onClick={() => setOpenPublishModal(true)}
               disabled={saving}
               className="rounded-xl h-9 px-4 font-semibold border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/30"
               title="Publicar formulario"
@@ -1525,6 +1538,19 @@ export function EventFormBuilderPage() {
       {/* ========================================================================= */}
       {/* STEP 1: Form Configuration Settings Modal (Matching Screenshot 2)        */}
       {/* ========================================================================= */}
+      <Dialog open={openPublishModal} onOpenChange={setOpenPublishModal}>
+        <DialogContent className="sm:max-w-[520px] rounded-2xl">
+          <DialogHeader><DialogTitle>Preparar publicación y tracking</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">Antes de publicar, enlaza el formulario a un correo automático para registrar cada inscripción y medir sus resultados.</p>
+          <div className="grid gap-3 py-2">
+            <button type="button" onClick={() => setPublishMode("default")} className={`rounded-xl border p-4 text-left ${publishMode === "default" ? "border-primary bg-primary/5" : "border-border"}`}><p className="font-semibold">Configuración predeterminada</p><p className="mt-1 text-xs text-muted-foreground">Envía el correo de bienvenida que selecciones y crea su tracking automáticamente.</p></button>
+            <button type="button" onClick={() => setPublishMode("campaign")} className={`rounded-xl border p-4 text-left ${publishMode === "campaign" ? "border-primary bg-primary/5" : "border-border"}`}><p className="font-semibold">Crear campaña para este formulario</p><p className="mt-1 text-xs text-muted-foreground">La plantilla elegida quedará vinculada como campaña de registro; luego podrás agregar recordatorios.</p></button>
+          </div>
+          <div className="space-y-1.5"><label className="text-xs font-semibold">Plantilla de bienvenida</label><select value={welcomeTemplateId} onChange={(event) => setWelcomeTemplateId(event.target.value)} className="h-10 w-full rounded-xl border border-border bg-background px-3 text-xs"><option value="">Selecciona una plantilla</option>{emailTemplates.map((template) => <option key={template.id} value={template.id}>{template.name}{template.subject ? ` — ${template.subject}` : ""}</option>)}</select></div>
+          <div className="flex justify-end gap-2 pt-2"><Button variant="outline" onClick={() => setOpenPublishModal(false)}>Cancelar</Button><Button disabled={saving || !welcomeTemplateId} onClick={async () => { const published = await handleSave("PUBLISHED"); if (published) { setOpenPublishModal(false); toast.success(publishMode === "campaign" ? "Formulario publicado y campaña de registro enlazada." : "Formulario publicado con tracking de bienvenida.") } }}>Publicar y enlazar</Button></div>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={openSettingsModal} onOpenChange={setOpenSettingsModal}>
         <DialogContent className="flex h-[calc(100dvh-2rem)] max-h-[calc(100dvh-2rem)] flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-[550px]">
           <DialogHeader className="shrink-0 px-6 pt-6">

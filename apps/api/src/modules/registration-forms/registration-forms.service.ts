@@ -83,6 +83,7 @@ export class RegistrationFormsService {
     }
 
     const fields = purpose === 'MAIN' ? await this.mainRegistrationFields(eventId, data.title) : (data.fields || []);
+    if (data.status === 'PUBLISHED') throw new BadRequestException('Configura y enlaza la campaña de bienvenida antes de publicar el formulario.');
     return this.prisma.registrationForm.create({
       data: {
         mainEventId: eventId,
@@ -132,6 +133,10 @@ export class RegistrationFormsService {
     if (clean.closesAt instanceof Date && Number.isNaN(clean.closesAt.getTime())) throw new BadRequestException('La fecha de cierre no es válida');
     if (clean.opensAt instanceof Date && clean.closesAt instanceof Date && clean.opensAt >= clean.closesAt) {
       throw new BadRequestException('La fecha de cierre debe ser posterior a la fecha de apertura');
+    }
+    if (clean.status === 'PUBLISHED') {
+      const linkedCampaign = await this.prisma.marketingAutomation.count({ where: { registrationFormId: id, trigger: 'REGISTRATION_SUBMITTED', status: 'ACTIVE', steps: { some: {} } } });
+      if (!linkedCampaign) throw new BadRequestException('Antes de publicar enlaza una campaña activa de bienvenida con al menos un correo.');
     }
 
     return this.prisma.$transaction(async (tx) => {

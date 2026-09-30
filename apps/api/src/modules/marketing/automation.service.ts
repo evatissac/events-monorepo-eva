@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from '../../database/prisma.service.js';
 import { MailService } from '../mail/mail.service.js';
 import { blocksToHtml, interpolate } from './email-renderer.js';
@@ -28,9 +28,10 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
     return this.prisma.marketingAutomation.create({ data: { organizationId, eventId: data.eventId || form?.mainEventId || null, registrationFormId: data.registrationFormId || null, trigger: data.trigger || 'REGISTRATION_SUBMITTED', name: data.name, status: data.status || 'DRAFT', settings: data.settings || null, steps: { create: this.steps(data.steps) } }, include: { steps: { orderBy: { position: 'asc' }, include: { template: true } }, event: true, registrationForm: true } });
   }
 
-  async update(id: string, data: any) {
+  async update(id: string, data: any, actor?: { accountId?: string; role?: string }) {
     const current = await this.prisma.marketingAutomation.findUnique({ where: { id }, include: { steps: true } });
     if (!current) throw new NotFoundException('Automatización no encontrada');
+    await this.assertManager(current.organizationId, actor);
     if (data.eventId) await this.assertEvent(current.organizationId, data.eventId);
     const form = data.registrationFormId ? await this.assertForm(current.organizationId, data.registrationFormId) : null;
     if (form && data.eventId && form.mainEventId !== data.eventId) throw new BadRequestException('El formulario no pertenece al evento seleccionado');
@@ -40,6 +41,20 @@ export class AutomationService implements OnModuleInit, OnModuleDestroy {
       if (Array.isArray(data.steps)) await tx.marketingAutomationStep.deleteMany({ where: { automationId: id } });
       return tx.marketingAutomation.update({ where: { id }, data: { name: data.name, status: data.status, eventId: data.eventId === undefined ? undefined : (data.eventId || form?.mainEventId || null), registrationFormId: data.registrationFormId === undefined ? undefined : (data.registrationFormId || null), trigger: data.trigger, settings: data.settings, ...(Array.isArray(data.steps) ? { steps: { create: this.steps(data.steps) } } : {}) }, include: { steps: { orderBy: { position: 'asc' }, include: { template: true } }, registrationForm: true } });
     });
+  }
+
+  async remove(id: string, actor: { accountId?: string; role?: string }) {
+    const automation = await this.prisma.marketingAutomation.findUnique({ where: { id }, select: { id: true, organizationId: true } });
+    if (!automation) throw new NotFoundException('Automatización no encontrada');
+    await this.assertManager(automation.organizationId, actor);
+    await this.prisma.marketingAutomation.delete({ where: { id } });
+    return { id, deleted: true };
+  }
+
+  private async assertManager(organizationId: string, actor?: { accountId?: string; role?: string }) {
+    if (['SUPER_ADMIN', 'SAAS_ADMIN'].includes(actor?.role || '')) return;
+    const membership = actor?.accountId ? await this.prisma.organizationMember.findFirst({ where: { organizationId, accountId: actor.accountId, role: { in: ['OWNER', 'ADMIN'] } } }) : null;
+    if (!membership) throw new ForbiddenException('Solo un administrador de esta institución puede gestionar la automatización.');
   }
 
   /** Configura la bienvenida de un formulario sin duplicar la plantilla. */

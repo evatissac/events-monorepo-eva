@@ -266,6 +266,7 @@ export const api = {
     createAutomation: (organizationId: string, data: any) => apiFetch<any>(`/organizations/${organizationId}/marketing/automations`, { method: "POST", body: JSON.stringify(data) }),
     listAutomations: (organizationId: string) => apiFetch<any[]>(`/organizations/${organizationId}/marketing/automations`),
     updateAutomation: (id: string, data: any) => apiFetch<any>(`/marketing/automations/${id}`, { method: "PATCH", body: JSON.stringify(data) }),
+    removeAutomation: (id: string) => apiFetch<any>(`/marketing/automations/${id}`, { method: "DELETE" }),
     queueAutomation: (id: string) => apiFetch<{ queued: number }>(`/marketing/automations/${id}/queue`, { method: "POST" }),
     enrollExisting: (id: string) => apiFetch<{ enrolled: number; scanned: number }>(`/marketing/automations/${id}/enroll-existing`, { method: "POST" }),
     dispatchDue: (limit = 100) => apiFetch<any>(`/marketing/deliveries/dispatch?limit=${limit}`, { method: "POST" }),

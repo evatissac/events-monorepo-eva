@@ -20,6 +20,8 @@ try {
 const activeEdition = eventDetail?.editions?.find((edition: any) => edition.isCurrent) || eventDetail?.editions?.[0];
 const eventDate = activeEdition?.startDate ? new Date(activeEdition.startDate) : (event?.startDate ? new Date(event.startDate) : (form.edition?.startDate ? new Date(form.edition.startDate) : null));
 const message = form.thankYouMessage || 'Tu inscripción fue recibida correctamente. Te enviaremos los detalles al correo registrado.';
+// Conserva el diseño: el CTA sólo existe cuando el evento tiene una comunidad configurada.
+const whatsappCommunityUrl = String(event?.whatsappCommunityUrl || form?.mainEvent?.whatsappCommunityUrl || '').trim();
 ---
 
 <PortalLayout organization={listing.organization} title={`Inscripción confirmada · ${form.title}`} bare>
@@ -35,7 +37,7 @@ const message = form.thankYouMessage || 'Tu inscripción fue recibida correctame
         <div class="event-summary-item"><span class="event-icon">◷</span><div><strong>{eventDate ? eventDate.toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) : 'Hora por confirmar'}</strong><small>Hora Perú</small></div></div>
       </div>
       <a class="back" href={`/${institution}/events/${eventId || form.mainEventId}`}>Volver al evento</a>
-      {event?.whatsappCommunityUrl && <a class="whatsapp" href={event.whatsappCommunityUrl} target="_blank" rel="noreferrer">Unirme a la comunidad de WhatsApp</a>}
+      {whatsappCommunityUrl && <a class="whatsapp" href={whatsappCommunityUrl} target="_blank" rel="noreferrer">Unirme a la comunidad de WhatsApp</a>}
     </section>
     <footer class="success-footer"><img src="/medmind/logo_medmind.svg" alt="MedMind" /><span>© {new Date().getFullYear()} MedMind</span></footer>
   </main>
