@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { useNavigate, useParams, useSearchParams } from "react-router-dom"
 import {
   ArrowLeft,
   Edit2,
@@ -26,6 +26,7 @@ import { OrgEmailSettingsModal } from "./OrgEmailSettingsModal"
 export function TemplateConfigPage() {
   const { templateId } = useParams<{ templateId: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { selectedOrganization, user } = useAuthStore()
 
   const isNew = !templateId || templateId === "new"
@@ -33,6 +34,7 @@ export function TemplateConfigPage() {
   const [loading, setLoading] = useState(!isNew)
   const [saving, setSaving] = useState(false)
   const [testing, setTesting] = useState(false)
+  const [isCampaignCopy, setIsCampaignCopy] = useState(searchParams.get("scope") === "campaigns")
 
   // Template Data
   const [name, setName] = useState("Nueva plantilla")
@@ -51,6 +53,13 @@ export function TemplateConfigPage() {
 
   // Modal Gallery
   const [openPicker, setOpenPicker] = useState(false)
+
+  const getBackUrl = () => {
+    if (searchParams.get("scope") === "campaigns" || isCampaignCopy) {
+      return "/dashboard/templates?scope=campaigns"
+    }
+    return "/dashboard/templates?scope=library"
+  }
 
   useEffect(() => {
     if (selectedOrganization?.id) {
@@ -80,6 +89,8 @@ export function TemplateConfigPage() {
     try {
       setLoading(true)
       const data = await api.emailTemplates.get(id)
+      const isCopy = Boolean(data.sourceTemplateId) || (Array.isArray(data.tags) && data.tags.includes("campaign-copy")) || searchParams.get("scope") === "campaigns"
+      setIsCampaignCopy(isCopy)
       setName(data.name || "Plantilla")
       setStatus(data.status || "INACTIVE")
       setSenderEmail(data.senderEmail || "")
@@ -100,12 +111,16 @@ export function TemplateConfigPage() {
     if (!name.trim()) {
       return toast.error("El nombre de la plantilla es obligatorio.")
     }
+    if (isNew && !orgSettings?.configured && !orgSettings?.deliveryReady) {
+      setOpenSettingsModal(true)
+      return toast.error("Primero debes configurar las credenciales de correo (Resend) de la institución.")
+    }
     if (status === "ACTIVE" && !orgSettings?.deliveryReady) {
       setOpenSettingsModal(true)
       return toast.error("Configura y prueba las credenciales institucionales antes de activar una plantilla.")
     }
     if (!senderEmail.trim()) {
-      return toast.error("Selecciona un email remitente autorizado.")
+      return toast.error("Selecciona o escribe un email remitente autorizado.")
     }
 
     try {
@@ -132,10 +147,12 @@ export function TemplateConfigPage() {
         toast.success("Plantilla guardada correctamente.")
       }
 
+      const targetScope = isCampaignCopy || searchParams.get("scope") === "campaigns" ? "campaigns" : "library"
+
       if (redirectAndDesign && savedId) {
-        navigate(`/dashboard/templates/${savedId}/builder`)
+        navigate(`/dashboard/templates/${savedId}/builder?scope=${targetScope}`)
       } else if (isNew && savedId) {
-        navigate(`/dashboard/templates/${savedId}/edit`, { replace: true })
+        navigate(`/dashboard/templates/${savedId}/edit?scope=${targetScope}`, { replace: true })
       }
     } catch (err: any) {
       toast.error(err?.message || "Error al guardar la plantilla.")
@@ -170,8 +187,8 @@ export function TemplateConfigPage() {
         {/* Left: Back + Template Name + Status Badge */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/dashboard/templates")}
-            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            onClick={() => navigate(getBackUrl())}
+            className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
           >
             <ArrowLeft className="size-5" />
           </button>
@@ -225,10 +242,10 @@ export function TemplateConfigPage() {
               if (isNew) {
                 toast.info("Guarda primero la plantilla para ver la vista previa en vivo.")
               } else {
-                navigate(`/dashboard/templates/${templateId}/builder`)
+                navigate(`/dashboard/templates/${templateId}/builder?scope=${isCampaignCopy || searchParams.get("scope") === "campaigns" ? "campaigns" : "library"}`)
               }
             }}
-            className="rounded-xl h-10 px-4 font-semibold text-xs border-border flex items-center gap-2"
+            className="rounded-xl h-10 px-4 font-semibold text-xs border-border flex items-center gap-2 cursor-pointer"
           >
             <Eye className="size-4 text-muted-foreground" />
             <span>Vista previa y prueba</span>
@@ -326,12 +343,12 @@ export function TemplateConfigPage() {
                 Email de remitente <span className="text-rose-500">*</span>
                 <HelpCircle className="size-3.5 text-muted-foreground cursor-pointer" />
               </span>
-              <span className="text-[10px] text-muted-foreground">Heredado del dominio institucional</span>
+              <span className="text-[10px] text-muted-foreground">Heredado del dominio institucional o editable</span>
             </label>
             <Input
               value={senderEmail}
-              readOnly
-              placeholder=""
+              onChange={(e) => setSenderEmail(e.target.value)}
+              placeholder="ejemplo@tudominio.com"
               className="h-11 rounded-xl bg-background border-border text-xs px-4"
             />
 
