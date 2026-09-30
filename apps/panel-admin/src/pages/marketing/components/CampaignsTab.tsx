@@ -23,8 +23,10 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { toast } from "sonner"
 import type { Campaign } from "../types"
+import { Skeleton } from "@/components/ui/skeleton"
 
 interface CampaignsTabProps {
+  loading?: boolean
   campaigns: Campaign[]
   onOpenCreateCampaign: () => void
   onOpenReport: (campaign: Campaign) => void
@@ -34,6 +36,7 @@ interface CampaignsTabProps {
 }
 
 export function CampaignsTab({
+  loading = false,
   campaigns,
   onOpenCreateCampaign,
   onOpenReport,
@@ -71,6 +74,7 @@ export function CampaignsTab({
 
   return (
     <div className="space-y-5">
+      {loading ? <div className="space-y-4"><Skeleton className="h-10 w-full" />{Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-24 rounded-xl" />)}</div> : <>
       {/* Top Filter pills & Search bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         {/* Status Filters */}
@@ -304,6 +308,7 @@ export function CampaignsTab({
           })}
         </div>
       )}
+      </>}
     </div>
   )
 }

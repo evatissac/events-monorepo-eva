@@ -232,7 +232,7 @@ export function EmailTemplateBuilderPage() {
 
   const getBackUrl = () => {
     if (campaignId) {
-      return `/dashboard/marketing/campaigns/${campaignId}/settings`
+      return `/dashboard/campaigns/${campaignId}/settings`
     }
     if (builderSearchParams.get("scope") === "campaigns" || isCampaignCopy) {
       return "/dashboard/templates?scope=campaigns"
@@ -354,12 +354,12 @@ export function EmailTemplateBuilderPage() {
         // Las plantillas antiguas no tenían etiquetas; el control siguiente también
         // evita abrir por accidente una base desde el flujo de campañas.
         toast.error("No se pudo verificar la copia privada de la campaña.")
-        navigate(`/dashboard/marketing/campaigns/${campaignId}/settings`)
+        navigate(`/dashboard/campaigns/${campaignId}/settings`)
         return
       }
       if (campaignId && !data.tags.includes(`campaign:${campaignId}`)) {
         toast.error("Esta es una plantilla base. Abre la copia privada desde la campaña.")
-        navigate(`/dashboard/marketing/campaigns/${campaignId}/settings`)
+        navigate(`/dashboard/campaigns/${campaignId}/settings`)
         return
       }
       setTemplateName(data.name || "Plantilla")

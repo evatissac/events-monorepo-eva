@@ -65,6 +65,7 @@ import {
   EmailTemplateBuilderPage,
 } from "@/pages/templates"
 import { MarketingPage } from "@/pages/marketing"
+import { AutomationStudioPage } from "@/pages/marketing/AutomationStudioPage"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -163,10 +164,13 @@ export function AppRouter() {
           <Route path="templates" element={<TemplatesListPage />} />
           <Route path="templates/new" element={<TemplateConfigPage />} />
           <Route path="templates/:templateId/edit" element={<TemplateConfigPage />} />
-          <Route path="marketing" element={<Navigate to="/dashboard/marketing/campaigns" replace />} />
-          <Route path="marketing/campaigns/:campaignId/settings" element={<MarketingPage />} />
-          <Route path="marketing/campaigns/:campaignId/report" element={<MarketingPage />} />
-          <Route path="marketing/:section" element={<MarketingPage />} />
+          <Route path="marketing" element={<Navigate to="/dashboard/campaigns" replace />} />
+          <Route path="marketing/:section" element={<Navigate to="/dashboard/campaigns" replace />} />
+          <Route path="campaigns" element={<MarketingPage />} />
+          <Route path="campaigns/:section" element={<MarketingPage />} />
+          <Route path="campaigns/:campaignId/settings" element={<MarketingPage />} />
+          <Route path="campaigns/:campaignId/report" element={<MarketingPage />} />
+          <Route path="automations" element={<MarketingPage />} />
 
           {/* Registered Profiles Catalog */}
           <Route path="profiles" element={<ProfilesPage />} />
@@ -188,6 +192,14 @@ export function AppRouter() {
         </Route>
 
         {/* Standalone Pages (WITHOUT Sidebar/Navbar Layout) */}
+        <Route
+          path="/dashboard/automations/new"
+          element={<AuthGuard requireSelectedOrganization={true}><AutomationStudioPage /></AuthGuard>}
+        />
+        <Route
+          path="/dashboard/automations/:automationId/edit"
+          element={<AuthGuard requireSelectedOrganization={true}><AutomationStudioPage /></AuthGuard>}
+        />
         <Route
           path="/dashboard/events/new"
           element={
