@@ -45,6 +45,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/api/client"
+import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -53,6 +54,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import {
   EMAIL_SECTIONS,
   EMAIL_SECTION_CATEGORIES,
@@ -189,6 +200,7 @@ function VariablePicker({ onInsert, detectedVariables, variables }: { onInsert: 
 
 export function EmailTemplateBuilderPage() {
   const { templateId } = useParams<{ templateId: string }>()
+  const { selectedOrganization } = useAuthStore()
   const navigate = useNavigate()
   const [builderSearchParams] = useSearchParams()
   const associatedEventId = builderSearchParams.get("eventId")
@@ -213,7 +225,15 @@ export function EmailTemplateBuilderPage() {
 
   // Left Sidebar Mode: "content" (blocks/sections) | "style" (theme)
   const [sidebarMode, setSidebarMode] = useState<"content" | "style">("content")
-  const [contentTab, setContentTab] = useState<"blocks" | "sections">("sections")
+  const [contentTab, setContentTab] = useState<"blocks" | "sections" | "saved">("sections")
+  const [savedSections, setSavedSections] = useState<any[]>([])
+  const [sectionDialogOpen, setSectionDialogOpen] = useState(false)
+  const [editingSection, setEditingSection] = useState<any | null>(null)
+  const [sectionName, setSectionName] = useState("")
+  const [sectionCategoryDraft, setSectionCategoryDraft] = useState("CUSTOM")
+  const [sectionDescription, setSectionDescription] = useState("")
+  const [replaceSectionContent, setReplaceSectionContent] = useState(false)
+  const [sectionToDelete, setSectionToDelete] = useState<any | null>(null)
 
   // Sections search and category filters
   const [sectionCategory, setSectionCategory] = useState<string>("all")
@@ -292,6 +312,11 @@ export function EmailTemplateBuilderPage() {
     if (!templateId) return
     loadTemplate()
   }, [templateId])
+
+  useEffect(() => {
+    if (!selectedOrganization?.id) return
+    void api.emailTemplates.sections(selectedOrganization.id).then(setSavedSections).catch(() => setSavedSections([]))
+  }, [selectedOrganization?.id])
 
   useEffect(() => {
     api.marketing.variables().then((items) => {
@@ -503,6 +528,48 @@ export function EmailTemplateBuilderPage() {
     }
     recordHistory(updated)
     toast.success(`Sección "${section.name}" añadida (${newBlocks.length} bloques)`)
+  }
+
+  const addSavedSection = (section: any) => {
+    const savedBlocks = (Array.isArray(section.content) ? section.content : []).map((block: any) => ({ ...block, id: crypto.randomUUID(), options: JSON.parse(JSON.stringify(block.options || {})) }))
+    const updated = [...blocks, ...savedBlocks]
+    setBlocks(updated); recordHistory(updated); setSelectedBlockId(savedBlocks[0]?.id || null)
+    toast.success(`Sección "${section.name}" añadida`)
+  }
+
+  const openCreateSection = () => {
+    if (!selectedOrganization?.id) return toast.error("Selecciona una organización antes de guardar.")
+    if (!blocks.length) return toast.error("Agrega al menos un bloque antes de guardar.")
+    setEditingSection(null); setSectionName(""); setSectionCategoryDraft("CUSTOM"); setSectionDescription(""); setReplaceSectionContent(true); setSectionDialogOpen(true)
+  }
+
+  const openEditSection = (section: any) => {
+    setEditingSection(section); setSectionName(section.name || ""); setSectionCategoryDraft(section.category || "CUSTOM"); setSectionDescription(section.description || ""); setReplaceSectionContent(false); setSectionDialogOpen(true)
+  }
+
+  const saveSection = async () => {
+    if (!selectedOrganization?.id) return toast.error("Selecciona una organización antes de guardar.")
+    const name = sectionName.trim()
+    if (!name) return toast.error("Indica un nombre para la sección.")
+    const content = editingSection && !replaceSectionContent ? editingSection.content : blocks
+    if (!Array.isArray(content) || !content.length) return toast.error("La sección necesita al menos un bloque.")
+    try {
+      const data = { name, category: sectionCategoryDraft, description: sectionDescription, content }
+      const section = editingSection
+        ? await api.emailTemplates.updateSection(selectedOrganization.id, editingSection.id, data)
+        : await api.emailTemplates.createSection(selectedOrganization.id, data)
+      setSavedSections((current) => editingSection ? current.map((item) => item.id === section.id ? section : item) : [section, ...current])
+      setSectionDialogOpen(false); toast.success(editingSection ? "Sección actualizada." : "Sección guardada para esta organización.")
+    } catch (error: any) { toast.error(error?.message || "No se pudo guardar la sección.") }
+  }
+
+  const deleteSavedSection = async () => {
+    if (!selectedOrganization?.id || !sectionToDelete) return
+    try {
+      await api.emailTemplates.removeSection(selectedOrganization.id, sectionToDelete.id)
+      setSavedSections((current) => current.filter((item) => item.id !== sectionToDelete.id))
+      setSectionToDelete(null); toast.success("Sección eliminada.")
+    } catch (error: any) { toast.error(error?.message || "No se pudo eliminar la sección.") }
   }
 
   const showDragInstruction = () => {
@@ -1237,7 +1304,7 @@ export function EmailTemplateBuilderPage() {
             /* Subtabs: Bloques y Secciones Reutilizables */
             <div className="flex flex-col h-full overflow-hidden">
               {/* Subtabs Header */}
-              <div className="grid grid-cols-2 border-b border-border/80 text-center text-xs font-semibold bg-slate-50 dark:bg-zinc-800/40 shrink-0">
+              <div className="grid grid-cols-3 border-b border-border/80 text-center text-xs font-semibold bg-slate-50 dark:bg-zinc-800/40 shrink-0">
                 <button
                   type="button"
                   onClick={() => setContentTab("blocks")}
@@ -1258,9 +1325,31 @@ export function EmailTemplateBuilderPage() {
                 >
                   <span>Secciones</span>
                 </button>
+                <button type="button" onClick={() => setContentTab("saved")} className={`py-3 border-b-2 transition-all flex items-center justify-center cursor-pointer ${contentTab === "saved" ? "border-violet-600 text-violet-600 dark:text-violet-400 font-bold bg-white dark:bg-zinc-900" : "border-transparent text-muted-foreground hover:text-foreground"}`}>
+                  <span>Guardadas</span>
+                </button>
               </div>
 
-              {contentTab === "sections" ? (
+              {contentTab === "saved" ? (
+                <div className="flex flex-1 flex-col overflow-hidden p-3">
+                  <Button type="button" onClick={openCreateSection} className="mb-3 h-9 text-xs"><Save className="mr-1.5 size-3.5" />Guardar diseño actual</Button>
+                  <p className="mb-3 text-[11px] text-muted-foreground">Guarda los bloques actuales como una sección reutilizable solo para esta organización.</p>
+                  <div className="flex-1 space-y-2 overflow-y-auto">
+                    {savedSections.length === 0 ? <div className="rounded-xl border border-dashed p-5 text-center text-xs text-muted-foreground">Aún no tienes secciones guardadas.</div> : savedSections.map((section) => (
+                      <div key={section.id} className="rounded-xl border border-border p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0"><p className="truncate text-xs font-semibold">{section.name}</p><p className="text-[10px] text-muted-foreground">{Array.isArray(section.content) ? section.content.length : 0} bloques · {section.category || "CUSTOM"}</p></div>
+                          <button type="button" onClick={() => openEditSection(section)} className="shrink-0 px-1 text-[11px] font-medium text-primary hover:underline">Editar</button>
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <Button type="button" variant="outline" size="sm" onClick={() => addSavedSection(section)} className="h-7 flex-1 text-[11px]">Añadir al correo</Button>
+                          <Button type="button" variant="ghost" size="icon" onClick={() => setSectionToDelete(section)} className="size-7 shrink-0 text-rose-500 hover:bg-rose-50 hover:text-rose-600" title="Eliminar sección"><Trash2 className="size-3.5" /></Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : contentTab === "sections" ? (
                 /* SECCIONES PRE-DISEÑADAS (HubSpot, WorkAngel, Universe, Hello There, Cabeceras) */
                 <div className="flex flex-col h-full overflow-hidden">
                   {/* Search and Category Filters */}
@@ -1721,6 +1810,57 @@ export function EmailTemplateBuilderPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={sectionDialogOpen} onOpenChange={setSectionDialogOpen}>
+        <DialogContent className="sm:max-w-[460px] rounded-2xl">
+          <DialogHeader>
+            <DialogTitle>{editingSection ? "Editar sección guardada" : "Guardar sección"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Nombre</label>
+              <Input value={sectionName} onChange={(event) => setSectionName(event.target.value)} placeholder="Ej. Cabecera de bienvenida" autoFocus />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Categoría</label>
+              <select value={sectionCategoryDraft} onChange={(event) => setSectionCategoryDraft(event.target.value)} className="flex h-10 w-full rounded-md border border-input bg-background px-3 text-sm">
+                <option value="CUSTOM">Personalizada</option>
+                <option value="HEADER">Cabecera</option>
+                <option value="CONTENT">Contenido</option>
+                <option value="CTA">Llamada a la acción</option>
+                <option value="FOOTER">Pie de correo</option>
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold">Descripción <span className="font-normal text-muted-foreground">(opcional)</span></label>
+              <textarea value={sectionDescription} onChange={(event) => setSectionDescription(event.target.value)} placeholder="Describe cuándo usar esta sección" className="flex min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />
+            </div>
+            {editingSection && (
+              <label className="flex cursor-pointer items-start gap-2 rounded-lg border p-3 text-xs">
+                <input type="checkbox" checked={replaceSectionContent} onChange={(event) => setReplaceSectionContent(event.target.checked)} className="mt-0.5" />
+                <span><span className="font-semibold">Actualizar bloques desde el lienzo actual</span><br /><span className="text-muted-foreground">Actívalo después de añadir la sección al correo y editar sus bloques.</span></span>
+              </label>
+            )}
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" onClick={() => setSectionDialogOpen(false)}>Cancelar</Button>
+            <Button type="button" onClick={() => void saveSection()}>{editingSection ? "Guardar cambios" : "Guardar sección"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!sectionToDelete} onOpenChange={(open) => { if (!open) setSectionToDelete(null) }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta sección?</AlertDialogTitle>
+            <AlertDialogDescription>Se eliminará “{sectionToDelete?.name}” de las secciones guardadas. Los correos que ya la usan no se modificarán.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void deleteSavedSection()} className="bg-rose-600 hover:bg-rose-700">Eliminar sección</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

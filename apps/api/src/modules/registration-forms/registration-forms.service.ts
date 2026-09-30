@@ -133,7 +133,6 @@ export class RegistrationFormsService {
     if (clean.opensAt instanceof Date && clean.closesAt instanceof Date && clean.opensAt >= clean.closesAt) {
       throw new BadRequestException('La fecha de cierre debe ser posterior a la fecha de apertura');
     }
-
     return this.prisma.$transaction(async (tx) => {
       if (Array.isArray(fields)) {
         await tx.registrationFormField.deleteMany({ where: { formId: id } });
