@@ -26,6 +26,39 @@ export class EventsService {
     return event;
   }
   remove(id: string) { return this.prisma.mainEvent.delete({ where: { id } }); }
+  async inheritSpeakers(targetEventId: string, sourceEventId: string, targetEditionId: string) {
+    if (targetEventId === sourceEventId) throw new NotFoundException('Selecciona un evento anterior distinto');
+    const [targetEvent, sourceEvent, targetEdition] = await Promise.all([
+      this.prisma.mainEvent.findUnique({ where: { id: targetEventId }, select: { id: true, organizationId: true } }),
+      this.prisma.mainEvent.findUnique({ where: { id: sourceEventId }, select: { id: true, organizationId: true } }),
+      this.prisma.edition.findFirst({ where: { id: targetEditionId, mainEventId: targetEventId }, select: { id: true } }),
+    ]);
+    if (!targetEvent || !sourceEvent || !targetEdition) throw new NotFoundException('Evento o edición no encontrados');
+    if (!targetEvent.organizationId || targetEvent.organizationId !== sourceEvent.organizationId) throw new NotFoundException('El evento de origen debe pertenecer a la misma institución');
+    const people = await this.prisma.eventParticipant.findMany({
+      where: { edition: { mainEventId: sourceEventId }, role: { isNot: null } },
+      include: { role: true },
+    });
+    const speakers = people.filter((person) => /^(speaker(?:_mg)?|ponente(?:_mg)?)$/i.test(person.role?.name.trim() || ''));
+    const roles = new Map<string, string>();
+    await this.prisma.$transaction(async (tx) => {
+      for (const person of speakers) {
+        const roleName = person.role!.name;
+        let role = roles.get(roleName);
+        if (!role) {
+          const existing = await tx.participantRole.findFirst({ where: { mainEventId: targetEventId, editionId: null, name: roleName } });
+          role = existing?.id || (await tx.participantRole.create({ data: { mainEventId: targetEventId, name: roleName } })).id;
+          roles.set(roleName, role);
+        }
+        await tx.eventParticipant.upsert({
+          where: { editionId_profileId: { editionId: targetEditionId, profileId: person.profileId } },
+          update: { roleId: role },
+          create: { editionId: targetEditionId, profileId: person.profileId, roleId: role },
+        });
+      }
+    });
+    return { inherited: speakers.length };
+  }
   async attendeeExport(eventId: string) {
     const [allParticipants, submissions] = await Promise.all([
       this.prisma.eventParticipant.findMany({ where: { edition: { mainEventId: eventId } }, include: { profile: { include: { authUser: true } }, edition: true, role: true }, orderBy: { registeredAt: 'desc' } }),
@@ -40,7 +73,16 @@ export class EventsService {
     const exportRow = (submission: typeof submissions[number] | undefined, fallback: Record<string, unknown>) => {
       const attributes = submission?.answers && typeof submission.answers === 'object' ? submission.answers as Record<string, unknown> : {};
       const labels = Object.fromEntries((submission?.form.fields || []).map((field) => [field.key, field.label]));
-      return { ...fallback, attributes, attributeLabels: labels };
+      // Mantener los nombres usados por el panel y por la exportación. Antes el
+      // endpoint sólo entregaba `attributes`, por lo que el modal no tenía nada
+      // que renderizar aunque la inscripción sí estuviera guardada.
+      return {
+        ...fallback,
+        answers: attributes,
+        attributes,
+        attributeLabels: labels,
+        formFields: (submission?.form.fields || []).map((field) => ({ key: field.key, label: field.label })),
+      };
     };
     return [
       ...participants.map((participant) => {
@@ -67,21 +109,21 @@ export class EventsService {
   async getSetup(eventId: string) {
     const event = await this.prisma.mainEvent.findUnique({ where: { id: eventId }, select: { id: true, eventName: true, description: true, startDate: true, eventMode: true, contactEmail: true } });
     if (!event) throw new NotFoundException('Evento no encontrado');
-    const [editionCount, speakerCount, roleCount, contactCount] = await Promise.all([
+    const [editionCount, speakerCount, roleCount] = await Promise.all([
       this.prisma.edition.count({ where: { mainEventId: eventId } }),
       this.prisma.eventParticipant.count({ where: { edition: { mainEventId: eventId } } }),
       this.prisma.participantRole.count({ where: { mainEventId: eventId } }),
-      this.prisma.eventContact.count({ where: { eventId } }),
     ]);
     const computed = {
       basicInfoCompleted: Boolean(event.eventName?.trim() && event.startDate),
       rolesCompleted: roleCount > 0,
       editionCompleted: editionCount > 0,
       peopleCompleted: speakerCount > 0,
-      // Los contactos todavía no tienen una entidad propia; no bloquean el setup inicial.
-      contactCompleted: contactCount > 0,
+      // Los contactos se pueden añadir más adelante y no deben bloquear la
+      // creación ni la administración del evento.
+      contactCompleted: true,
     };
-    const completed = Object.values(computed).every(Boolean);
+    const completed = Boolean(computed.basicInfoCompleted && computed.rolesCompleted && computed.editionCompleted && computed.peopleCompleted);
     return this.prisma.eventSetupProgress.upsert({ where: { eventId }, create: { eventId, ...computed, completed }, update: { ...computed, completed } });
   }
   async updateSetup(eventId: string, data: Record<string, unknown>) {
@@ -91,12 +133,12 @@ export class EventsService {
     for (const key of allowed) if (data[key] !== undefined) input[key] = data[key];
     const current = await this.getSetup(eventId);
     const merged = { ...current, ...input };
-    input.completed = Boolean(merged.basicInfoCompleted && merged.rolesCompleted && merged.editionCompleted && merged.peopleCompleted && merged.contactCompleted);
+    input.completed = Boolean(merged.basicInfoCompleted && merged.rolesCompleted && merged.editionCompleted && merged.peopleCompleted);
     return this.prisma.eventSetupProgress.update({ where: { eventId }, data: input });
   }
   async completeSetup(eventId: string) {
     const progress = await this.getSetup(eventId);
-    if (!(progress.basicInfoCompleted && progress.rolesCompleted && progress.editionCompleted && progress.peopleCompleted && progress.contactCompleted)) {
+    if (!(progress.basicInfoCompleted && progress.rolesCompleted && progress.editionCompleted && progress.peopleCompleted)) {
       return this.updateSetup(eventId, {});
     }
     return this.prisma.eventSetupProgress.update({ where: { eventId }, data: { completed: true } });

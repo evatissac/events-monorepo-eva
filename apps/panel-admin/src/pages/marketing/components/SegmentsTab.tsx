@@ -15,7 +15,7 @@ interface SegmentsTabProps {
   segments: Segment[]
   events: any[]
   onCreateSegment: (segment: { name: string; description?: string; eventId?: string; audience?: "PARTICIPANTS" | "SPEAKERS" }) => void | Promise<void>
-  onDeleteSegment: (id: string) => void
+  onDeleteSegment: (id: string) => void | Promise<void>
 }
 
 export function SegmentsTab({
@@ -82,7 +82,7 @@ export function SegmentsTab({
                 </div>
 
                 <button
-                  onClick={() => onDeleteSegment(segment.id)}
+                  onClick={() => void onDeleteSegment(segment.id)}
                   className="p-1.5 text-muted-foreground hover:text-red-500 rounded-lg hover:bg-muted"
                   title="Eliminar segmento"
                 >
