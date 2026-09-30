@@ -236,10 +236,12 @@ export function MarketingPage() {
   const [segments, setSegments] = useState<Segment[]>([])
   const [marketingEvents, setMarketingEvents] = useState<any[]>([])
   const [marketingTemplates, setMarketingTemplates] = useState<any[]>([])
+  const [marketingLoading, setMarketingLoading] = useState(false)
 
   // Load from API if available
   const loadData = async () => {
     if (!organizationId) return
+    setMarketingLoading(true)
     // Nunca conservar datos de demostración: la API es la única fuente de verdad.
     setCampaigns([])
     setAutomations([])
@@ -272,23 +274,10 @@ export function MarketingPage() {
       }
       if (aRes.status === "fulfilled" && Array.isArray(aRes.value)) {
         setAutomations(aRes.value as any)
-        setCampaigns(aRes.value.map((automation: any, index: number) => ({
-          id: automation.id,
-          campaignNumber: index + 1,
-          name: automation.name,
-          subject: automation.steps?.[0]?.template?.subject || automation.steps?.[0]?.subject || "",
-          senderName: selectedOrganization?.name || "",
-          senderEmail: "",
-          status: automation.status === "ACTIVE" ? "SCHEDULED" : automation.status === "ARCHIVED" ? "ARCHIVED" : "DRAFT",
-          createdAt: automation.createdAt,
-          channel: "EMAIL",
-          segmentIds: [],
-          recipientCount: automation._count?.enrollments || 0,
-        })))
       }
     } catch {
       // Keep existing demo seed
-    }
+    } finally { setMarketingLoading(false) }
   }
 
   useEffect(() => {
@@ -612,7 +601,7 @@ export function MarketingPage() {
           )}
 
           {activeTab === "automations" && (
-            <WebinarCampaignsTab organizationId={organizationId!} automations={automations as any[]} events={marketingEvents} templates={marketingTemplates} onChanged={() => void loadData()} />
+            <WebinarCampaignsTab organizationId={organizationId!} automations={automations as any[]} events={marketingEvents} templates={marketingTemplates} loading={marketingLoading} onChanged={() => void loadData()} />
           )}
 
           {activeTab === "contacts" && (
