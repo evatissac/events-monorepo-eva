@@ -17,6 +17,7 @@ export class EventsController {
   @Get(':id/setup') setup(@Param('id') id: string) { return this.events.getSetup(id); }
   @Patch(':id/setup') updateSetup(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.events.updateSetup(id, body); }
   @Post(':id/setup/complete') completeSetup(@Param('id') id: string) { return this.events.completeSetup(id); }
+  @Post(':id/inherit-speakers') inheritSpeakers(@Param('id') id: string, @Body() body: { sourceEventId: string; targetEditionId: string }) { return this.events.inheritSpeakers(id, body.sourceEventId, body.targetEditionId); }
   @Get(':id') get(@Param('id') id: string) { return this.events.get(id); }
   @Post() create(@Body() dto: CreateEventDto) { return this.events.create(dto); }
   @Patch(':id') update(@Param('id') id: string, @Body() body: Record<string, unknown>) { return this.events.update(id, body); }

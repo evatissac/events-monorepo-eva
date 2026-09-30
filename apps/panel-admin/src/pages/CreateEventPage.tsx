@@ -10,11 +10,12 @@ import { PageHeader } from "@/components/page-header"
 import { CalendarDays } from "lucide-react"
 import { MediaUploader } from "@/components/MediaUploader"
 import { useSEO } from "@/hooks/use-seo"
+import { api } from "@/api/client"
 
 export function CreateEventPage() {
   const navigate = useNavigate()
   const { selectedOrganization } = useAuthStore()
-  const { addEvent, addEdition } = useEventStore()
+  const { addEvent, addEdition, events } = useEventStore()
 
   useSEO({
     title: "Crear Evento",
@@ -45,6 +46,8 @@ export function CreateEventPage() {
   const [editionIsCurrent, setEditionIsCurrent] = useState(true)
   const [editionLocation, setEditionLocation] = useState("")
   const [editionModality, setEditionModality] = useState("presencial")
+  const [editionCoverUrl, setEditionCoverUrl] = useState("")
+  const [inheritSpeakersFromEventId, setInheritSpeakersFromEventId] = useState("")
 
   const [isSubmitting, setIsSubmitting] = useState(false)
 
@@ -81,6 +84,10 @@ export function CreateEventPage() {
       toast.error(validation.error.issues[0].message)
       return
     }
+    if (inheritSpeakersFromEventId && (!createEdition || !editionName.trim())) {
+      toast.error("Para heredar ponentes, crea primero una edición inicial para el nuevo evento.")
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -112,17 +119,21 @@ export function CreateEventPage() {
 
       if (createEdition && editionName.trim()) {
         try {
-          await addEdition({
+          const createdEditionId = await addEdition({
             mainEventId: createdEventId,
             name: editionName.trim(),
             description: "",
-            coverUrl: "",
+            coverUrl: editionCoverUrl,
             startDate: editionStartDate ? new Date(editionStartDate).toISOString() : new Date().toISOString(),
             endDate: editionEndDate ? new Date(editionEndDate).toISOString() : "",
             isCurrent: editionIsCurrent,
             location: editionLocation.trim(),
             modality: editionModality,
           })
+          if (inheritSpeakersFromEventId && createdEditionId) {
+            const result = await api.events.inheritSpeakers(createdEventId, { sourceEventId: inheritSpeakersFromEventId, targetEditionId: createdEditionId })
+            toast.success(`${result.inherited} ponente${result.inherited === 1 ? "" : "s"} heredado${result.inherited === 1 ? "" : "s"}.`)
+          }
         } catch (editionErr) {
           console.error("Error creating initial edition:", editionErr)
           toast.warning("El evento fue creado, pero hubo un error al crear la primera edicion.")
@@ -228,6 +239,7 @@ export function CreateEventPage() {
                   variant="banner"
                   folder="events/temp"
                   identifier="cover"
+                  organizationId={selectedOrganization?.id}
                 />
               </div>
             </div>
@@ -248,6 +260,7 @@ export function CreateEventPage() {
                   variant="square"
                   folder="events/temp"
                   identifier="logo"
+                  organizationId={selectedOrganization?.id}
                 />
               </div>
             </div>
@@ -360,6 +373,11 @@ export function CreateEventPage() {
                 </div>
 
                 <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
+                  <div className="md:w-1/3 space-y-1"><label className="text-sm font-medium text-foreground">Portada de la edición</label><p className="text-xs text-muted-foreground">Opcional. Elige una imagen nueva o reutilízala desde la biblioteca.</p></div>
+                  <div className="md:w-2/3 max-w-md w-full"><MediaUploader value={editionCoverUrl} onChange={setEditionCoverUrl} variant="banner" folder="events/temp" identifier="edition-cover" organizationId={selectedOrganization?.id} /></div>
+                </div>
+
+                <div className="flex flex-col md:flex-row md:items-start justify-between p-6 gap-4 border-b border-border">
                   <div className="md:w-1/3 space-y-1">
                     <label className="text-sm font-medium text-foreground">Fechas de la Edicion</label>
                     <p className="text-xs text-muted-foreground">Cuando se lleva a cabo esta edicion.</p>
@@ -443,6 +461,15 @@ export function CreateEventPage() {
                 </div>
               </div>
             )}
+          </div>
+
+          <div className="border border-border rounded-xl bg-card p-6 shadow-sm">
+            <label className="text-sm font-medium text-foreground">Heredar ponentes de otro evento <span className="text-muted-foreground">(opcional)</span></label>
+            <p className="mt-1 text-xs text-muted-foreground">Copia los ponentes y sus roles speaker/speaker_mg a la primera edición creada arriba. No modifica el evento anterior.</p>
+            <select value={inheritSpeakersFromEventId} onChange={(event) => setInheritSpeakersFromEventId(event.target.value)} className="mt-3 h-10 w-full max-w-md rounded-md border border-input bg-background px-3 text-sm">
+              <option value="">No heredar ponentes</option>
+              {events.filter((event) => event.id !== "" && event.organizationId === selectedOrganization?.id).map((event) => <option key={event.id} value={event.id}>{event.name}</option>)}
+            </select>
           </div>
 
           {/* Form Action Footer */}
