@@ -54,9 +54,9 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
   }, [campaign.id, organizationId])
   const stats = report?.stats || { total: 0, sent: 0, delivered: 0, deliveredRate: 0, opens: 0, openRate: 0, clicks: 0, clickRate: 0, unsubscribes: 0, unsubscribeRate: 0, bounces: 0, complaints: 0, failed: 0 }
   const format = (date?: string | null) => date ? new Date(date).toLocaleString("es-PE", { dateStyle: "short", timeStyle: "short" }) : "—"
-  const recipientsLog: Array<{ email: string; name: string; status: string; opened: string; clicked: string; device: string; unsubscribed: boolean }> = (report?.recipients || []).map((item: any) => ({
+  const recipientsLog: Array<{ email: string; name?: string; status: string; opened: string; clicked: string; device: string; unsubscribed: boolean }> = (report?.recipients || []).map((item: any) => ({
     email: item.recipientEmail,
-    name: item.recipientName || "Sin nombre",
+    name: item.recipientName?.trim() || undefined,
     status: item.status === "DELIVERED" ? "Entregado" : item.status === "SENT" ? "Enviado" : item.status === "BOUNCED" ? "Rebotado" : item.status === "COMPLAINED" ? "Marcado como spam" : item.status === "FAILED" ? "Fallido" : item.status,
     opened: format(item.openedAt), clicked: item.clickCount ? `${item.clickCount} · ${format(item.clickedAt)}` : "—",
     device: (() => { const event = item.trackingEvents?.find((entry: any) => entry.type === "OPEN" || entry.type === "CLICK"); return event?.metadata?.userAgent || "—" })(),
@@ -68,7 +68,7 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
     anchor.href = url; anchor.download = `reporte-${campaign.name.replace(/[^a-z0-9]+/gi, "-").toLowerCase() || "campana"}.${extension}`; anchor.click(); URL.revokeObjectURL(url)
   }
   const handleExport = async (format: "csv" | "excel" | "pdf") => {
-    const rows = recipientsLog.map((row) => ({ Destinatario: row.name, Correo: row.email, Estado: row.status, "Primera apertura": row.opened, "Clics registrados": row.clicked, "Dispositivo / Cliente": row.device, "Canceló suscripción": row.unsubscribed ? "Sí" : "No" }))
+    const rows = recipientsLog.map((row) => ({ Destinatario: row.name || "", Correo: row.email, Estado: row.status, "Primera apertura": row.opened, "Clics registrados": row.clicked, "Dispositivo / Cliente": row.device, "Canceló suscripción": row.unsubscribed ? "Sí" : "No" }))
     if (format === "csv") {
       const headers = Object.keys(rows[0] || { Destinatario: "", Correo: "", Estado: "" })
       const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`
@@ -79,9 +79,19 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
       rows.forEach((row) => sheet.addRow(row)); sheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } }; sheet.getRow(1).fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF4F46E5" } }
       download(new Blob([await workbook.xlsx.writeBuffer()], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), "xlsx")
     } else {
-      const pdf = new jsPDF(); pdf.setFontSize(16); pdf.text(`Reporte: ${campaign.name}`, 14, 18); pdf.setFontSize(10)
-      pdf.text(`Entregados: ${stats.delivered}  Aperturas: ${stats.opens}  Clics: ${stats.clicks}  Bajas: ${stats.unsubscribes}`, 14, 27)
-      let y = 38; rows.forEach((row) => { if (y > 280) { pdf.addPage(); y = 18 }; pdf.text(`${row.Destinatario} · ${row.Correo} · ${row.Estado} · Aperturas: ${row["Primera apertura"]} · Clics: ${row["Clics registrados"]}`, 14, y, { maxWidth: 180 }); y += 9 })
+      const pdf = new jsPDF({ unit: "mm", format: "a4" })
+      const width = pdf.internal.pageSize.getWidth(); const margin = 14
+      pdf.setFillColor(31, 41, 55); pdf.rect(0, 0, width, 35, "F")
+      pdf.setTextColor(255, 255, 255); pdf.setFontSize(17); pdf.text("Informe de campaña", margin, 15)
+      pdf.setFontSize(10); pdf.text(campaign.name, margin, 23, { maxWidth: width - margin * 2 })
+      pdf.setFontSize(8); pdf.text(`Generado el ${new Date().toLocaleString("es-PE")}`, margin, 30)
+      pdf.setTextColor(31, 41, 55); pdf.setFontSize(11); pdf.text("Resumen de rendimiento", margin, 46)
+      const metrics = [["Enviados", stats.sent], ["Entregados", stats.delivered], ["Aperturas", stats.opens], ["Clics", stats.clicks], ["Bajas", stats.unsubscribes]]
+      const cardWidth = (width - margin * 2 - 8) / metrics.length
+      metrics.forEach(([label, value], index) => { const x = margin + index * (cardWidth + 2); pdf.setFillColor(245, 247, 250); pdf.roundedRect(x, 51, cardWidth, 20, 2, 2, "F"); pdf.setFontSize(8); pdf.setTextColor(100, 116, 139); pdf.text(String(label), x + 3, 58); pdf.setFontSize(14); pdf.setTextColor(31, 41, 55); pdf.text(String(value), x + 3, 66) })
+      let y = 83; pdf.setFillColor(79, 70, 229); pdf.rect(margin, y, width - margin * 2, 8, "F"); pdf.setTextColor(255, 255, 255); pdf.setFontSize(8); pdf.text("DESTINATARIO", margin + 3, y + 5); pdf.text("ESTADO", margin + 82, y + 5); pdf.text("APERTURA / CLICS", margin + 116, y + 5); y += 13
+      rows.forEach((row) => { const recipient = [row.Destinatario, row.Correo].filter(Boolean).join(" · "); const details = `Apertura: ${row["Primera apertura"]}  |  Clics: ${row["Clics registrados"]}`; const recipientLines = pdf.splitTextToSize(recipient, 64); const detailLines = pdf.splitTextToSize(details, 66); const height = Math.max(recipientLines.length, detailLines.length) * 4.5 + 5; if (y + height > 282) { pdf.addPage(); y = 18 }; pdf.setDrawColor(226, 232, 240); pdf.line(margin, y - 3, width - margin, y - 3); pdf.setTextColor(31, 41, 55); pdf.setFontSize(8); pdf.text(recipientLines, margin + 3, y); pdf.text(row.Estado, margin + 82, y); pdf.setTextColor(100, 116, 139); pdf.text(detailLines, margin + 116, y); y += height })
+      const pages = pdf.getNumberOfPages(); for (let page = 1; page <= pages; page++) { pdf.setPage(page); pdf.setTextColor(100, 116, 139); pdf.setFontSize(8); pdf.text(`Página ${page} de ${pages}`, width - margin, 290, { align: "right" }) }
       download(pdf.output("blob"), "pdf")
     }
     toast.success(`Reporte descargado en ${format.toUpperCase()}.`)
@@ -442,8 +452,8 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
                 {filteredLogs.map((row, idx) => (
                   <tr key={idx} className="hover:bg-muted/30 transition-colors">
                     <td className="p-3">
-                      <div className="font-bold text-foreground">{row.name}</div>
-                      <div className="text-[11px] text-muted-foreground">{row.email}</div>
+                      {row.name && <div className="font-bold text-foreground">{row.name}</div>}
+                      <div className={row.name ? "text-[11px] text-muted-foreground" : "text-foreground"}>{row.email}</div>
                     </td>
                     <td className="p-3">
                       <Badge className="bg-emerald-500/10 text-emerald-600 border-0 text-[10px] font-semibold">
@@ -481,8 +491,8 @@ export function CampaignReportView({ campaign, organizationId, onBack }: Campaig
               {filteredLogs.map((item, i) => (
                 <div key={i} className="flex items-center justify-between p-3 rounded-xl border border-border/60 bg-muted/20 text-xs">
                   <div>
-                    <span className="font-bold text-foreground block">{item.name}</span>
-                    <span className="text-muted-foreground text-[11px]">{item.email}</span>
+                    {item.name && <span className="font-bold text-foreground block">{item.name}</span>}
+                    <span className={item.name ? "text-muted-foreground text-[11px]" : "text-foreground"}>{item.email}</span>
                   </div>
                   <div className="text-right">
                     <span className="text-[11px] text-violet-600 dark:text-violet-400 font-semibold block">{item.device}</span>

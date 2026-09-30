@@ -16,8 +16,7 @@ import { CampaignsTab } from "./components/CampaignsTab"
 import { CampaignReportView } from "./components/CampaignReportView"
 import { CampaignSetupBuilder } from "./components/CampaignSetupBuilder"
 import { CreateEmailCampaignModal } from "./components/CreateEmailCampaignModal"
-import { AutomationsTab } from "./components/AutomationsTab"
-import { WebinarCampaignsTab } from "./components/WebinarCampaignsTab"
+import { AutomationsList } from "./components/AutomationsWorkspace"
 import { ContactsTab } from "./components/ContactsTab"
 import { SegmentsTab } from "./components/SegmentsTab"
 import { PageHeader } from "@/components/page-header"
@@ -599,7 +598,7 @@ export function MarketingPage() {
           )}
 
           {activeTab === "automations" && (
-            <WebinarCampaignsTab organizationId={organizationId!} automations={automations as any[]} events={marketingEvents} templates={marketingTemplates} loading={marketingLoading} onChanged={() => void loadData()} />
+            <AutomationsList organizationId={organizationId!} automations={automations as any[]} events={marketingEvents} templates={marketingTemplates} loading={marketingLoading} onChanged={() => void loadData()} />
           )}
 
           {activeTab === "contacts" && (marketingLoading ? <CampaignTabSkeleton /> : (

@@ -65,6 +65,7 @@ import {
   EmailTemplateBuilderPage,
 } from "@/pages/templates"
 import { MarketingPage } from "@/pages/marketing"
+import { AutomationStudioPage } from "@/pages/marketing/AutomationStudioPage"
 
 function HashHandler() {
   const navigate = useNavigate()
@@ -191,6 +192,14 @@ export function AppRouter() {
         </Route>
 
         {/* Standalone Pages (WITHOUT Sidebar/Navbar Layout) */}
+        <Route
+          path="/dashboard/automations/new"
+          element={<AuthGuard requireSelectedOrganization={true}><AutomationStudioPage /></AuthGuard>}
+        />
+        <Route
+          path="/dashboard/automations/:automationId/edit"
+          element={<AuthGuard requireSelectedOrganization={true}><AutomationStudioPage /></AuthGuard>}
+        />
         <Route
           path="/dashboard/events/new"
           element={
