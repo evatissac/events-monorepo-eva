@@ -25,7 +25,12 @@ export class EmailTrackingService {
       return `<a${before}href=${quote}${redirect}${quote}${after}>`;
     });
     const pixel = `<img src="${this.baseUrl}/email-tracking/open/${token}" width="1" height="1" alt="" style="display:block;border:0;outline:none" />`;
-    return /<\/body\s*>/i.test(tracked) ? tracked.replace(/<\/body\s*>/i, `${pixel}</body>`) : `${tracked}${pixel}`;
+    // Toda campaña debe ofrecer una baja funcional, aunque la plantilla no haya
+    // incluido manualmente la variable {{unsubscribe_url}}.
+    const footer = tracked.includes(unsubscribe)
+      ? ''
+      : `<div style="margin:32px 0 0;padding:16px 0 0;border-top:1px solid #e5e7eb;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:18px;color:#6b7280">Recibiste este correo porque te suscribiste a comunicaciones de esta institución.<br /><a href="${unsubscribe}" style="color:#4f46e5;text-decoration:underline">Cancelar suscripción</a></div>`;
+    return /<\/body\s*>/i.test(tracked) ? tracked.replace(/<\/body\s*>/i, `${footer}${pixel}</body>`) : `${tracked}${footer}${pixel}`;
   }
 
   async recordOpen(token: string, metadata: Record<string, unknown> = {}) {
