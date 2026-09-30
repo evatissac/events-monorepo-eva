@@ -16,6 +16,8 @@ import {
   Palette,
   Save,
   ChevronLeft,
+  ChevronDown,
+  Check,
   Play,
   Share2,
   Code2,
@@ -48,6 +50,12 @@ import { api } from "@/api/client"
 import { useAuthStore } from "@/store/auth.store"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import {
   Dialog,
   DialogContent,
@@ -211,6 +219,8 @@ export function EmailTemplateBuilderPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [lastSavedTime, setLastSavedTime] = useState<string>("Reciente")
+  const [saveMode, setSaveMode] = useState<"advance" | "exit">("advance")
+  const [isCampaignCopy, setIsCampaignCopy] = useState(builderSearchParams.get("scope") === "campaigns")
 
   // Template State
   const [templateName, setTemplateName] = useState("Nueva plantilla")
@@ -219,6 +229,16 @@ export function EmailTemplateBuilderPage() {
   const [senderEmail, setSenderEmail] = useState("")
   const [senderName, setSenderName] = useState("Organización")
   const [status, setStatus] = useState<"ACTIVE" | "INACTIVE" | "DRAFT">("DRAFT")
+
+  const getBackUrl = () => {
+    if (campaignId) {
+      return `/dashboard/marketing/campaigns/${campaignId}/settings`
+    }
+    if (builderSearchParams.get("scope") === "campaigns" || isCampaignCopy) {
+      return "/dashboard/templates?scope=campaigns"
+    }
+    return "/dashboard/templates?scope=library"
+  }
 
   // Canvas View Mode (Desktop vs Mobile)
   const [viewMode, setViewMode] = useState<"desktop" | "mobile">("desktop")
@@ -328,6 +348,8 @@ export function EmailTemplateBuilderPage() {
     try {
       setLoading(true)
       const data = await api.emailTemplates.get(templateId!)
+      const isCopy = Boolean(data.sourceTemplateId) || (Array.isArray(data.tags) && data.tags.includes("campaign-copy")) || builderSearchParams.get("scope") === "campaigns"
+      setIsCampaignCopy(isCopy)
       if (campaignId && !Array.isArray(data.tags)) {
         // Las plantillas antiguas no tenían etiquetas; el control siguiente también
         // evita abrir por accidente una base desde el flujo de campañas.
@@ -647,7 +669,7 @@ export function EmailTemplateBuilderPage() {
       toast.success("Diseño de email guardado correctamente.")
 
       if (exitAfter) {
-        navigate("/dashboard/templates")
+        navigate(getBackUrl())
       }
     } catch (err: any) {
       toast.error(err?.message || "Error al guardar el diseño.")
@@ -681,9 +703,9 @@ export function EmailTemplateBuilderPage() {
         {/* Left: Brand Icon + Editable Title */}
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/dashboard/templates")}
+            onClick={() => navigate(getBackUrl())}
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors mr-1 cursor-pointer"
-            title="Volver a plantillas"
+            title="Volver"
           >
             <ArrowLeft className="size-4" />
           </button>
@@ -746,7 +768,7 @@ export function EmailTemplateBuilderPage() {
           </div>
         </div>
 
-        {/* Right Actions: Preview and Save & Exit */}
+        {/* Right Actions: Preview and GitHub-style Split Save Button */}
         <div className="flex items-center gap-2.5">
           <Button
             variant="outline"
@@ -758,15 +780,76 @@ export function EmailTemplateBuilderPage() {
             <span>Vista previa y prueba</span>
           </Button>
 
-          <Button
-            size="sm"
-            onClick={() => handleSave(true)}
-            disabled={saving}
-            className="rounded-xl h-9 px-5 font-semibold text-xs bg-neutral-900 text-white hover:bg-neutral-800 dark:bg-primary dark:text-primary-foreground shadow-sm flex items-center gap-1.5 cursor-pointer"
-          >
-            <Save className="size-3.5" />
-            <span>{saving ? "Guardando..." : "Guardar y salir"}</span>
-          </Button>
+          {/* GitHub-style Split Button */}
+          <div className="inline-flex items-stretch rounded-xl shadow-xs border border-neutral-800 bg-neutral-900 text-white dark:bg-primary dark:text-primary-foreground dark:border-primary overflow-hidden">
+            <button
+              type="button"
+              onClick={() => handleSave(saveMode === "exit")}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-3.5 h-9 text-xs font-semibold hover:bg-neutral-800 dark:hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <Save className="size-3.5" />
+              <span>
+                {saving
+                  ? "Guardando..."
+                  : saveMode === "advance"
+                    ? "Guardar avance"
+                    : "Guardar y salir"}
+              </span>
+            </button>
+
+            <div className="w-[1px] bg-white/20 dark:bg-black/20 self-stretch my-1" />
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  disabled={saving}
+                  className="px-2 h-9 flex items-center justify-center hover:bg-neutral-800 dark:hover:bg-primary/90 transition-colors cursor-pointer disabled:opacity-50"
+                  title="Opciones de guardado"
+                >
+                  <ChevronDown className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 p-1.5 rounded-xl">
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSaveMode("advance")
+                    handleSave(false)
+                  }}
+                  className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer"
+                >
+                  <div className="size-4 mt-0.5 shrink-0 flex items-center justify-center">
+                    {saveMode === "advance" && <Check className="size-3.5 text-primary" />}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground">Guardar avance</p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Guarda los cambios actuales y continúa editando en el lienzo.
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+
+                <DropdownMenuItem
+                  onClick={() => {
+                    setSaveMode("exit")
+                    handleSave(true)
+                  }}
+                  className="flex items-start gap-2.5 p-2 rounded-lg cursor-pointer"
+                >
+                  <div className="size-4 mt-0.5 shrink-0 flex items-center justify-center">
+                    {saveMode === "exit" && <Check className="size-3.5 text-primary" />}
+                  </div>
+                  <div className="space-y-0.5">
+                    <p className="text-xs font-semibold text-foreground">Guardar y salir</p>
+                    <p className="text-[11px] text-muted-foreground leading-snug">
+                      Guarda el diseño y regresa a {isCampaignCopy ? "las copias de campaña" : "las plantillas base"}.
+                    </p>
+                  </div>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
